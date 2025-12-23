@@ -52,6 +52,32 @@ export interface TechnicalIndicators {
     avgVolume: number;
     volumeRatio: number;
   };
+  obv?: number;
+  vwap?: number;
+  fibonacci?: {
+    level0: number;
+    level236: number;
+    level382: number;
+    level500: number;
+    level618: number;
+    level786: number;
+    level100: number;
+  };
+  pivotPoints?: {
+    pivot: number;
+    r1: number;
+    r2: number;
+    r3: number;
+    s1: number;
+    s2: number;
+    s3: number;
+  };
+  supertrend?: {
+    value: number;
+    trend: string;
+    upperBand: number;
+    lowerBand: number;
+  };
 }
 
 export interface ScreenerCriteria {
@@ -80,6 +106,8 @@ export interface ScreenerResult extends StockData {
   indicators: TechnicalIndicators;
   score: number;
   signals: string[];
+  confluenceScore?: number;
+  patterns?: string[];
   riskReward?: {
     entryPrice: number;
     stopLoss: number;

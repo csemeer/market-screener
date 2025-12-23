@@ -44,14 +44,18 @@ class ScreenerService {
             }
           }
 
-          // Calculate score and signals
+          // Calculate enhanced score and signals with confluence
           const { score, signals } = this.calculateScoreAndSignals(quote, indicators, historicalData);
+          const confluenceScore = TechnicalAnalysis.calculateConfluence(historicalData, indicators);
+          const patterns = TechnicalAnalysis.detectCandlestickPatterns(historicalData);
 
           results.push({
             ...quote,
             indicators,
             score,
             signals,
+            confluenceScore,
+            patterns,
             riskReward: this.calculateRiskReward(quote.price, indicators)
           });
         } catch (error) {
@@ -138,50 +142,73 @@ class ScreenerService {
   }
 
   /**
-   * Detect momentum for intraday trading
+   * Detect momentum for intraday trading - Enhanced with confluence
    */
   private detectMomentum(symbol: string, data: OHLCV[]): IntradaySignal | null {
     if (data.length < 20) return null;
 
     const indicators = TechnicalAnalysis.calculateAllIndicators(data);
+    const confluenceScore = TechnicalAnalysis.calculateConfluence(data, indicators);
     const current = data[data.length - 1];
     const prices = data.map(d => d.close);
     const ema9 = TechnicalAnalysis.calculateEMA(prices, 9);
 
     if (!indicators.rsi || !ema9 || !indicators.volumeProfile) return null;
 
-    // Strong momentum conditions
+    // Enhanced momentum conditions with multiple confirmations
     const volumeBreakout = indicators.volumeProfile.volumeRatio > 1.5;
-    const bullishMomentum = current.close > ema9 && indicators.rsi > 50 && indicators.rsi < 70;
-    const bearishMomentum = current.close < ema9 && indicators.rsi < 50 && indicators.rsi > 30;
+    const strongVolume = indicators.volumeProfile.volumeRatio > 2.0;
+    const adxConfirm = indicators.adx && indicators.adx > 20;
+    const macdConfirm = indicators.macd && Math.abs(indicators.macd.histogram) > 0.2;
 
-    if (volumeBreakout && bullishMomentum) {
+    const bullishMomentum = current.close > ema9 && indicators.rsi > 50 && indicators.rsi < 75;
+    const bearishMomentum = current.close < ema9 && indicators.rsi < 50 && indicators.rsi > 25;
+
+    // Calculate strength based on multiple factors
+    let strength = 50;
+    if (volumeBreakout) strength += 15;
+    if (strongVolume) strength += 10;
+    if (adxConfirm) strength += 10;
+    if (macdConfirm) strength += 10;
+    if (confluenceScore > 70) strength += 5;
+
+    if (volumeBreakout && bullishMomentum && confluenceScore > 60) {
       const atr = indicators.atr || (current.high - current.low);
+      const patterns = TechnicalAnalysis.detectCandlestickPatterns(data);
+      const patternConfirm = patterns.some(p => p.includes('BULLISH') || p.includes('HAMMER'));
+
+      if (patternConfirm) strength += 5;
+
       return {
         type: 'MOMENTUM',
         symbol,
         signal: 'BUY',
-        strength: Math.min(95, 70 + (indicators.volumeProfile.volumeRatio * 10)),
+        strength: Math.min(99, strength),
         entry: current.close,
         stopLoss: current.close - (atr * 1.5),
-        target: current.close + (atr * 2.5),
+        target: current.close + (atr * 3),
         timeframe: '5m',
-        description: `Strong bullish momentum with volume breakout. RSI: ${indicators.rsi.toFixed(1)}, Volume Ratio: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`
+        description: `Strong bullish momentum (Confluence: ${confluenceScore.toFixed(0)}%). RSI: ${indicators.rsi.toFixed(1)}, ADX: ${indicators.adx?.toFixed(1) || 'N/A'}, Vol: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x${patternConfirm ? ', Pattern confirmed' : ''}`
       };
     }
 
-    if (volumeBreakout && bearishMomentum) {
+    if (volumeBreakout && bearishMomentum && confluenceScore > 60) {
       const atr = indicators.atr || (current.high - current.low);
+      const patterns = TechnicalAnalysis.detectCandlestickPatterns(data);
+      const patternConfirm = patterns.some(p => p.includes('BEARISH') || p.includes('SHOOTING'));
+
+      if (patternConfirm) strength += 5;
+
       return {
         type: 'MOMENTUM',
         symbol,
         signal: 'SELL',
-        strength: Math.min(95, 70 + (indicators.volumeProfile.volumeRatio * 10)),
+        strength: Math.min(99, strength),
         entry: current.close,
         stopLoss: current.close + (atr * 1.5),
-        target: current.close - (atr * 2.5),
+        target: current.close - (atr * 3),
         timeframe: '5m',
-        description: `Strong bearish momentum with volume breakout. RSI: ${indicators.rsi.toFixed(1)}, Volume Ratio: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`
+        description: `Strong bearish momentum (Confluence: ${confluenceScore.toFixed(0)}%). RSI: ${indicators.rsi.toFixed(1)}, ADX: ${indicators.adx?.toFixed(1) || 'N/A'}, Vol: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x${patternConfirm ? ', Pattern confirmed' : ''}`
       };
     }
 
