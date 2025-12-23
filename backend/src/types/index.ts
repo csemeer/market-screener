@@ -150,3 +150,82 @@ export interface RiskManagement {
   riskAmount: number;
   potentialLoss: number;
 }
+
+// ============= FUNDAMENTAL ANALYSIS TYPES =============
+
+export interface FundamentalData {
+  // Valuation Metrics
+  peRatio?: number;              // Price-to-Earnings
+  pbRatio?: number;              // Price-to-Book
+  psRatio?: number;              // Price-to-Sales
+  pegRatio?: number;             // PEG Ratio (P/E to Growth)
+  evToEbitda?: number;           // Enterprise Value to EBITDA
+  priceToFreeCashFlow?: number;  // Price to Free Cash Flow
+
+  // Profitability Metrics
+  grossMargin?: number;          // Gross Profit Margin %
+  operatingMargin?: number;      // Operating Profit Margin %
+  netMargin?: number;            // Net Profit Margin %
+  roe?: number;                  // Return on Equity %
+  roa?: number;                  // Return on Assets %
+  roic?: number;                 // Return on Invested Capital %
+
+  // Growth Metrics
+  revenueGrowth?: number;        // Revenue Growth % YoY
+  epsGrowth?: number;            // EPS Growth % YoY
+  revenueGrowthQuarterly?: number; // Quarterly Revenue Growth %
+  earningsGrowth?: number;       // Earnings Growth %
+
+  // Financial Health
+  debtToEquity?: number;         // Debt-to-Equity Ratio
+  currentRatio?: number;         // Current Assets / Current Liabilities
+  quickRatio?: number;           // Quick Assets / Current Liabilities
+  interestCoverage?: number;     // EBIT / Interest Expense
+
+  // Per Share Metrics
+  eps?: number;                  // Earnings Per Share
+  bookValuePerShare?: number;    // Book Value Per Share
+  freeCashFlowPerShare?: number; // Free Cash Flow Per Share
+
+  // Dividend Metrics
+  dividendYield?: number;        // Annual Dividend / Price %
+  payoutRatio?: number;          // Dividends / Earnings %
+  dividendGrowth?: number;       // Dividend Growth Rate %
+
+  // Other
+  beta?: number;                 // Stock volatility vs market
+  sharesOutstanding?: number;    // Total shares outstanding
+  floatShares?: number;          // Publicly traded shares
+  institutionalOwnership?: number; // % held by institutions
+}
+
+export interface FundamentalScore {
+  overall: number;               // 0-100 overall fundamental score
+  valuation: number;             // 0-100 valuation score
+  profitability: number;         // 0-100 profitability score
+  growth: number;                // 0-100 growth score
+  financialHealth: number;       // 0-100 financial health score
+  quality: 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C' | 'D' | 'F'; // Letter grade
+  category: 'VALUE' | 'GROWTH' | 'QUALITY' | 'DIVIDEND' | 'SPECULATIVE'; // Stock category
+}
+
+export interface ScreenerCriteriaWithFundamentals extends ScreenerCriteria {
+  fundamentalFilters?: {
+    peRatioMax?: number;
+    pbRatioMax?: number;
+    roeMin?: number;
+    debtToEquityMax?: number;
+    revenueGrowthMin?: number;
+    epsGrowthMin?: number;
+    dividendYieldMin?: number;
+    profitMarginMin?: number;
+    category?: ('VALUE' | 'GROWTH' | 'QUALITY' | 'DIVIDEND')[];
+  };
+}
+
+export interface EnhancedScreenerResult extends ScreenerResult {
+  fundamentals?: FundamentalData;
+  fundamentalScore?: FundamentalScore;
+  combinedScore?: number;        // Technical (60%) + Fundamental (40%)
+  recommendation?: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+}
