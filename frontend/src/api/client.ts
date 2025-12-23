@@ -59,3 +59,28 @@ export const stockAPI = {
   getStockList: (exchange: string) =>
     api.get(`/stocks/list/${exchange}`),
 };
+
+export const csvAPI = {
+  uploadCSV: (file: File, criteria?: ScreenerCriteria) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (criteria) {
+      formData.append('criteria', JSON.stringify(criteria));
+    }
+    return api.post('/csv/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  exportCSV: (results: any[]) =>
+    api.post('/csv/export', { results }, {
+      responseType: 'blob',
+    }),
+
+  downloadTemplate: () =>
+    api.get('/csv/template', {
+      responseType: 'blob',
+    }),
+};

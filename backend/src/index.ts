@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { stockRoutes } from './routes/stockRoutes';
 import { screenerRoutes } from './routes/screenerRoutes';
+import { csvRoutes } from './routes/csvRoutes';
 import { marketDataService } from './services/marketDataService';
 
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use('/api/stocks', stockRoutes);
 app.use('/api/screener', screenerRoutes);
+app.use('/api/csv', csvRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, TrendingUp, TrendingDown } from 'lucide-react';
 import { screenerAPI, ScreenerCriteria } from '../api/client';
+import CSVUploadDownload from '../components/CSVUploadDownload';
 
 export default function Screener() {
   const [criteria, setCriteria] = useState<ScreenerCriteria>({
@@ -220,6 +221,15 @@ export default function Screener() {
             >
               {loading ? 'Scanning...' : 'Run Screener'}
             </button>
+
+            <hr className="my-6" />
+
+            {/* CSV Import/Export */}
+            <CSVUploadDownload
+              criteria={criteria}
+              results={results}
+              onUploadResults={setResults}
+            />
           </div>
         </div>
 
@@ -251,6 +261,17 @@ export default function Screener() {
                           <div className="flex items-center space-x-2">
                             <span className="font-bold text-lg text-gray-900">{stock.symbol}</span>
                             <span className="badge badge-info">{stock.exchange}</span>
+                            {stock.recommendation && (
+                              <span className={`badge text-xs font-semibold ${
+                                stock.recommendation === 'STRONG_BUY' ? 'bg-green-600 text-white' :
+                                stock.recommendation === 'BUY' ? 'bg-green-500 text-white' :
+                                stock.recommendation === 'HOLD' ? 'bg-yellow-500 text-white' :
+                                stock.recommendation === 'SELL' ? 'bg-red-500 text-white' :
+                                'bg-red-700 text-white'
+                              }`}>
+                                {stock.recommendation.replace('_', ' ')}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center space-x-2 mt-1">
                             <span className="text-2xl font-bold text-gray-900">
@@ -264,40 +285,120 @@ export default function Screener() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-600 mb-1">Score</div>
-                        <div className="text-2xl font-bold text-primary-600">{stock.score}/100</div>
+                        <div className="text-sm text-gray-600 mb-1">
+                          {stock.combinedScore ? 'Combined Score' : 'Technical Score'}
+                        </div>
+                        <div className="text-2xl font-bold text-primary-600">
+                          {(stock.combinedScore || stock.score)}/100
+                        </div>
+                        {stock.fundamentalScore && (
+                          <div className="mt-1">
+                            <span className={`inline-block px-2 py-1 text-xs font-bold rounded ${
+                              ['A+', 'A'].includes(stock.fundamentalScore.quality) ? 'bg-green-100 text-green-800' :
+                              ['B+', 'B'].includes(stock.fundamentalScore.quality) ? 'bg-blue-100 text-blue-800' :
+                              ['C+', 'C'].includes(stock.fundamentalScore.quality) ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              Quality: {stock.fundamentalScore.quality}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Technical Indicators */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                      {stock.indicators.rsi && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">RSI:</span>
-                          <span className="ml-1 font-medium text-gray-900">{stock.indicators.rsi.toFixed(1)}</span>
-                        </div>
-                      )}
-                      {stock.indicators.macd && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">MACD:</span>
-                          <span className={`ml-1 font-medium ${stock.indicators.macd.histogram > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {stock.indicators.macd.histogram > 0 ? 'Bullish' : 'Bearish'}
-                          </span>
-                        </div>
-                      )}
-                      {stock.indicators.adx && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">ADX:</span>
-                          <span className="ml-1 font-medium text-gray-900">{stock.indicators.adx.toFixed(1)}</span>
-                        </div>
-                      )}
-                      {stock.indicators.volumeProfile && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">Volume:</span>
-                          <span className="ml-1 font-medium text-gray-900">{stock.indicators.volumeProfile.volumeRatio.toFixed(2)}x</span>
-                        </div>
-                      )}
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Technical Analysis</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {stock.indicators.rsi && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">RSI:</span>
+                            <span className="ml-1 font-medium text-gray-900">{stock.indicators.rsi.toFixed(1)}</span>
+                          </div>
+                        )}
+                        {stock.indicators.macd && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">MACD:</span>
+                            <span className={`ml-1 font-medium ${stock.indicators.macd.histogram > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {stock.indicators.macd.histogram > 0 ? 'Bullish' : 'Bearish'}
+                            </span>
+                          </div>
+                        )}
+                        {stock.indicators.adx && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">ADX:</span>
+                            <span className="ml-1 font-medium text-gray-900">{stock.indicators.adx.toFixed(1)}</span>
+                          </div>
+                        )}
+                        {stock.indicators.volumeProfile && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">Volume:</span>
+                            <span className="ml-1 font-medium text-gray-900">{stock.indicators.volumeProfile.volumeRatio.toFixed(2)}x</span>
+                          </div>
+                        )}
+                        {stock.confluenceScore && (
+                          <div className="text-sm">
+                            <span className="text-gray-600">Confluence:</span>
+                            <span className="ml-1 font-medium text-purple-600">{stock.confluenceScore.toFixed(0)}%</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Fundamental Metrics */}
+                    {stock.fundamentals && (
+                      <div className="mb-3 pt-3 border-t border-gray-200">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Fundamental Analysis</div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {stock.fundamentals.peRatio && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">P/E:</span>
+                              <span className="ml-1 font-medium text-gray-900">{stock.fundamentals.peRatio.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {stock.fundamentals.pbRatio && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">P/B:</span>
+                              <span className="ml-1 font-medium text-gray-900">{stock.fundamentals.pbRatio.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {stock.fundamentals.roe && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">ROE:</span>
+                              <span className="ml-1 font-medium text-gray-900">{stock.fundamentals.roe.toFixed(1)}%</span>
+                            </div>
+                          )}
+                          {stock.fundamentals.debtToEquity !== undefined && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">D/E:</span>
+                              <span className="ml-1 font-medium text-gray-900">{stock.fundamentals.debtToEquity.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {stock.fundamentals.revenueGrowth && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">Rev Growth:</span>
+                              <span className={`ml-1 font-medium ${stock.fundamentals.revenueGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {stock.fundamentals.revenueGrowth.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                          {stock.fundamentals.epsGrowth && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">EPS Growth:</span>
+                              <span className={`ml-1 font-medium ${stock.fundamentals.epsGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {stock.fundamentals.epsGrowth.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                          {stock.fundamentalScore && (
+                            <div className="text-sm">
+                              <span className="text-gray-600">Category:</span>
+                              <span className="ml-1 font-medium text-blue-600">{stock.fundamentalScore.category}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Signals */}
                     {stock.signals && stock.signals.length > 0 && (

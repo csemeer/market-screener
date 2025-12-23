@@ -269,32 +269,32 @@ export class TechnicalAnalysis {
     const prices = data.map(d => d.close);
 
     return {
-      rsi: this.calculateRSI(data, 14),
-      macd: this.calculateMACD(data),
-      bollingerBands: this.calculateBollingerBands(data),
+      rsi: this.calculateRSI(data, 14) || undefined,
+      macd: this.calculateMACD(data) || undefined,
+      bollingerBands: this.calculateBollingerBands(data) || undefined,
       ema: {
-        ema9: this.calculateEMA(prices, 9),
-        ema20: this.calculateEMA(prices, 20),
-        ema50: this.calculateEMA(prices, 50),
-        ema200: this.calculateEMA(prices, 200)
+        ema9: this.calculateEMA(prices, 9) || undefined,
+        ema20: this.calculateEMA(prices, 20) || undefined,
+        ema50: this.calculateEMA(prices, 50) || undefined,
+        ema200: this.calculateEMA(prices, 200) || undefined
       },
       sma: {
-        sma20: this.calculateSMA(prices, 20),
-        sma50: this.calculateSMA(prices, 50),
-        sma200: this.calculateSMA(prices, 200)
+        sma20: this.calculateSMA(prices, 20) || undefined,
+        sma50: this.calculateSMA(prices, 50) || undefined,
+        sma200: this.calculateSMA(prices, 200) || undefined
       },
-      atr: this.calculateATR(data),
-      adx: this.calculateADX(data),
-      stochastic: this.calculateStochastic(data),
+      atr: this.calculateATR(data) || undefined,
+      adx: this.calculateADX(data) || undefined,
+      stochastic: this.calculateStochastic(data) || undefined,
       volumeProfile: {
         avgVolume: this.calculateSMA(data.map(d => d.volume), 20) || 0,
         volumeRatio: data[data.length - 1].volume / (this.calculateSMA(data.map(d => d.volume), 20) || 1)
       },
-      obv: this.calculateOBV(data),
-      vwap: this.calculateVWAP(data),
-      fibonacci: this.calculateFibonacci(data),
-      pivotPoints: this.calculatePivotPoints(data),
-      supertrend: this.calculateSupertrend(data)
+      obv: this.calculateOBV(data) || undefined,
+      vwap: this.calculateVWAP(data) || undefined,
+      fibonacci: this.calculateFibonacci(data) || undefined,
+      pivotPoints: this.calculatePivotPoints(data) || undefined,
+      supertrend: this.calculateSupertrend(data) || undefined
     };
   }
 
@@ -396,7 +396,6 @@ export class TechnicalAnalysis {
     const confluenceScore = maxScore > 0 ? (score / maxScore) * 100 : 50;
     return Math.round(confluenceScore * 100) / 100;
   }
-}
 
   /**
    * Calculate OBV (On-Balance Volume) - Volume momentum indicator
