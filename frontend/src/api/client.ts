@@ -24,6 +24,17 @@ export interface ScreenerCriteria {
     adxMin?: number;
     volumeBreakout?: boolean;
   };
+  fundamentalFilters?: {
+    peRatioMax?: number;
+    pbRatioMax?: number;
+    roeMin?: number;
+    debtToEquityMax?: number;
+    revenueGrowthMin?: number;
+    epsGrowthMin?: number;
+    dividendYieldMin?: number;
+    profitMarginMin?: number;
+    category?: ('VALUE' | 'GROWTH' | 'QUALITY' | 'DIVIDEND')[];
+  };
 }
 
 export const screenerAPI = {

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table } from 'lucide-react';
 import { screenerAPI, ScreenerCriteria } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
+import StockDataTable from '../components/StockDataTable';
 
 export default function Screener() {
   const [criteria, setCriteria] = useState<ScreenerCriteria>({
     markets: ['NSE', 'NYSE'],
     priceRange: {},
-    technicalFilters: {}
+    technicalFilters: {},
+    fundamentalFilters: {}
   });
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
@@ -214,6 +217,136 @@ export default function Screener() {
               />
             </div>
 
+            <hr className="my-6" />
+
+            {/* Fundamental Filters */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Fundamental Filters</h3>
+
+              <div className="space-y-4">
+                {/* P/E Ratio Max */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Max P/E Ratio
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 30"
+                    value={criteria.fundamentalFilters?.peRatioMax || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        peRatioMax: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                {/* P/B Ratio Max */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Max P/B Ratio
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 5"
+                    value={criteria.fundamentalFilters?.pbRatioMax || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        pbRatioMax: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                {/* ROE Minimum */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Min ROE %
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 15"
+                    value={criteria.fundamentalFilters?.roeMin || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        roeMin: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                {/* Debt/Equity Max */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Max Debt/Equity
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 1.0"
+                    step="0.1"
+                    value={criteria.fundamentalFilters?.debtToEquityMax || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        debtToEquityMax: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                {/* Revenue Growth Min */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Min Revenue Growth %
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 10"
+                    value={criteria.fundamentalFilters?.revenueGrowthMin || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        revenueGrowthMin: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+
+                {/* EPS Growth Min */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Min EPS Growth %
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 10"
+                    value={criteria.fundamentalFilters?.epsGrowthMin || ''}
+                    onChange={(e) => setCriteria({
+                      ...criteria,
+                      fundamentalFilters: {
+                        ...criteria.fundamentalFilters,
+                        epsGrowthMin: e.target.value ? Number(e.target.value) : undefined
+                      }
+                    })}
+                    className="input-field text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={handleRunScreener}
               disabled={loading || criteria.markets.length === 0}
@@ -235,23 +368,55 @@ export default function Screener() {
 
         {/* Results Panel */}
         <div className="lg:col-span-2">
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 flex items-center">
                 <Search className="w-5 h-5 mr-2" />
                 Results ({results.length})
               </h2>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
+                    viewMode === 'table'
+                      ? 'bg-primary-100 text-primary-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Table className="w-4 h-4" />
+                  <span className="text-sm">Table</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
+                    viewMode === 'cards'
+                      ? 'bg-primary-100 text-primary-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span className="text-sm">Cards</span>
+                </button>
+              </div>
             </div>
+          </div>
 
-            {loading ? (
+          {loading ? (
+            <div className="card">
               <div className="text-center py-12 text-gray-500">
                 Scanning stocks...
               </div>
-            ) : results.length === 0 ? (
+            </div>
+          ) : results.length === 0 ? (
+            <div className="card">
               <div className="text-center py-12 text-gray-500">
                 No results yet. Configure filters and run the screener.
               </div>
-            ) : (
+            </div>
+          ) : viewMode === 'table' ? (
+            <StockDataTable data={results} />
+          ) : (
+            <div className="card">
               <div className="space-y-4">
                 {results.map((stock, idx) => (
                   <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors">
@@ -413,8 +578,8 @@ export default function Screener() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
