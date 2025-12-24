@@ -46,16 +46,16 @@ export default function Screener() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Custom Stock Screener</h1>
-        <p className="text-gray-600">Filter stocks based on your specific criteria</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Custom Stock Screener</h1>
+        <p className="text-sm sm:text-base text-gray-600">Filter stocks based on your specific criteria</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Filters Panel */}
         <div className="lg:col-span-1">
-          <div className="card sticky top-4">
+          <div className="card lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
               <Filter className="w-5 h-5 mr-2" />
               Filters
@@ -368,34 +368,35 @@ export default function Screener() {
 
         {/* Results Panel */}
         <div className="lg:col-span-2">
-          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-4">
+          <div className="mb-3 sm:mb-4 bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <Search className="w-5 h-5 mr-2" />
-                Results ({results.length})
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                <span className="hidden sm:inline">Results ({results.length})</span>
+                <span className="sm:hidden">({results.length})</span>
               </h2>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 sm:space-x-2">
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
                     viewMode === 'table'
                       ? 'bg-primary-100 text-primary-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <Table className="w-4 h-4" />
-                  <span className="text-sm">Table</span>
+                  <span className="text-xs sm:text-sm hidden sm:inline">Table</span>
                 </button>
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors ${
                     viewMode === 'cards'
                       ? 'bg-primary-100 text-primary-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4" />
-                  <span className="text-sm">Cards</span>
+                  <span className="text-xs sm:text-sm hidden sm:inline">Cards</span>
                 </button>
               </div>
             </div>

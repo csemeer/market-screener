@@ -101,51 +101,51 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Section */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
           Market Screener Pro
         </h1>
-        <p className="text-lg text-gray-600">
+        <p className="text-base sm:text-lg text-gray-600">
           Professional stock screening with 20+ technical indicators and comprehensive fundamental analysis
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
-            <BarChart3 className="w-10 h-10 opacity-80" />
-            <span className="text-sm font-medium opacity-90">Markets</span>
+            <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 opacity-80" />
+            <span className="text-xs sm:text-sm font-medium opacity-90">Markets</span>
           </div>
-          <p className="text-3xl font-bold mb-1">4</p>
-          <p className="text-sm opacity-90">NSE, BSE, NYSE, NASDAQ</p>
+          <p className="text-2xl sm:text-3xl font-bold mb-1">4</p>
+          <p className="text-xs sm:text-sm opacity-90">NSE, BSE, NYSE, NASDAQ</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
-            <Activity className="w-10 h-10 opacity-80" />
-            <span className="text-sm font-medium opacity-90">Live Signals</span>
+            <Activity className="w-8 h-8 sm:w-10 sm:h-10 opacity-80" />
+            <span className="text-xs sm:text-sm font-medium opacity-90">Live Signals</span>
           </div>
-          <p className="text-3xl font-bold mb-1">{marketStats.totalSignals}</p>
-          <p className="text-sm opacity-90">Active opportunities</p>
+          <p className="text-2xl sm:text-3xl font-bold mb-1">{marketStats.totalSignals}</p>
+          <p className="text-xs sm:text-sm opacity-90">Active opportunities</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
-            <Target className="w-10 h-10 opacity-80" />
-            <span className="text-sm font-medium opacity-90">Strong Buys</span>
+            <Target className="w-8 h-8 sm:w-10 sm:h-10 opacity-80" />
+            <span className="text-xs sm:text-sm font-medium opacity-90">Strong Buys</span>
           </div>
-          <p className="text-3xl font-bold mb-1">{marketStats.strongBuys}</p>
-          <p className="text-sm opacity-90">80%+ confidence</p>
+          <p className="text-2xl sm:text-3xl font-bold mb-1">{marketStats.strongBuys}</p>
+          <p className="text-xs sm:text-sm opacity-90">80%+ confidence</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
-            <Award className="w-10 h-10 opacity-80" />
-            <span className="text-sm font-medium opacity-90">Avg Confluence</span>
+            <Award className="w-8 h-8 sm:w-10 sm:h-10 opacity-80" />
+            <span className="text-xs sm:text-sm font-medium opacity-90">Avg Confluence</span>
           </div>
-          <p className="text-3xl font-bold mb-1">{marketStats.avgConfluence}%</p>
-          <p className="text-sm opacity-90">Multi-indicator score</p>
+          <p className="text-2xl sm:text-3xl font-bold mb-1">{marketStats.avgConfluence}%</p>
+          <p className="text-xs sm:text-sm opacity-90">Multi-indicator score</p>
         </div>
       </div>
 
@@ -342,24 +342,25 @@ export default function Dashboard() {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg p-8 text-white text-center">
-        <h2 className="text-3xl font-bold mb-3">Ready to Find Your Next Winning Trade?</h2>
-        <p className="text-lg mb-6 opacity-90">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg p-6 sm:p-8 text-white text-center">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3">Ready to Find Your Next Winning Trade?</h2>
+        <p className="text-sm sm:text-base lg:text-lg mb-6 opacity-90">
           Start screening stocks with professional-grade tools and institutional-quality analysis
         </p>
-        <div className="flex items-center justify-center space-x-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
           <Link
             to="/screener"
-            className="bg-white text-primary-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center"
+            className="w-full sm:w-auto bg-white text-primary-700 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
           >
             Launch Screener
             <ArrowRight className="w-5 h-5 ml-2" />
           </Link>
           <Link
             to="/intraday"
-            className="bg-primary-800 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-900 transition-colors inline-flex items-center border-2 border-white/30"
+            className="w-full sm:w-auto bg-primary-800 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-primary-900 transition-colors inline-flex items-center justify-center border-2 border-white/30"
           >
-            View Intraday Signals
+            <span className="hidden sm:inline">View Intraday Signals</span>
+            <span className="sm:hidden">Intraday Signals</span>
             <Activity className="w-5 h-5 ml-2" />
           </Link>
         </div>

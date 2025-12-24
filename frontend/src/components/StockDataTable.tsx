@@ -88,10 +88,10 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Filters Bar */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Search Symbol</label>
             <input
@@ -166,8 +166,8 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {/* Data Table - Desktop */}
+      <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -370,6 +370,124 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
                 </button>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {paginatedData.map((stock, idx) => (
+          <div key={idx} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="font-bold text-lg text-gray-900">{stock.symbol}</span>
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded">{stock.exchange}</span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900">${stock.price.toFixed(2)}</div>
+              </div>
+              <div className="text-right">
+                <div className={`flex items-center text-sm font-medium ${stock.changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {stock.changePercent >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                  {stock.changePercent.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* Score and Quality */}
+            <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
+              <div className="flex-1">
+                <div className="text-xs text-gray-600 mb-1">Score</div>
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-primary-100 text-primary-800">
+                  {(stock.combinedScore || stock.score)}/100
+                </div>
+              </div>
+              {stock.fundamentalScore && (
+                <div className="flex-1">
+                  <div className="text-xs text-gray-600 mb-1">Quality</div>
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                    ['A+', 'A'].includes(stock.fundamentalScore.quality) ? 'bg-green-100 text-green-800' :
+                    ['B+', 'B'].includes(stock.fundamentalScore.quality) ? 'bg-blue-100 text-blue-800' :
+                    ['C+', 'C'].includes(stock.fundamentalScore.quality) ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {stock.fundamentalScore.quality}
+                  </span>
+                </div>
+              )}
+              {stock.recommendation && (
+                <div className="flex-1">
+                  <div className="text-xs text-gray-600 mb-1">Action</div>
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                    stock.recommendation === 'STRONG_BUY' ? 'bg-green-600 text-white' :
+                    stock.recommendation === 'BUY' ? 'bg-green-500 text-white' :
+                    stock.recommendation === 'HOLD' ? 'bg-yellow-500 text-white' :
+                    stock.recommendation === 'SELL' ? 'bg-red-500 text-white' :
+                    'bg-red-700 text-white'
+                  }`}>
+                    {stock.recommendation.replace('_', ' ')}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {stock.indicators.rsi && (
+                <div>
+                  <span className="text-gray-600">RSI:</span>
+                  <span className="ml-1 font-medium">{stock.indicators.rsi.toFixed(1)}</span>
+                </div>
+              )}
+              {stock.indicators.adx && (
+                <div>
+                  <span className="text-gray-600">ADX:</span>
+                  <span className="ml-1 font-medium">{stock.indicators.adx.toFixed(1)}</span>
+                </div>
+              )}
+              {stock.confluenceScore && (
+                <div>
+                  <span className="text-gray-600">Confluence:</span>
+                  <span className="ml-1 font-medium text-purple-600">{stock.confluenceScore.toFixed(0)}%</span>
+                </div>
+              )}
+              {stock.fundamentals?.peRatio && (
+                <div>
+                  <span className="text-gray-600">P/E:</span>
+                  <span className="ml-1 font-medium">{stock.fundamentals.peRatio.toFixed(1)}</span>
+                </div>
+              )}
+              {stock.fundamentals?.roe && (
+                <div>
+                  <span className="text-gray-600">ROE:</span>
+                  <span className="ml-1 font-medium">{stock.fundamentals.roe.toFixed(1)}%</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Mobile Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-gray-700">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

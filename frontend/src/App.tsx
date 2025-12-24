@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { TrendingUp, Search, Calculator, BarChart3 } from 'lucide-react';
+import { TrendingUp, Search, Calculator, BarChart3, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Screener from './pages/Screener';
 import IntradayScanner from './pages/IntradayScanner';
@@ -7,37 +8,77 @@ import SwingScanner from './pages/SwingScanner';
 import RiskCalculator from './pages/RiskCalculator';
 
 function App() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { to: '/', label: 'Dashboard', icon: BarChart3 },
+    { to: '/screener', label: 'Screener', icon: Search },
+    { to: '/intraday', label: 'Intraday', icon: TrendingUp },
+    { to: '/swing', label: 'Swing', icon: TrendingUp },
+    { to: '/risk-calculator', label: 'Risk Calc', icon: Calculator },
+  ];
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <Link to="/" className="flex items-center space-x-2">
-                <TrendingUp className="w-8 h-8 text-primary-600" />
-                <span className="text-xl font-bold text-gray-900">Market Screener Pro</span>
+              {/* Logo */}
+              <Link to="/" className="flex items-center space-x-2" onClick={closeMobileMenu}>
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600" />
+                <span className="text-lg sm:text-xl font-bold text-gray-900">
+                  <span className="hidden sm:inline">Market Screener Pro</span>
+                  <span className="sm:hidden">MSP</span>
+                </span>
               </Link>
 
-              <nav className="flex space-x-8">
-                <Link to="/" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/screener" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                  Custom Screener
-                </Link>
-                <Link to="/intraday" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                  Intraday
-                </Link>
-                <Link to="/swing" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                  Swing Trade
-                </Link>
-                <Link to="/risk-calculator" className="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                  Risk Calculator
-                </Link>
+              {/* Desktop Navigation */}
+              <nav className="hidden md:flex space-x-6 lg:space-x-8">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="text-gray-700 hover:text-primary-600 font-medium transition-colors flex items-center space-x-1"
+                  >
+                    <link.icon className="w-4 h-4" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
               </nav>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
           </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 bg-white">
+              <nav className="px-4 py-4 space-y-2">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    onClick={closeMobileMenu}
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-700 font-medium transition-colors"
+                  >
+                    <link.icon className="w-5 h-5" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          )}
         </header>
 
         {/* Main Content */}
