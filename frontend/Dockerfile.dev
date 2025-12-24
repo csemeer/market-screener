@@ -1,0 +1,23 @@
+# Development Dockerfile with hot-reload
+FROM node:18-alpine
+
+# Install wget for health checks
+RUN apk add --no-cache wget
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 3000
+
+# Start with Vite dev server
+CMD ["npm", "run", "dev", "--", "--host"]
