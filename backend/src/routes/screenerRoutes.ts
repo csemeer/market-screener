@@ -120,6 +120,7 @@ router.post('/risk-calculator', (req, res) => {
 router.get('/presets', (req, res) => {
   const presets = [
     {
+      id: 'momentum',
       name: 'Momentum Stocks',
       description: 'High momentum stocks with strong volume',
       criteria: {
@@ -132,6 +133,51 @@ router.get('/presets', (req, res) => {
       }
     },
     {
+      id: 'value',
+      name: 'Value Opportunities',
+      description: 'Undervalued stocks with strong fundamentals',
+      criteria: {
+        markets: ['NSE', 'NYSE'],
+        fundamentalFilters: {
+          peRatioMax: 20,
+          pbRatioMax: 3,
+          roeMin: 12,
+          debtToEquityMax: 1.0
+        }
+      }
+    },
+    {
+      id: 'growth',
+      name: 'Quality Growth',
+      description: 'High growth stocks with quality metrics',
+      criteria: {
+        markets: ['NSE', 'NYSE'],
+        fundamentalFilters: {
+          roeMin: 15,
+          revenueGrowthMin: 15,
+          epsGrowthMin: 15,
+          profitMarginMin: 10
+        }
+      }
+    },
+    {
+      id: 'quality',
+      name: 'Low Risk Quality',
+      description: 'High quality stocks with strong balance sheets',
+      criteria: {
+        markets: ['NSE', 'NYSE'],
+        fundamentalFilters: {
+          roeMin: 15,
+          debtToEquityMax: 0.5,
+          profitMarginMin: 12
+        },
+        technicalFilters: {
+          priceAboveEMA: [200]
+        }
+      }
+    },
+    {
+      id: 'oversold',
       name: 'Oversold Bounce',
       description: 'Oversold stocks near support levels',
       criteria: {
@@ -143,6 +189,7 @@ router.get('/presets', (req, res) => {
       }
     },
     {
+      id: 'breakout',
       name: 'Breakout Candidates',
       description: 'Stocks near resistance with volume buildup',
       criteria: {
@@ -155,6 +202,7 @@ router.get('/presets', (req, res) => {
       }
     },
     {
+      id: 'uptrend',
       name: 'Strong Uptrend',
       description: 'Stocks in confirmed uptrend',
       criteria: {

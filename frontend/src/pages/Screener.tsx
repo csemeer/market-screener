@@ -3,8 +3,10 @@ import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table } from 'luc
 import { screenerAPI, ScreenerCriteria } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
 import StockDataTable from '../components/StockDataTable';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Screener() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [criteria, setCriteria] = useState<ScreenerCriteria>({
     markets: ['NSE', 'NYSE'],
     priceRange: {},
@@ -15,10 +17,23 @@ export default function Screener() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   useEffect(() => {
     loadPresets();
   }, []);
+
+  // Handle URL query parameters for preset
+  useEffect(() => {
+    const presetParam = searchParams.get('preset');
+    if (presetParam && presets.length > 0) {
+      const preset = presets.find(p => p.id === presetParam);
+      if (preset) {
+        applyPreset(preset);
+        setSelectedPreset(presetParam);
+      }
+    }
+  }, [searchParams, presets]);
 
   const loadPresets = async () => {
     try {
@@ -43,6 +58,11 @@ export default function Screener() {
 
   const applyPreset = (preset: any) => {
     setCriteria(preset.criteria);
+    setSelectedPreset(preset.id);
+    // Clear the preset URL parameter after applying
+    if (searchParams.has('preset')) {
+      setSearchParams({});
+    }
   };
 
   return (
@@ -71,7 +91,11 @@ export default function Screener() {
                   <button
                     key={idx}
                     onClick={() => applyPreset(preset)}
-                    className="w-full text-left px-3 py-2 border border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+                    className={`w-full text-left px-3 py-2 border rounded-lg transition-colors ${
+                      selectedPreset === preset.id
+                        ? 'border-primary-500 bg-primary-50 shadow-sm'
+                        : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+                    }`}
                   >
                     <div className="font-medium text-sm text-gray-900">{preset.name}</div>
                     <div className="text-xs text-gray-600">{preset.description}</div>
