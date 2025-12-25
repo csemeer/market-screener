@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, BarChart3, FileText, Lightbulb, GitCompare } from 'lucide-react';
-import axios from 'axios';
+import { stockAPI } from '../api/client';
 import PriceChart from '../components/charts/PriceChart';
 import TechnicalAnalysis from '../components/analysis/TechnicalAnalysis';
 import FundamentalAnalysis from '../components/analysis/FundamentalAnalysis';
 import SignalEvidence from '../components/analysis/SignalEvidence';
 import AIInsights from '../components/analysis/AIInsights';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 type TabType = 'chart' | 'technical' | 'fundamental' | 'signals' | 'ai';
 
@@ -38,10 +36,12 @@ export default function StockDetail() {
 
   useEffect(() => {
     const fetchStockDetail = async () => {
+      if (!exchange || !symbol) return;
+
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get(`${API_URL}/stocks/detail/${exchange}/${symbol}`);
+        const response = await stockAPI.getDetail(exchange, symbol);
         setStockData(response.data);
       } catch (err: any) {
         console.error('Error fetching stock detail:', err);
@@ -51,9 +51,7 @@ export default function StockDetail() {
       }
     };
 
-    if (exchange && symbol) {
-      fetchStockDetail();
-    }
+    fetchStockDetail();
   }, [exchange, symbol]);
 
   const tabs = [

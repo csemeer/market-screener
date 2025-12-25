@@ -67,6 +67,9 @@ export const stockAPI = {
   getAnalysis: (exchange: string, symbol: string) =>
     api.get(`/stocks/analysis/${exchange}/${symbol}`),
 
+  getDetail: (exchange: string, symbol: string) =>
+    api.get(`/stocks/detail/${exchange}/${symbol}`),
+
   getStockList: (exchange: string) =>
     api.get(`/stocks/list/${exchange}`),
 };
