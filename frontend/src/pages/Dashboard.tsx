@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, BarChart3, Target, Zap, Shield, Award, ArrowRight, Download } from 'lucide-react';
+import { TrendingUp, Activity, BarChart3, Target, Zap, Shield, Award, ArrowRight } from 'lucide-react';
 import { screenerAPI } from '../api/client';
 import { Link } from 'react-router-dom';
 

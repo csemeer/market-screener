@@ -7,7 +7,7 @@ export default function RiskCalculator() {
   const [riskPercentage, setRiskPercentage] = useState<number>(2);
   const [entryPrice, setEntryPrice] = useState<number>(100);
   const [stopLoss, setStopLoss] = useState<number>(95);
-  const [result, setResult] = useState<any>(null);
+  const [_result, _setResult] = useState<any>(null);
 
   const calculateRisk = async () => {
     try {
@@ -17,7 +17,7 @@ export default function RiskCalculator() {
         entryPrice,
         stopLoss,
       });
-      setResult(res.data);
+      _setResult(res.data);
     } catch (error) {
       console.error('Error calculating risk:', error);
     }

@@ -6,6 +6,7 @@ import Screener from './pages/Screener';
 import IntradayScanner from './pages/IntradayScanner';
 import SwingScanner from './pages/SwingScanner';
 import RiskCalculator from './pages/RiskCalculator';
+import StockDetail from './pages/StockDetail';
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -89,6 +90,7 @@ function App() {
             <Route path="/intraday" element={<IntradayScanner />} />
             <Route path="/swing" element={<SwingScanner />} />
             <Route path="/risk-calculator" element={<RiskCalculator />} />
+            <Route path="/stock/:exchange/:symbol" element={<StockDetail />} />
           </Routes>
         </main>
 

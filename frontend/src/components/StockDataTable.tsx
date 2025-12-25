@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 
 interface StockDataTableProps {
   data: any[];
@@ -10,6 +11,7 @@ type SortField = 'symbol' | 'price' | 'changePercent' | 'score' | 'combinedScore
 type SortDirection = 'asc' | 'desc' | null;
 
 export default function StockDataTable({ data, onExport }: StockDataTableProps) {
+  const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('combinedScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -226,6 +228,9 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
                 <th className="px-4 py-3 text-left">
                   <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Key Metrics</span>
                 </th>
+                <th className="px-4 py-3 text-center">
+                  <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -312,6 +317,15 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
                         </div>
                       )}
                     </div>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <button
+                      onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
+                      className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-medium"
+                    >
+                      <BarChart2 className="w-3.5 h-3.5 mr-1" />
+                      View Analysis
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -465,6 +479,15 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
                 </div>
               )}
             </div>
+
+            {/* View Analysis Button */}
+            <button
+              onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
+              className="w-full mt-3 flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            >
+              <BarChart2 className="w-4 h-4 mr-2" />
+              View Complete Analysis
+            </button>
           </div>
         ))}
 
