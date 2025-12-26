@@ -50,58 +50,6 @@ router.get('/exchange/:exchange', (req, res) => {
 });
 
 /**
- * GET /api/indexes/:indexId
- * Get details of a specific index
- */
-router.get('/:indexId', (req, res) => {
-  try {
-    const { indexId } = req.params;
-    const index = indexService.getIndexById(indexId);
-
-    if (!index) {
-      return res.status(404).json({ error: 'Index not found' });
-    }
-
-    res.json({
-      index,
-      timestamp: new Date()
-    });
-  } catch (error) {
-    console.error('Error fetching index:', error);
-    res.status(500).json({ error: 'Failed to fetch index' });
-  }
-});
-
-/**
- * GET /api/indexes/:indexId/constituents
- * Get constituent stocks of an index
- */
-router.get('/:indexId/constituents', (req, res) => {
-  try {
-    const { indexId } = req.params;
-    const index = indexService.getIndexById(indexId);
-
-    if (!index) {
-      return res.status(404).json({ error: 'Index not found' });
-    }
-
-    const constituents = indexService.getIndexConstituents(indexId);
-
-    res.json({
-      indexId,
-      indexName: index.name,
-      exchange: index.exchange,
-      constituents,
-      count: constituents.length,
-      timestamp: new Date()
-    });
-  } catch (error) {
-    console.error('Error fetching index constituents:', error);
-    res.status(500).json({ error: 'Failed to fetch index constituents' });
-  }
-});
-
-/**
  * GET /api/indexes/category/:category
  * Get indexes by category (Broad Market, Sector, Market Cap, etc.)
  */
@@ -163,6 +111,60 @@ router.get('/stats', (req, res) => {
   } catch (error) {
     console.error('Error fetching index statistics:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+/**
+ * GET /api/indexes/:indexId
+ * Get details of a specific index
+ * IMPORTANT: This route must be defined AFTER all other specific routes
+ * to avoid catching routes like /search, /stats, /category/:category
+ */
+router.get('/:indexId', (req, res) => {
+  try {
+    const { indexId } = req.params;
+    const index = indexService.getIndexById(indexId);
+
+    if (!index) {
+      return res.status(404).json({ error: 'Index not found' });
+    }
+
+    res.json({
+      index,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('Error fetching index:', error);
+    res.status(500).json({ error: 'Failed to fetch index' });
+  }
+});
+
+/**
+ * GET /api/indexes/:indexId/constituents
+ * Get constituent stocks of an index
+ */
+router.get('/:indexId/constituents', (req, res) => {
+  try {
+    const { indexId } = req.params;
+    const index = indexService.getIndexById(indexId);
+
+    if (!index) {
+      return res.status(404).json({ error: 'Index not found' });
+    }
+
+    const constituents = indexService.getIndexConstituents(indexId);
+
+    res.json({
+      indexId,
+      indexName: index.name,
+      exchange: index.exchange,
+      constituents,
+      count: constituents.length,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('Error fetching index constituents:', error);
+    res.status(500).json({ error: 'Failed to fetch index constituents' });
   }
 });
 
