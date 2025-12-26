@@ -11,6 +11,7 @@ export const api = axios.create({
 
 export interface ScreenerCriteria {
   markets: ('NSE' | 'BSE' | 'NYSE' | 'NASDAQ')[];
+  indexes?: string[]; // Optional: filter by specific market indexes
   priceRange?: {
     min?: number;
     max?: number;
@@ -97,4 +98,27 @@ export const csvAPI = {
     api.get('/csv/template', {
       responseType: 'blob',
     }),
+};
+
+export const indexAPI = {
+  getAllIndexes: () =>
+    api.get('/indexes'),
+
+  getIndexesByExchange: (exchange: string) =>
+    api.get(`/indexes/exchange/${exchange}`),
+
+  getIndexById: (indexId: string) =>
+    api.get(`/indexes/${indexId}`),
+
+  getIndexConstituents: (indexId: string) =>
+    api.get(`/indexes/${indexId}/constituents`),
+
+  getIndexesByCategory: (category: string) =>
+    api.get(`/indexes/category/${category}`),
+
+  searchIndexes: (query: string) =>
+    api.get(`/indexes/search?q=${encodeURIComponent(query)}`),
+
+  getStatistics: () =>
+    api.get('/indexes/stats'),
 };

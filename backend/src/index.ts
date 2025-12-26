@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import { stockRoutes } from './routes/stockRoutes';
 import { screenerRoutes } from './routes/screenerRoutes';
 import { csvRoutes } from './routes/csvRoutes';
+import { indexRoutes } from './routes/indexRoutes';
 import { marketDataService } from './services/marketDataService';
+import { indexService } from './services/indexService';
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use(express.json());
 app.use('/api/stocks', stockRoutes);
 app.use('/api/screener', screenerRoutes);
 app.use('/api/csv', csvRoutes);
+app.use('/api/indexes', indexRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -30,7 +33,8 @@ app.listen(PORT, () => {
   console.log(`🚀 Market Screener Backend running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-  // Initialize market data cache
+  // Initialize services
+  indexService.initialize();
   marketDataService.initialize();
 });
 

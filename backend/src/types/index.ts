@@ -82,6 +82,7 @@ export interface TechnicalIndicators {
 
 export interface ScreenerCriteria {
   markets: ('NSE' | 'BSE' | 'NYSE' | 'NASDAQ')[];
+  indexes?: string[]; // Optional: filter by specific market index IDs
   priceRange?: {
     min?: number;
     max?: number;

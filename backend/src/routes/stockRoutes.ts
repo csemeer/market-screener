@@ -102,16 +102,29 @@ router.get('/analysis/:exchange/:symbol', async (req, res) => {
 router.get('/list/:exchange', (req, res) => {
   try {
     const { exchange } = req.params;
+    const { index } = req.query;
 
     if (!['NSE', 'BSE', 'NYSE', 'NASDAQ'].includes(exchange)) {
       return res.status(400).json({ error: 'Invalid exchange' });
     }
 
-    const stocks = marketDataService.getStocksByExchange(
-      exchange as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'
-    );
+    // If index filter is provided, get stocks from that index
+    let stocks: string[];
+    if (index && typeof index === 'string') {
+      stocks = marketDataService.getStocksByIndex(index);
+    } else {
+      stocks = marketDataService.getStocksByExchange(
+        exchange as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'
+      );
+    }
 
-    res.json({ exchange, stocks, count: stocks.length });
+    res.json({
+      exchange,
+      index: index || null,
+      stocks,
+      count: stocks.length,
+      timestamp: new Date()
+    });
   } catch (error) {
     console.error('Error fetching stock list:', error);
     res.status(500).json({ error: 'Failed to fetch stock list' });

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { StockData, OHLCV } from '../types';
+import { indexService } from './indexService';
 
 /**
  * Service for fetching market data from various sources
@@ -9,34 +10,26 @@ class MarketDataService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 60000; // 1 minute
 
-  // Sample stock universes for demo
-  private readonly NSE_STOCKS = [
-    'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK',
-    'KOTAKBANK', 'SBIN', 'BHARTIARTL', 'ITC', 'ASIANPAINT', 'AXISBANK',
-    'LT', 'DMART', 'TITAN', 'ULTRACEMCO', 'NESTLEIND', 'BAJFINANCE',
-    'HCLTECH', 'WIPRO', 'MARUTI', 'SUNPHARMA', 'ONGC', 'TATAMOTORS'
-  ];
-
-  private readonly US_STOCKS = [
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK.B',
-    'JPM', 'JNJ', 'V', 'PG', 'MA', 'HD', 'CVX', 'MRK', 'ABBV', 'PEP',
-    'KO', 'AVGO', 'COST', 'WMT', 'MCD', 'CSCO', 'ACN', 'TMO', 'DHR'
-  ];
-
   initialize() {
     console.log('📈 Market Data Service initialized');
-    console.log(`   NSE stocks: ${this.NSE_STOCKS.length}`);
-    console.log(`   US stocks: ${this.US_STOCKS.length}`);
+    console.log(`   NSE stocks: ${this.getStocksByExchange('NSE').length}`);
+    console.log(`   NYSE stocks: ${this.getStocksByExchange('NYSE').length}`);
+    console.log(`   NASDAQ stocks: ${this.getStocksByExchange('NASDAQ').length}`);
   }
 
   /**
    * Get list of stocks by exchange
+   * Now uses the index service to get all unique stocks from all indexes
    */
   getStocksByExchange(exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'): string[] {
-    if (exchange === 'NSE' || exchange === 'BSE') {
-      return this.NSE_STOCKS;
-    }
-    return this.US_STOCKS;
+    return indexService.getAllStocksByExchange(exchange);
+  }
+
+  /**
+   * Get list of stocks by index
+   */
+  getStocksByIndex(indexId: string): string[] {
+    return indexService.getIndexConstituents(indexId);
   }
 
   /**

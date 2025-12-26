@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table } from 'lucide-react';
-import { screenerAPI, ScreenerCriteria } from '../api/client';
+import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree } from 'lucide-react';
+import { screenerAPI, ScreenerCriteria, indexAPI } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
 import StockDataTable from '../components/StockDataTable';
 import { useSearchParams } from 'react-router-dom';
@@ -18,10 +18,17 @@ export default function Screener() {
   const [loading, setLoading] = useState(false);
   const [presets, setPresets] = useState<any[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [indexes, setIndexes] = useState<any[]>([]);
+  const [selectedIndexes, setSelectedIndexes] = useState<string[]>([]);
+  const [indexesLoading, setIndexesLoading] = useState(false);
 
   useEffect(() => {
     loadPresets();
   }, []);
+
+  useEffect(() => {
+    loadIndexes();
+  }, [criteria.markets]);
 
   // Handle URL query parameters for preset
   useEffect(() => {
@@ -44,10 +51,39 @@ export default function Screener() {
     }
   };
 
+  const loadIndexes = async () => {
+    if (criteria.markets.length === 0) {
+      setIndexes([]);
+      return;
+    }
+
+    try {
+      setIndexesLoading(true);
+      const allIndexes: any[] = [];
+
+      // Load indexes for each selected market
+      for (const market of criteria.markets) {
+        const res = await indexAPI.getIndexesByExchange(market);
+        allIndexes.push(...res.data.indexes);
+      }
+
+      setIndexes(allIndexes);
+    } catch (error) {
+      console.error('Error loading indexes:', error);
+    } finally {
+      setIndexesLoading(false);
+    }
+  };
+
   const handleRunScreener = async () => {
     try {
       setLoading(true);
-      const res = await screenerAPI.runScreener(criteria);
+      // Include selected indexes in the criteria
+      const criteriaWithIndexes = {
+        ...criteria,
+        indexes: selectedIndexes.length > 0 ? selectedIndexes : undefined
+      };
+      const res = await screenerAPI.runScreener(criteriaWithIndexes);
       setResults(res.data.results);
     } catch (error) {
       console.error('Error running screener:', error);
@@ -129,6 +165,8 @@ export default function Screener() {
                             markets: criteria.markets.filter(m => m !== market)
                           });
                         }
+                        // Clear selected indexes when markets change
+                        setSelectedIndexes([]);
                       }}
                       className="mr-2"
                     />
@@ -137,6 +175,69 @@ export default function Screener() {
                 ))}
               </div>
             </div>
+
+            {/* Market Indexes */}
+            {indexes.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <ListTree className="w-4 h-4 mr-1" />
+                  Market Indexes ({indexes.length})
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Filter stocks by specific market indexes
+                </p>
+                {indexesLoading ? (
+                  <div className="text-sm text-gray-500 py-2">Loading indexes...</div>
+                ) : (
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    {indexes.map((index) => (
+                      <label
+                        key={index.id}
+                        className="flex items-start px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIndexes.includes(index.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIndexes([...selectedIndexes, index.id]);
+                            } else {
+                              setSelectedIndexes(selectedIndexes.filter(id => id !== index.id));
+                            }
+                          }}
+                          className="mr-2 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">{index.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">{index.exchange}</span>
+                          </div>
+                          <div className="text-xs text-gray-600">{index.totalStocks} stocks</div>
+                          {index.category && (
+                            <span className="inline-block mt-0.5 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                              {index.category}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {selectedIndexes.length > 0 && (
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs text-gray-600">
+                      {selectedIndexes.length} index{selectedIndexes.length > 1 ? 'es' : ''} selected
+                    </span>
+                    <button
+                      onClick={() => setSelectedIndexes([])}
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Price Range */}
             <div className="mb-4">

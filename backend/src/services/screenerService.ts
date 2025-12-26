@@ -1,5 +1,6 @@
 import { marketDataService } from './marketDataService';
 import { fundamentalDataService } from './fundamentalDataService';
+import { indexService } from './indexService';
 import { TechnicalAnalysis } from '../utils/technicalIndicators';
 import { FundamentalAnalysis } from '../utils/fundamentalAnalysis';
 import {
@@ -20,76 +21,99 @@ class ScreenerService {
   async runScreener(criteria: ScreenerCriteriaWithFundamentals): Promise<EnhancedScreenerResult[]> {
     const results: EnhancedScreenerResult[] = [];
 
-    for (const exchange of criteria.markets) {
-      const symbols = marketDataService.getStocksByExchange(exchange);
-      const limitedSymbols = symbols.slice(0, 20); // Limit for demo
+    // Get stock symbols based on criteria
+    let stocksToScreen: Map<string, string> = new Map(); // symbol -> exchange
 
-      for (const symbol of limitedSymbols) {
-        try {
-          const quote = await marketDataService.getQuote(symbol, exchange);
-          if (!quote) continue;
-
-          // Apply basic filters
-          if (criteria.priceRange) {
-            if (criteria.priceRange.min && quote.price < criteria.priceRange.min) continue;
-            if (criteria.priceRange.max && quote.price > criteria.priceRange.max) continue;
-          }
-
-          if (criteria.volumeMin && quote.volume < criteria.volumeMin) continue;
-
-          // Get historical data and calculate technical indicators
-          const historicalData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '3mo');
-          const indicators = TechnicalAnalysis.calculateAllIndicators(historicalData);
-
-          // Apply technical filters
-          if (criteria.technicalFilters) {
-            if (!this.passesTechnicalFilters(quote, indicators, historicalData, criteria.technicalFilters)) {
-              continue;
-            }
-          }
-
-          // Fetch fundamental data
-          const fundamentals = await fundamentalDataService.getFundamentals(symbol, exchange);
-
-          // Apply fundamental filters if specified
-          if (criteria.fundamentalFilters && fundamentals) {
-            if (!this.passesFundamentalFilters(fundamentals, criteria.fundamentalFilters)) {
-              continue;
-            }
-          }
-
-          // Calculate technical score and signals
-          const { score: technicalScore, signals } = this.calculateScoreAndSignals(quote, indicators, historicalData);
-          const confluenceScore = TechnicalAnalysis.calculateConfluence(historicalData, indicators);
-          const patterns = TechnicalAnalysis.detectCandlestickPatterns(historicalData);
-
-          // Calculate fundamental score if data available
-          let fundamentalScore;
-          let combinedScore = technicalScore;
-          let recommendation: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL' = 'HOLD';
-
-          if (fundamentals) {
-            fundamentalScore = FundamentalAnalysis.calculateFundamentalScore(fundamentals);
-            combinedScore = FundamentalAnalysis.calculateCombinedScore(technicalScore, fundamentalScore.overall);
-            recommendation = FundamentalAnalysis.getRecommendation(combinedScore, confluenceScore, fundamentalScore.quality);
-          }
-
-          results.push({
-            ...quote,
-            indicators,
-            score: technicalScore,
-            signals,
-            confluenceScore,
-            patterns,
-            fundamentals: fundamentals || undefined,
-            fundamentalScore,
-            combinedScore,
-            recommendation,
-            riskReward: this.calculateRiskReward(quote.price, indicators)
+    // If indexes are specified, get stocks from those indexes
+    if (criteria.indexes && criteria.indexes.length > 0) {
+      for (const indexId of criteria.indexes) {
+        const constituents = indexService.getIndexConstituents(indexId);
+        const index = indexService.getIndexById(indexId);
+        if (index) {
+          // Add stocks from this index
+          constituents.forEach(symbol => {
+            stocksToScreen.set(symbol, index.exchange);
           });
-        } catch (error) {
-          console.error(`Error screening ${symbol}:`, error);
         }
+      }
+    } else {
+      // No indexes specified, use all stocks from selected markets
+      for (const exchange of criteria.markets) {
+        const symbols = marketDataService.getStocksByExchange(exchange);
+        symbols.forEach(symbol => {
+          stocksToScreen.set(symbol, exchange);
+        });
+      }
+    }
+
+    // Convert map to array and limit for demo
+    const stockEntries = Array.from(stocksToScreen.entries()).slice(0, 50); // Increased from 20 to 50
+
+    for (const [symbol, exchange] of stockEntries) {
+      try {
+        const quote = await marketDataService.getQuote(symbol, exchange as any);
+        if (!quote) continue;
+
+        // Apply basic filters
+        if (criteria.priceRange) {
+          if (criteria.priceRange.min && quote.price < criteria.priceRange.min) continue;
+          if (criteria.priceRange.max && quote.price > criteria.priceRange.max) continue;
+        }
+
+        if (criteria.volumeMin && quote.volume < criteria.volumeMin) continue;
+
+        // Get historical data and calculate technical indicators
+        const historicalData = await marketDataService.getHistoricalData(symbol, exchange as any, '1d', '3mo');
+        const indicators = TechnicalAnalysis.calculateAllIndicators(historicalData);
+
+        // Apply technical filters
+        if (criteria.technicalFilters) {
+          if (!this.passesTechnicalFilters(quote, indicators, historicalData, criteria.technicalFilters)) {
+            continue;
+          }
+        }
+
+        // Fetch fundamental data
+        const fundamentals = await fundamentalDataService.getFundamentals(symbol, exchange as any);
+
+        // Apply fundamental filters if specified
+        if (criteria.fundamentalFilters && fundamentals) {
+          if (!this.passesFundamentalFilters(fundamentals, criteria.fundamentalFilters)) {
+            continue;
+          }
+        }
+
+        // Calculate technical score and signals
+        const { score: technicalScore, signals } = this.calculateScoreAndSignals(quote, indicators, historicalData);
+        const confluenceScore = TechnicalAnalysis.calculateConfluence(historicalData, indicators);
+        const patterns = TechnicalAnalysis.detectCandlestickPatterns(historicalData);
+
+        // Calculate fundamental score if data available
+        let fundamentalScore;
+        let combinedScore = technicalScore;
+        let recommendation: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL' = 'HOLD';
+
+        if (fundamentals) {
+          fundamentalScore = FundamentalAnalysis.calculateFundamentalScore(fundamentals);
+          combinedScore = FundamentalAnalysis.calculateCombinedScore(technicalScore, fundamentalScore.overall);
+          recommendation = FundamentalAnalysis.getRecommendation(combinedScore, confluenceScore, fundamentalScore.quality);
+        }
+
+        results.push({
+          ...quote,
+          indicators,
+          score: technicalScore,
+          signals,
+          confluenceScore,
+          patterns,
+          fundamentals: fundamentals || undefined,
+          fundamentalScore,
+          combinedScore,
+          recommendation,
+          riskReward: this.calculateRiskReward(quote.price, indicators)
+        });
+      } catch (error) {
+        console.error(`Error screening ${symbol}:`, error);
       }
     }
 
