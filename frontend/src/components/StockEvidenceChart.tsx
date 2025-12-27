@@ -83,7 +83,7 @@ export default function StockEvidenceChart({ data }: Props) {
 
     // Prepare candlestick data
     const candleData = data.historicalPrices.map(d => ({
-      time: new Date(d.date).getTime() / 1000,
+      time: (new Date(d.date).getTime() / 1000) as any,
       open: d.open,
       high: d.high,
       low: d.low,
@@ -99,7 +99,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 20',
       });
-      ema20Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema20! })));
+      ema20Series.setData(candleData.map(d => ({ time: d.time as any, value: data.indicators.ema20! })));
     }
 
     if (data.indicators.ema50) {
@@ -108,7 +108,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 50',
       });
-      ema50Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema50! })));
+      ema50Series.setData(candleData.map(d => ({ time: d.time as any, value: data.indicators.ema50! })));
     }
 
     // Add entry/target/stop lines
@@ -124,8 +124,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     entryLine.setData([
-      { time: candleData[0].time, value: data.levels.entry },
-      { time: lastTime, value: data.levels.entry },
+      { time: candleData[0].time as any, value: data.levels.entry },
+      { time: lastTime as any, value: data.levels.entry },
     ]);
 
     // Target level
@@ -138,8 +138,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     targetLine.setData([
-      { time: candleData[0].time, value: data.levels.target },
-      { time: lastTime, value: data.levels.target },
+      { time: candleData[0].time as any, value: data.levels.target },
+      { time: lastTime as any, value: data.levels.target },
     ]);
 
     // Stop Loss level
@@ -152,8 +152,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     stopLine.setData([
-      { time: candleData[0].time, value: data.levels.stopLoss },
-      { time: lastTime, value: data.levels.stopLoss },
+      { time: candleData[0].time as any, value: data.levels.stopLoss },
+      { time: lastTime as any, value: data.levels.stopLoss },
     ]);
 
     // Fit content
