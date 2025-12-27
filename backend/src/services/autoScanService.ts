@@ -265,7 +265,12 @@ class AutoScanService {
         swingStrategies: Object.keys(SWING_STRATEGIES).filter(k => SWING_STRATEGIES[k as keyof typeof SWING_STRATEGIES].enabled).length,
       });
     } catch (error) {
-      loggerService.error('Failed to initialize AutoScanService', { error });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      loggerService.error('Failed to initialize AutoScanService', {
+        error: errorMessage,
+        stack: errorStack
+      });
       throw error;
     }
   }

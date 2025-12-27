@@ -63,7 +63,13 @@ app.listen(PORT, async () => {
     await autoScanService.initialize();
     loggerService.success('Auto-Scan Service initialized successfully');
   } catch (error) {
-    loggerService.error('Failed to initialize Auto-Scan Service', { error });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    loggerService.error('Failed to initialize Auto-Scan Service', {
+      error: errorMessage,
+      stack: errorStack
+    });
+    console.error('❌ Auto-Scan Service Error Details:', error);
   }
 
   loggerService.success('All services initialized successfully');
