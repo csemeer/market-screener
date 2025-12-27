@@ -441,7 +441,14 @@ class AutoScanService {
       }
 
     } catch (error) {
-      loggerService.error(`Failed to run ${strategyKey} scan`, { error, scanId });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      loggerService.error(`Failed to run ${strategyKey} scan`, {
+        error: errorMessage,
+        stack: errorStack,
+        scanId
+      });
+      console.error(`❌ ${strategyKey} scan error:`, error);
     }
   }
 
@@ -604,7 +611,12 @@ class AutoScanService {
           loggerService.info(`Stop loss hit for ${result.symbol}`, { profitLoss });
         }
       } catch (error) {
-        loggerService.error(`Error updating status for ${result.symbol}`, { error });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        loggerService.error(`Error updating status for ${result.symbol}`, {
+          error: errorMessage,
+          symbol: result.symbol,
+          exchange: result.exchange
+        });
       }
     }
   }
