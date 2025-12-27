@@ -7,8 +7,8 @@ import cron from 'node-cron';
 import { v4 as uuidv4 } from 'uuid';
 import { databaseService, ScanResult, Alert } from './databaseService';
 import { logger } from './loggerService';
-import { runScreener } from './screenerService';
-import { getQuote } from './marketDataService';
+import { screenerService } from './screenerService';
+import { marketDataService } from './marketDataService';
 
 /**
  * Pre-configured intraday trading strategies
@@ -365,14 +365,17 @@ class AutoScanService {
 
       // Run the screener
       const markets = JSON.parse(config.markets);
-      const results = await runScreener({
+      const results = await screenerService.runScreener({
         markets,
         ...screenerCriteria,
         limit: config.maxResultsPerScan,
       });
 
-      // Filter by confidence score
-      const filteredResults = results.filter(r => r.overallScore >= config.minConfidenceScore);
+      // Filter by confidence score (use combinedScore or score)
+      const filteredResults = results.filter(r => {
+        const score = r.combinedScore || r.score || 0;
+        return score >= config.minConfidenceScore;
+      });
 
       logger.info(`${strategyKey} scan completed`, {
         scanId,
@@ -383,6 +386,8 @@ class AutoScanService {
 
       // Store results in database
       for (const result of filteredResults) {
+        const confidenceScore = result.combinedScore || result.score || 0;
+
         const scanResult: ScanResult = {
           scanId,
           timestamp: new Date(),
@@ -390,22 +395,22 @@ class AutoScanService {
           strategyType: strategy.type,
           symbol: result.symbol,
           exchange: result.exchange,
-          companyName: result.companyName || result.symbol,
-          currentPrice: result.currentPrice,
-          entryPrice: result.recommendation.entry,
-          stopLoss: result.recommendation.stopLoss,
-          target: result.recommendation.target,
-          riskRewardRatio: result.recommendation.riskReward,
-          confidenceScore: result.overallScore,
-          signals: JSON.stringify(result.signals),
+          companyName: result.name || result.symbol,
+          currentPrice: result.price,
+          entryPrice: result.riskReward?.entryPrice || result.price,
+          stopLoss: result.riskReward?.stopLoss || result.price * 0.98,
+          target: result.riskReward?.target || result.price * 1.02,
+          riskRewardRatio: result.riskReward?.ratio || 1,
+          confidenceScore,
+          signals: JSON.stringify(result.signals || []),
           technicalData: JSON.stringify({
-            rsi: result.technicalAnalysis.rsi,
-            macd: result.technicalAnalysis.macd,
-            adx: result.technicalAnalysis.adx,
-            ema: result.technicalAnalysis.ema,
-            volume: result.technicalAnalysis.volume,
+            rsi: result.indicators?.rsi,
+            macd: result.indicators?.macd,
+            adx: result.indicators?.adx,
+            ema: result.indicators?.ema,
+            volume: result.volume,
           }),
-          fundamentalData: result.fundamentalAnalysis ? JSON.stringify(result.fundamentalAnalysis) : '{}',
+          fundamentalData: result.fundamentals ? JSON.stringify(result.fundamentals) : '{}',
           evidenceChartData: JSON.stringify(this.buildEvidenceChartData(result)),
           status: 'ACTIVE',
         };
@@ -439,16 +444,54 @@ class AutoScanService {
    * Build screener criteria from strategy config
    */
   private buildScreenerCriteria(strategy: any): any {
-    const criteria: any = {};
+    const criteria: any = {
+      technicalFilters: {},
+      fundamentalFilters: {},
+    };
 
-    if (strategy.criteria.rsiMin !== undefined) criteria.rsiMin = strategy.criteria.rsiMin;
-    if (strategy.criteria.rsiMax !== undefined) criteria.rsiMax = strategy.criteria.rsiMax;
-    if (strategy.criteria.volumeMultiplier !== undefined) criteria.volumeMultiplier = strategy.criteria.volumeMultiplier;
-    if (strategy.criteria.adxMin !== undefined) criteria.adxMin = strategy.criteria.adxMin;
-    if (strategy.criteria.priceAboveEMA20 !== undefined) criteria.priceAboveEMA20 = strategy.criteria.priceAboveEMA20;
-    if (strategy.criteria.priceAboveEMA50 !== undefined) criteria.priceAboveEMA50 = strategy.criteria.priceAboveEMA50;
-    if (strategy.criteria.macdBullish !== undefined) criteria.macdBullish = strategy.criteria.macdBullish;
-    if (strategy.criteria.emaAlignment !== undefined) criteria.emaAlignment = strategy.criteria.emaAlignment;
+    // Build technical filters with proper nesting
+    if (strategy.criteria.rsiMin !== undefined || strategy.criteria.rsiMax !== undefined) {
+      criteria.technicalFilters.rsiRange = {
+        min: strategy.criteria.rsiMin,
+        max: strategy.criteria.rsiMax,
+      };
+    }
+
+    if (strategy.criteria.volumeMultiplier !== undefined) {
+      criteria.technicalFilters.volumeBreakout = true;
+    }
+
+    if (strategy.criteria.adxMin !== undefined) {
+      criteria.technicalFilters.adxMin = strategy.criteria.adxMin;
+    }
+
+    if (strategy.criteria.priceAboveEMA20 === true) {
+      criteria.technicalFilters.priceAboveEMA = criteria.technicalFilters.priceAboveEMA || [];
+      criteria.technicalFilters.priceAboveEMA.push(20);
+    }
+
+    if (strategy.criteria.priceAboveEMA50 === true) {
+      criteria.technicalFilters.priceAboveEMA = criteria.technicalFilters.priceAboveEMA || [];
+      criteria.technicalFilters.priceAboveEMA.push(50);
+    }
+
+    if (strategy.criteria.priceAboveAllEMAs === true) {
+      criteria.technicalFilters.priceAboveEMA = [9, 20, 50, 200];
+    }
+
+    if (strategy.criteria.macdBullish === true || strategy.criteria.macdBullishCrossover === true) {
+      criteria.technicalFilters.macdCrossover = 'bullish';
+    }
+
+    if (strategy.criteria.emaAlignment === true) {
+      criteria.technicalFilters.priceAboveEMA = [9, 20, 50];
+    }
+
+    // Add fundamental filters if specified
+    if (strategy.criteria.fundamentalsGood === true) {
+      criteria.fundamentalFilters.peRatioMax = 30;
+      criteria.fundamentalFilters.profitMarginMin = 10;
+    }
 
     return criteria;
   }
@@ -459,7 +502,7 @@ class AutoScanService {
   private buildEvidenceChartData(result: any): any {
     return {
       symbol: result.symbol,
-      currentPrice: result.currentPrice,
+      currentPrice: result.price,
       historicalPrices: result.historicalData?.map((d: any) => ({
         date: d.date,
         open: d.open,
@@ -469,18 +512,18 @@ class AutoScanService {
         volume: d.volume,
       })) || [],
       indicators: {
-        ema9: result.technicalAnalysis.ema?.ema9,
-        ema20: result.technicalAnalysis.ema?.ema20,
-        ema50: result.technicalAnalysis.ema?.ema50,
-        ema200: result.technicalAnalysis.ema?.ema200,
-        rsi: result.technicalAnalysis.rsi?.value,
-        macd: result.technicalAnalysis.macd,
-        bollingerBands: result.technicalAnalysis.bollingerBands,
+        ema9: result.indicators?.ema?.ema9,
+        ema20: result.indicators?.ema?.ema20,
+        ema50: result.indicators?.ema?.ema50,
+        ema200: result.indicators?.ema?.ema200,
+        rsi: result.indicators?.rsi,
+        macd: result.indicators?.macd,
+        bollingerBands: result.indicators?.bollingerBands,
       },
       levels: {
-        entry: result.recommendation.entry,
-        stopLoss: result.recommendation.stopLoss,
-        target: result.recommendation.target,
+        entry: result.riskReward?.entryPrice || result.price,
+        stopLoss: result.riskReward?.stopLoss || result.price * 0.98,
+        target: result.riskReward?.target || result.price * 1.02,
       },
     };
   }
@@ -494,10 +537,10 @@ class AutoScanService {
     for (const result of activeResults) {
       try {
         // Get current price
-        const quote = await getQuote(result.symbol, result.exchange);
+        const quote = await marketDataService.getQuote(result.symbol, result.exchange);
         if (!quote) continue;
 
-        const currentPrice = quote.currentPrice;
+        const currentPrice = quote.price;
 
         // Check if target hit
         if (currentPrice >= result.target) {
