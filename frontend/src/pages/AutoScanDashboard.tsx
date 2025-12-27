@@ -169,101 +169,103 @@ export default function AutoScanDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Activity className="h-8 w-8 text-blue-600" />
-              Auto-Scan Dashboard
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+              <span className="truncate">Auto-Scan Dashboard</span>
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">
               Real-time automated stock scanning with {Object.keys(scanResults).length} active strategies
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg border transition-all text-xs sm:text-sm ${
                 autoRefresh
                   ? 'bg-green-50 border-green-300 text-green-700'
                   : 'bg-gray-50 border-gray-300 text-gray-700'
               }`}
             >
-              <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
-              Auto-Refresh {autoRefresh ? 'ON' : 'OFF'}
+              <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Auto-Refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+              <span className="sm:hidden">{autoRefresh ? 'ON' : 'OFF'}</span>
             </button>
 
             <button
               onClick={() => loadDashboardData()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs sm:text-sm"
             >
-              <RefreshCw className="h-4 w-4" />
-              Refresh Now
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Refresh Now</span>
+              <span className="sm:hidden">Refresh</span>
             </button>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Signals</p>
-                <p className="text-2xl font-bold text-gray-900">{totalActiveSignals}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Active Signals</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{totalActiveSignals}</p>
               </div>
-              <Activity className="h-8 w-8 text-blue-600" />
+              <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Strategies</p>
-                <p className="text-2xl font-bold text-gray-900">{Object.keys(scanResults).length}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Active Strategies</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{Object.keys(scanResults).length}</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-green-600" />
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Unread Alerts</p>
-                <p className="text-2xl font-bold text-gray-900">{unreadAlerts}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Unread Alerts</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{unreadAlerts}</p>
               </div>
-              <Bell className="h-8 w-8 text-orange-600" />
+              <Bell className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Last Updated</p>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-xs sm:text-sm text-gray-600">Last Updated</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-900">
                   {new Date().toLocaleTimeString()}
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-purple-600" />
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
             </div>
           </div>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
           {['ALL', 'INTRADAY', 'SWING'].map(type => (
             <button
               key={type}
               onClick={() => setSelectedType(type as any)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap text-xs sm:text-sm ${
                 selectedType === type
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
-              <Filter className="h-4 w-4 inline mr-2" />
+              <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
               {type}
             </button>
           ))}
@@ -406,60 +408,60 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
   const profitPotential = ((stock.target - stock.entry_price) / stock.entry_price) * 100;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all cursor-pointer"
+    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
          onClick={onClick}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-bold text-lg text-gray-900">{stock.symbol}</h4>
-          <p className="text-sm text-gray-600">{stock.company_name || stock.exchange}</p>
+      <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate">{stock.symbol}</h4>
+          <p className="text-xs sm:text-sm text-gray-600 truncate">{stock.company_name || stock.exchange}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-1 rounded text-xs font-bold ${
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-bold whitespace-nowrap ${
             stock.confidence_score >= 80 ? 'bg-green-100 text-green-800' :
             stock.confidence_score >= 70 ? 'bg-blue-100 text-blue-800' :
             'bg-yellow-100 text-yellow-800'
           }`}>
-            Score: {stock.confidence_score}
+            {stock.confidence_score}
           </span>
-          <Eye className="h-4 w-4 text-gray-400" />
+          <Eye className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
         <div>
-          <p className="text-xs text-gray-600">Entry Price</p>
-          <p className="text-sm font-semibold text-gray-900">₹{stock.entry_price.toFixed(2)}</p>
+          <p className="text-xs text-gray-600">Entry</p>
+          <p className="text-sm font-semibold text-gray-900 truncate">₹{stock.entry_price.toFixed(2)}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-600">Current Price</p>
-          <p className="text-sm font-semibold text-gray-900">₹{stock.current_price.toFixed(2)}</p>
+          <p className="text-xs text-gray-600">Current</p>
+          <p className="text-sm font-semibold text-gray-900 truncate">₹{stock.current_price.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-xs text-gray-600">Target</p>
-          <p className="text-sm font-semibold text-green-600">₹{stock.target.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-green-600 truncate">₹{stock.target.toFixed(2)}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-600">Stop Loss</p>
-          <p className="text-sm font-semibold text-red-600">₹{stock.stop_loss.toFixed(2)}</p>
+          <p className="text-xs text-gray-600">Stop</p>
+          <p className="text-sm font-semibold text-red-600 truncate">₹{stock.stop_loss.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <div className="text-sm">
-          <span className="text-gray-600">Profit Potential:</span>
-          <span className="ml-2 font-bold text-green-600">+{profitPotential.toFixed(2)}%</span>
+      <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 gap-2">
+        <div className="text-xs sm:text-sm min-w-0">
+          <span className="text-gray-600">Profit:</span>
+          <span className="ml-1 font-bold text-green-600">+{profitPotential.toFixed(1)}%</span>
         </div>
-        <div className="text-sm">
+        <div className="text-xs sm:text-sm flex-shrink-0">
           <span className="text-gray-600">R:R</span>
-          <span className="ml-2 font-bold text-blue-600">{stock.risk_reward_ratio.toFixed(2)}</span>
+          <span className="ml-1 font-bold text-blue-600">{stock.risk_reward_ratio.toFixed(1)}</span>
         </div>
       </div>
 
       {signals.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-100">
           <div className="flex flex-wrap gap-1">
             {signals.slice(0, 3).map((signal: string, idx: number) => (
-              <span key={idx} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">
+              <span key={idx} className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded truncate">
                 {signal}
               </span>
             ))}
@@ -477,55 +479,56 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
   const signals = JSON.parse(stock.signals || '[]');
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white sm:rounded-lg shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">{stock.symbol}</h2>
-              <p className="text-gray-600 mt-1">{stock.company_name || stock.exchange}</p>
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 z-10 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stock.symbol}</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{stock.company_name || stock.exchange}</p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
+              aria-label="Close"
             >
-              <XCircle className="h-6 w-6 text-gray-600" />
+              <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
             </button>
           </div>
 
-          <div className="flex items-center gap-4 mt-4">
-            <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+          <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-4">
+            <span className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap ${
               stock.confidence_score >= 80 ? 'bg-green-100 text-green-800' :
               stock.confidence_score >= 70 ? 'bg-blue-100 text-blue-800' :
               'bg-yellow-100 text-yellow-800'
             }`}>
               Confidence: {stock.confidence_score}
             </span>
-            <span className="px-3 py-1 rounded-lg text-sm font-medium bg-blue-100 text-blue-800">
+            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 truncate max-w-full">
               {stock.strategy}
             </span>
           </div>
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Price Levels */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <p className="text-sm text-blue-700 font-medium mb-1">Entry Price</p>
-              <p className="text-2xl font-bold text-blue-900">₹{stock.entry_price.toFixed(2)}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+              <p className="text-xs sm:text-sm text-blue-700 font-medium mb-1">Entry Price</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-900">₹{stock.entry_price.toFixed(2)}</p>
             </div>
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <p className="text-sm text-green-700 font-medium mb-1">Target</p>
-              <p className="text-2xl font-bold text-green-900">₹{stock.target.toFixed(2)}</p>
+            <div className="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
+              <p className="text-xs sm:text-sm text-green-700 font-medium mb-1">Target</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-900">₹{stock.target.toFixed(2)}</p>
               <p className="text-xs text-green-600 mt-1">
                 +{(((stock.target - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
               </p>
             </div>
-            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-              <p className="text-sm text-red-700 font-medium mb-1">Stop Loss</p>
-              <p className="text-2xl font-bold text-red-900">₹{stock.stop_loss.toFixed(2)}</p>
+            <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
+              <p className="text-xs sm:text-sm text-red-700 font-medium mb-1">Stop Loss</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-900">₹{stock.stop_loss.toFixed(2)}</p>
               <p className="text-xs text-red-600 mt-1">
                 {(((stock.stop_loss - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
               </p>
