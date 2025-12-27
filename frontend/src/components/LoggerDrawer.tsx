@@ -15,7 +15,8 @@ import {
   Bug,
   Server,
   Globe,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -70,6 +71,14 @@ export default function LoggerDrawer() {
     fetchLogs();
     fetchStats();
   }, []);
+
+  // Refetch logs when drawer is opened
+  useEffect(() => {
+    if (isOpen) {
+      fetchLogs();
+      fetchStats();
+    }
+  }, [isOpen]);
 
   // Setup SSE stream
   useEffect(() => {
@@ -294,6 +303,13 @@ export default function LoggerDrawer() {
               />
               <span>Live</span>
             </label>
+            <button
+              onClick={() => { fetchLogs(); fetchStats(); }}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Refresh logs"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
             <button
               onClick={clearLogs}
               className="p-2 hover:bg-gray-700 rounded transition-colors"
