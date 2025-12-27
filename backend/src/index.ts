@@ -6,9 +6,11 @@ import { screenerRoutes } from './routes/screenerRoutes';
 import { csvRoutes } from './routes/csvRoutes';
 import { indexRoutes } from './routes/indexRoutes';
 import { loggerRoutes } from './routes/loggerRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
+import { autoScanService } from './services/autoScanService';
 import { loggingMiddleware, errorLoggingMiddleware } from './middleware/loggingMiddleware';
 
 dotenv.config();
@@ -29,6 +31,7 @@ app.use('/api/screener', screenerRoutes);
 app.use('/api/csv', csvRoutes);
 app.use('/api/indexes', indexRoutes);
 app.use('/api/logs', loggerRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -39,7 +42,7 @@ app.get('/api/health', (req, res) => {
 app.use(errorLoggingMiddleware);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Market Screener Backend running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
@@ -54,6 +57,14 @@ app.listen(PORT, () => {
 
   marketDataService.initialize();
   loggerService.info('Market Data Service initialized');
+
+  // Initialize Auto-Scan Service (runs in background)
+  try {
+    await autoScanService.initialize();
+    loggerService.success('Auto-Scan Service initialized successfully');
+  } catch (error) {
+    loggerService.error('Failed to initialize Auto-Scan Service', { error });
+  }
 
   loggerService.success('All services initialized successfully');
 });

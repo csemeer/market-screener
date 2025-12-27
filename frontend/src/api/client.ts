@@ -122,3 +122,64 @@ export const indexAPI = {
   getStatistics: () =>
     api.get('/indexes/stats'),
 };
+
+export const dashboardAPI = {
+  // Get latest scan results grouped by strategy
+  getScanResults: (hours: number = 24, type?: 'INTRADAY' | 'SWING') =>
+    api.get('/dashboard/scan-results', {
+      params: { hours, type },
+    }),
+
+  // Get scan results for a specific strategy
+  getStrategyResults: (strategy: string, limit: number = 50) =>
+    api.get(`/dashboard/scan-results/${strategy}`, {
+      params: { limit },
+    }),
+
+  // Get all active signals
+  getActiveSignals: () =>
+    api.get('/dashboard/active-signals'),
+
+  // Get recent alerts
+  getAlerts: (hours: number = 24, unreadOnly: boolean = false) =>
+    api.get('/dashboard/alerts', {
+      params: { hours, unreadOnly },
+    }),
+
+  // Mark alert as read
+  markAlertAsRead: (id: number) =>
+    api.post(`/dashboard/alerts/${id}/mark-read`),
+
+  // Get performance statistics
+  getPerformance: (days: number = 30) =>
+    api.get('/dashboard/performance', {
+      params: { days },
+    }),
+
+  // Get all available strategies
+  getStrategies: () =>
+    api.get('/dashboard/strategies'),
+
+  // Get auto-scan service status
+  getStatus: () =>
+    api.get('/dashboard/status'),
+
+  // Trigger manual scan
+  triggerScan: () =>
+    api.post('/dashboard/scan-now'),
+
+  // Update scan result
+  updateScanResult: (id: number, data: {
+    status: string;
+    outcome?: string;
+    exitPrice?: number;
+    profitLoss?: number;
+    notes?: string;
+  }) => api.put(`/dashboard/scan-results/${id}`, data),
+
+  // Cleanup old results
+  cleanupOldResults: (days: number = 90) =>
+    api.delete('/dashboard/cleanup', {
+      params: { days },
+    }),
+};

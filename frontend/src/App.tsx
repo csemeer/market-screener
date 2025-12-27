@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { TrendingUp, Search, Calculator, BarChart3, Menu, X } from 'lucide-react';
+import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity } from 'lucide-react';
 import { useState } from 'react';
 import Dashboard from './pages/Dashboard';
+import AutoScanDashboard from './pages/AutoScanDashboard';
 import Screener from './pages/Screener';
 import IntradayScanner from './pages/IntradayScanner';
 import SwingScanner from './pages/SwingScanner';
@@ -14,6 +15,7 @@ function App() {
 
   const navLinks = [
     { to: '/', label: 'Dashboard', icon: BarChart3 },
+    { to: '/autoscan', label: 'Auto-Scan', icon: Activity },
     { to: '/screener', label: 'Screener', icon: Search },
     { to: '/intraday', label: 'Intraday', icon: TrendingUp },
     { to: '/swing', label: 'Swing', icon: TrendingUp },
@@ -87,6 +89,7 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/autoscan" element={<AutoScanDashboard />} />
             <Route path="/screener" element={<Screener />} />
             <Route path="/intraday" element={<IntradayScanner />} />
             <Route path="/swing" element={<SwingScanner />} />
