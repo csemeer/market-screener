@@ -58,5 +58,4 @@ logs
 .editorconfig
 .prettierrc
 .eslintrc
-tsconfig.json
-vite.config.ts
+# Note: tsconfig.json and vite.config.ts are needed for Vite build process
