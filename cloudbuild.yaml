@@ -14,8 +14,9 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/market-screener-backend:latest'
       - '-f'
-      - 'backend/Dockerfile'
+      - './backend/Dockerfile'
       - './backend'
+    dir: '.'
 
   # ========================================
   # STEP 2: Push Backend Image to GCR
@@ -46,10 +47,11 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/market-screener-frontend:latest'
       - '-f'
-      - 'frontend/Dockerfile'
+      - './frontend/Dockerfile'
       - '--build-arg'
       - 'VITE_API_URL=https://market-screener-backend-${_REGION}.run.app/api'
       - './frontend'
+    dir: '.'
 
   # ========================================
   # STEP 4: Push Frontend Image to GCR
