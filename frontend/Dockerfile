@@ -27,11 +27,17 @@ FROM nginx:alpine
 # Install curl for health checks
 RUN apk add --no-cache curl
 
+# Remove default nginx config
+RUN rm -f /etc/nginx/conf.d/default.conf
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Verify files were copied (for debugging)
+RUN ls -la /usr/share/nginx/html/
 
 # Expose port 8080 (Cloud Run default)
 EXPOSE 8080
