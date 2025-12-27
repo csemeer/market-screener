@@ -49,7 +49,7 @@ steps:
       - '-f'
       - './frontend/Dockerfile'
       - '--build-arg'
-      - 'VITE_API_URL=https://market-screener-backend-${_REGION}.run.app/api'
+      - 'VITE_API_URL=https://market-screener-backend-156258219586.${_REGION}.run.app/api'
       - './frontend'
     dir: '.'
 
