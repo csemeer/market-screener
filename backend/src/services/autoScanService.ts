@@ -6,7 +6,7 @@
 import cron from 'node-cron';
 import { v4 as uuidv4 } from 'uuid';
 import { databaseService, ScanResult, Alert } from './databaseService';
-import { logger } from './loggerService';
+import { loggerService } from './loggerService';
 import { screenerService } from './screenerService';
 import { marketDataService } from './marketDataService';
 
@@ -208,12 +208,12 @@ class AutoScanService {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      logger.info('AutoScanService already initialized');
+      loggerService.info('AutoScanService already initialized');
       return;
     }
 
     try {
-      logger.info('Initializing AutoScanService...');
+      loggerService.info('Initializing AutoScanService...');
 
       // Initialize database
       databaseService.initialize();
@@ -260,12 +260,12 @@ class AutoScanService {
       await this.runAllEnabledScans();
 
       this.initialized = true;
-      logger.info('AutoScanService initialized successfully', {
+      loggerService.info('AutoScanService initialized successfully', {
         intradayStrategies: Object.keys(INTRADAY_STRATEGIES).filter(k => INTRADAY_STRATEGIES[k as keyof typeof INTRADAY_STRATEGIES].enabled).length,
         swingStrategies: Object.keys(SWING_STRATEGIES).filter(k => SWING_STRATEGIES[k as keyof typeof SWING_STRATEGIES].enabled).length,
       });
     } catch (error) {
-      logger.error('Failed to initialize AutoScanService', { error });
+      loggerService.error('Failed to initialize AutoScanService', { error });
       throw error;
     }
   }
@@ -279,14 +279,14 @@ class AutoScanService {
     const job = cron.schedule(cronExpression, async () => {
       // Only run during market hours for intraday strategies
       if (strategy.type === 'INTRADAY' && !this.isMarketHours) {
-        logger.debug(`Skipping ${strategyKey} scan - market closed`);
+        loggerService.debug(`Skipping ${strategyKey} scan - market closed`);
         return;
       }
 
       try {
         await this.runScan(strategyKey, strategy);
       } catch (error) {
-        logger.error(`Error running ${strategyKey} scan`, { error });
+        loggerService.error(`Error running ${strategyKey} scan`, { error });
       }
     }, {
       scheduled: true,
@@ -294,7 +294,7 @@ class AutoScanService {
     });
 
     this.scheduledJobs.set(strategyKey, job);
-    logger.info(`Scheduled ${strategyKey}`, { interval: `${intervalMinutes} minutes` });
+    loggerService.info(`Scheduled ${strategyKey}`, { interval: `${intervalMinutes} minutes` });
   }
 
   /**
@@ -321,7 +321,7 @@ class AutoScanService {
       timezone: 'Asia/Kolkata',
     });
 
-    logger.info('Market hours checker setup complete');
+    loggerService.info('Market hours checker setup complete');
   }
 
   /**
@@ -332,14 +332,14 @@ class AutoScanService {
       try {
         await this.updateActiveResults();
       } catch (error) {
-        logger.error('Error updating active results', { error });
+        loggerService.error('Error updating active results', { error });
       }
     }, {
       scheduled: true,
       timezone: 'Asia/Kolkata',
     });
 
-    logger.info('Result status updater setup complete');
+    loggerService.info('Result status updater setup complete');
   }
 
   /**
@@ -349,7 +349,7 @@ class AutoScanService {
     const scanId = uuidv4();
     const startTime = Date.now();
 
-    logger.info(`Starting auto-scan for ${strategyKey}`, { scanId });
+    loggerService.info(`Starting auto-scan for ${strategyKey}`, { scanId });
 
     try {
       const config = databaseService.getOrCreateAutoScanConfig(strategyKey);
@@ -377,7 +377,7 @@ class AutoScanService {
         return score >= config.minConfidenceScore;
       });
 
-      logger.info(`${strategyKey} scan completed`, {
+      loggerService.info(`${strategyKey} scan completed`, {
         scanId,
         totalResults: results.length,
         filteredResults: filteredResults.length,
@@ -436,7 +436,7 @@ class AutoScanService {
       }
 
     } catch (error) {
-      logger.error(`Failed to run ${strategyKey} scan`, { error, scanId });
+      loggerService.error(`Failed to run ${strategyKey} scan`, { error, scanId });
     }
   }
 
@@ -568,7 +568,7 @@ class AutoScanService {
             scanResultId: result.id,
           });
 
-          logger.info(`Target hit for ${result.symbol}`, { profitLoss });
+          loggerService.info(`Target hit for ${result.symbol}`, { profitLoss });
         }
         // Check if stoploss hit
         else if (currentPrice <= result.stopLoss) {
@@ -596,10 +596,10 @@ class AutoScanService {
             scanResultId: result.id,
           });
 
-          logger.info(`Stop loss hit for ${result.symbol}`, { profitLoss });
+          loggerService.info(`Stop loss hit for ${result.symbol}`, { profitLoss });
         }
       } catch (error) {
-        logger.error(`Error updating status for ${result.symbol}`, { error });
+        loggerService.error(`Error updating status for ${result.symbol}`, { error });
       }
     }
   }
@@ -608,7 +608,7 @@ class AutoScanService {
    * Run all enabled scans immediately
    */
   async runAllEnabledScans(): Promise<void> {
-    logger.info('Running initial scan for all enabled strategies...');
+    loggerService.info('Running initial scan for all enabled strategies...');
 
     const promises: Promise<void>[] = [];
 
@@ -627,7 +627,7 @@ class AutoScanService {
     }
 
     await Promise.allSettled(promises);
-    logger.info('Initial scan completed for all strategies');
+    loggerService.info('Initial scan completed for all strategies');
   }
 
   /**
@@ -659,7 +659,7 @@ class AutoScanService {
   stopAll(): void {
     for (const [key, job] of this.scheduledJobs) {
       job.stop();
-      logger.info(`Stopped scheduled job: ${key}`);
+      loggerService.info(`Stopped scheduled job: ${key}`);
     }
     this.scheduledJobs.clear();
     this.initialized = false;

@@ -6,7 +6,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { logger } from './loggerService';
+import { loggerService } from './loggerService';
 
 export interface ScanResult {
   id?: number;
@@ -15,7 +15,7 @@ export interface ScanResult {
   strategy: string;
   strategyType: 'INTRADAY' | 'SWING' | 'LONG_TERM';
   symbol: string;
-  exchange: string;
+  exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ';
   companyName: string;
   currentPrice: number;
   entryPrice: number;
@@ -79,12 +79,12 @@ class DatabaseService {
    */
   initialize(): void {
     if (this.initialized) {
-      logger.info('Database already initialized');
+      loggerService.info('Database already initialized');
       return;
     }
 
     try {
-      logger.info(`Initializing database at: ${this.dbPath}`);
+      loggerService.info(`Initializing database at: ${this.dbPath}`);
       this.db = new Database(this.dbPath);
 
       // Enable WAL mode for better concurrency
@@ -92,9 +92,9 @@ class DatabaseService {
 
       this.createTables();
       this.initialized = true;
-      logger.info('Database initialized successfully');
+      loggerService.info('Database initialized successfully');
     } catch (error) {
-      logger.error('Failed to initialize database', { error });
+      loggerService.error('Failed to initialize database', { error });
       throw error;
     }
   }
@@ -187,7 +187,7 @@ class DatabaseService {
       )
     `);
 
-    logger.info('Database tables created successfully');
+    loggerService.info('Database tables created successfully');
   }
 
   /**
@@ -531,7 +531,7 @@ class DatabaseService {
       this.db.close();
       this.db = null;
       this.initialized = false;
-      logger.info('Database connection closed');
+      loggerService.info('Database connection closed');
     }
   }
 }
