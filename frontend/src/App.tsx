@@ -7,6 +7,7 @@ import IntradayScanner from './pages/IntradayScanner';
 import SwingScanner from './pages/SwingScanner';
 import RiskCalculator from './pages/RiskCalculator';
 import StockDetail from './pages/StockDetail';
+import LoggerDrawer from './components/LoggerDrawer';
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -105,6 +106,9 @@ function App() {
             </p>
           </div>
         </footer>
+
+        {/* Logger Drawer - Global monitoring tool */}
+        <LoggerDrawer />
       </div>
     </Router>
   );
