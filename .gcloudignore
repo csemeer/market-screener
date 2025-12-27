@@ -1,0 +1,92 @@
+# This file specifies files that should be ignored by gcloud
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build artifacts
+**/dist/
+**/build/
+**/.next/
+
+# Development files
+**/.env.local
+**/.env.development
+**/.env.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (keep only deployment docs)
+COMPREHENSIVE_E2E_TEST_REPORT.md
+END_TO_END_TESTING_REPORT.md
+ENHANCED_README.md
+ENHANCEMENT_SUMMARY.md
+FUNDAMENTAL_INTEGRATION.md
+IMPLEMENTATION_ROADMAP.md
+INDEX_BASED_SCREENING_GUIDE.md
+INDEX_FEATURE_SUMMARY.md
+ISSUES_FIXED.md
+MOBILE_RESPONSIVENESS.md
+PROFESSIONAL_FEATURES.md
+SCREENING_ENHANCEMENTS_SUMMARY.md
+SCREENING_STRATEGIES_GUIDE.md
+STOCK_REPORT_ENHANCEMENT.md
+STRATEGIES_QUICK_REFERENCE.md
+TESTING_CHECKLIST.md
+TESTING_GUIDE.md
+
+# Test files
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*.spec.jsx
+**/tests/
+**/test/
+**/__tests__/
+test-*.sh
+*.test.sh
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Docker development files
+docker-compose.dev.yml
+Dockerfile.dev
+**/Dockerfile.dev
+
+# Deployment scripts (Cloud Build handles this)
+deploy.sh
+docker-build.sh
+docker-stop.sh
+docker-logs.sh
+
+# Temporary files
+tmp/
+temp/
+*.tmp
