@@ -31,21 +31,21 @@ export default function RiskCalculator() {
   const potentialProfit = positionSize * (target - entryPrice);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-          <Calculator className="w-8 h-8 mr-3 text-purple-600" />
-          Risk Management Calculator
+    <div className="max-w-5xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2 sm:gap-3">
+          <Calculator className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-purple-600 flex-shrink-0" />
+          <span className="truncate">Risk Management Calculator</span>
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm sm:text-base text-gray-600">
           Calculate optimal position sizing and manage your trading risk effectively
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Input Panel */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Trade Parameters</h2>
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Trade Parameters</h2>
 
           <div className="space-y-4">
             <div>
@@ -119,27 +119,27 @@ export default function RiskCalculator() {
         </div>
 
         {/* Results Panel */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Position Size */}
-          <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+          <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">Recommended Position Size</h3>
-              <DollarSign className="w-6 h-6" />
+              <h3 className="text-base sm:text-lg font-semibold truncate">Recommended Position Size</h3>
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
             </div>
-            <div className="text-4xl font-bold mb-1">{positionSize} shares</div>
-            <div className="text-sm opacity-90">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1">{positionSize} shares</div>
+            <div className="text-xs sm:text-sm opacity-90">
               Investment: ${(positionSize * entryPrice).toFixed(2)}
             </div>
           </div>
 
           {/* Risk Metrics */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="card bg-red-50 border border-red-200">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="card bg-red-50 border border-red-200 p-3 sm:p-4">
               <div className="flex items-center mb-2">
-                <TrendingDown className="w-5 h-5 mr-2 text-red-600" />
-                <h3 className="text-sm font-semibold text-red-900">Max Risk</h3>
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-red-600 flex-shrink-0" />
+                <h3 className="text-xs sm:text-sm font-semibold text-red-900">Max Risk</h3>
               </div>
-              <div className="text-2xl font-bold text-red-900">
+              <div className="text-lg sm:text-xl md:text-2xl font-bold text-red-900 truncate">
                 ${potentialLoss.toFixed(2)}
               </div>
               <div className="text-xs text-red-700 mt-1">
@@ -147,12 +147,12 @@ export default function RiskCalculator() {
               </div>
             </div>
 
-            <div className="card bg-green-50 border border-green-200">
+            <div className="card bg-green-50 border border-green-200 p-3 sm:p-4">
               <div className="flex items-center mb-2">
-                <Target className="w-5 h-5 mr-2 text-green-600" />
-                <h3 className="text-sm font-semibold text-green-900">Potential Profit</h3>
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-green-600 flex-shrink-0" />
+                <h3 className="text-xs sm:text-sm font-semibold text-green-900 truncate">Potential Profit</h3>
               </div>
-              <div className="text-2xl font-bold text-green-900">
+              <div className="text-lg sm:text-xl md:text-2xl font-bold text-green-900 truncate">
                 ${potentialProfit.toFixed(2)}
               </div>
               <div className="text-xs text-green-700 mt-1">
@@ -210,44 +210,44 @@ export default function RiskCalculator() {
       </div>
 
       {/* Education Section */}
-      <div className="mt-8 card bg-blue-50 border border-blue-200">
-        <h3 className="font-semibold text-blue-900 mb-3">Risk Management Guidelines</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-          <div>
+      <div className="mt-4 sm:mt-6 md:mt-8 card bg-blue-50 border border-blue-200 p-3 sm:p-4 md:p-6">
+        <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-2 sm:mb-3">Risk Management Guidelines</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm text-blue-800">
+          <div className="bg-white bg-opacity-50 rounded p-2 sm:p-3">
             <strong className="block mb-1">1-2% Rule</strong>
-            Risk only 1-2% of your total account on any single trade to protect your capital from significant drawdowns.
+            <span>Risk only 1-2% of your total account on any single trade to protect your capital from significant drawdowns.</span>
           </div>
-          <div>
+          <div className="bg-white bg-opacity-50 rounded p-2 sm:p-3">
             <strong className="block mb-1">Position Sizing</strong>
-            Calculate the exact number of shares based on your risk tolerance and stop loss distance.
+            <span>Calculate the exact number of shares based on your risk tolerance and stop loss distance.</span>
           </div>
-          <div>
+          <div className="bg-white bg-opacity-50 rounded p-2 sm:p-3">
             <strong className="block mb-1">R:R Ratio</strong>
-            Aim for at least 2:1 reward-to-risk ratio. This means you can be right only 40% of the time and still profit.
+            <span>Aim for at least 2:1 reward-to-risk ratio. This means you can be right only 40% of the time and still profit.</span>
           </div>
         </div>
       </div>
 
       {/* Advanced Tools */}
-      <div className="mt-6 card">
-        <h3 className="font-semibold text-gray-900 mb-3">Quick Reference Table</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div className="mt-4 sm:mt-6 card p-3 sm:p-4 md:p-6">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3">Quick Reference Table</h3>
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full text-xs sm:text-sm min-w-[400px]">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-left">Account Size</th>
-                <th className="px-4 py-2 text-left">1% Risk</th>
-                <th className="px-4 py-2 text-left">2% Risk</th>
-                <th className="px-4 py-2 text-left">3% Risk</th>
+                <th className="px-2 sm:px-4 py-2 text-left">Account Size</th>
+                <th className="px-2 sm:px-4 py-2 text-left">1% Risk</th>
+                <th className="px-2 sm:px-4 py-2 text-left">2% Risk</th>
+                <th className="px-2 sm:px-4 py-2 text-left">3% Risk</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {[5000, 10000, 25000, 50000, 100000].map((size) => (
                 <tr key={size}>
-                  <td className="px-4 py-2 font-medium">${size.toLocaleString()}</td>
-                  <td className="px-4 py-2 text-green-600">${(size * 0.01).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-blue-600">${(size * 0.02).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-yellow-600">${(size * 0.03).toFixed(2)}</td>
+                  <td className="px-2 sm:px-4 py-2 font-medium">${size.toLocaleString()}</td>
+                  <td className="px-2 sm:px-4 py-2 text-green-600">${(size * 0.01).toFixed(2)}</td>
+                  <td className="px-2 sm:px-4 py-2 text-blue-600">${(size * 0.02).toFixed(2)}</td>
+                  <td className="px-2 sm:px-4 py-2 text-yellow-600">${(size * 0.03).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
