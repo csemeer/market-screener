@@ -206,7 +206,7 @@ class DatabaseService {
 
     const info = stmt.run(
       result.scanId,
-      result.timestamp,
+      result.timestamp instanceof Date ? result.timestamp.toISOString() : result.timestamp,
       result.strategy,
       result.strategyType,
       result.symbol,
@@ -322,7 +322,7 @@ class DatabaseService {
     `);
 
     const info = stmt.run(
-      alert.timestamp,
+      alert.timestamp instanceof Date ? alert.timestamp.toISOString() : alert.timestamp,
       alert.symbol,
       alert.exchange,
       alert.strategy,
@@ -452,11 +452,11 @@ class DatabaseService {
     }
     if (config.lastScanTime !== undefined) {
       updates.push('last_scan_time = ?');
-      values.push(config.lastScanTime);
+      values.push(config.lastScanTime instanceof Date ? config.lastScanTime.toISOString() : config.lastScanTime);
     }
     if (config.nextScanTime !== undefined) {
       updates.push('next_scan_time = ?');
-      values.push(config.nextScanTime);
+      values.push(config.nextScanTime instanceof Date ? config.nextScanTime.toISOString() : config.nextScanTime);
     }
     if (config.markets !== undefined) {
       updates.push('markets = ?');
