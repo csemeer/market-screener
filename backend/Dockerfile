@@ -1,6 +1,14 @@
 # Multi-stage build for Node.js backend
 FROM node:18-alpine AS builder
 
+# Install build dependencies for native modules (better-sqlite3)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev
+
 # Set working directory
 WORKDIR /app
 
@@ -20,8 +28,14 @@ RUN npm run build
 # Production stage
 FROM node:18-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install runtime dependencies for better-sqlite3 and dumb-init
+RUN apk add --no-cache \
+    dumb-init \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -33,7 +47,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
+# Install only production dependencies (better-sqlite3 needs native compilation)
 RUN npm ci --only=production && \
     npm cache clean --force
 
