@@ -24,15 +24,11 @@ RUN npm run build
 # Production stage with Nginx
 FROM nginx:alpine
 
-# Install curl for health checks and gettext for envsubst
-RUN apk add --no-cache curl gettext
+# Install curl for health checks
+RUN apk add --no-cache curl
 
-# Copy custom nginx config template
-COPY nginx.conf /etc/nginx/conf.d/default.conf.template
-
-# Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -50,8 +46,8 @@ RUN touch /var/run/nginx.pid && \
 # Switch to non-root user
 USER nginx
 
-# Expose port (Cloud Run will set PORT env var)
-EXPOSE 3000
+# Expose port 8080 (Cloud Run default)
+EXPOSE 8080
 
-# Start Nginx via entrypoint script
-CMD ["/docker-entrypoint.sh"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
