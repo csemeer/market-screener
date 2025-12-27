@@ -5,7 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { databaseService } from '../services/databaseService';
 import { autoScanService, INTRADAY_STRATEGIES, SWING_STRATEGIES } from '../services/autoScanService';
-import { logger } from '../services/loggerService';
+import { loggerService } from '../services/loggerService';
 
 const router = Router();
 
@@ -50,7 +50,7 @@ router.get('/scan-results', async (req: Request, res: Response) => {
       performance: strategyStats,
     });
   } catch (error) {
-    logger.error('Error fetching dashboard scan results', { error });
+    loggerService.error('Error fetching dashboard scan results', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch scan results',
@@ -78,7 +78,7 @@ router.get('/scan-results/:strategy', async (req: Request, res: Response) => {
       performance,
     });
   } catch (error) {
-    logger.error('Error fetching strategy scan results', { error });
+    loggerService.error('Error fetching strategy scan results', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch strategy results',
@@ -112,7 +112,7 @@ router.get('/active-signals', async (req: Request, res: Response) => {
       signals: grouped,
     });
   } catch (error) {
-    logger.error('Error fetching active signals', { error });
+    loggerService.error('Error fetching active signals', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch active signals',
@@ -140,7 +140,7 @@ router.get('/alerts', async (req: Request, res: Response) => {
       alerts,
     });
   } catch (error) {
-    logger.error('Error fetching alerts', { error });
+    loggerService.error('Error fetching alerts', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch alerts',
@@ -162,7 +162,7 @@ router.post('/alerts/:id/mark-read', async (req: Request, res: Response) => {
       message: 'Alert marked as read',
     });
   } catch (error) {
-    logger.error('Error marking alert as read', { error });
+    loggerService.error('Error marking alert as read', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to mark alert as read',
@@ -219,7 +219,7 @@ router.get('/performance', async (req: Request, res: Response) => {
       byStrategy: performanceByStrategy,
     });
   } catch (error) {
-    logger.error('Error fetching performance stats', { error });
+    loggerService.error('Error fetching performance stats', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch performance statistics',
@@ -272,7 +272,7 @@ router.get('/strategies', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    logger.error('Error fetching strategies', { error });
+    loggerService.error('Error fetching strategies', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch strategies',
@@ -293,7 +293,7 @@ router.get('/status', async (req: Request, res: Response) => {
       ...status,
     });
   } catch (error) {
-    logger.error('Error fetching auto-scan status', { error });
+    loggerService.error('Error fetching auto-scan status', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch status',
@@ -309,7 +309,7 @@ router.post('/scan-now', async (req: Request, res: Response) => {
   try {
     // Run all enabled scans in the background
     autoScanService.runAllEnabledScans().catch(error => {
-      logger.error('Error in manual scan trigger', { error });
+      loggerService.error('Error in manual scan trigger', { error });
     });
 
     res.json({
@@ -317,7 +317,7 @@ router.post('/scan-now', async (req: Request, res: Response) => {
       message: 'Scan initiated for all enabled strategies',
     });
   } catch (error) {
-    logger.error('Error triggering manual scan', { error });
+    loggerService.error('Error triggering manual scan', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to trigger scan',
@@ -341,7 +341,7 @@ router.put('/scan-results/:id', async (req: Request, res: Response) => {
       message: 'Scan result updated successfully',
     });
   } catch (error) {
-    logger.error('Error updating scan result', { error });
+    loggerService.error('Error updating scan result', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to update scan result',
@@ -364,7 +364,7 @@ router.delete('/cleanup', async (req: Request, res: Response) => {
       deletedCount,
     });
   } catch (error) {
-    logger.error('Error cleaning up old results', { error });
+    loggerService.error('Error cleaning up old results', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to clean up old results',
