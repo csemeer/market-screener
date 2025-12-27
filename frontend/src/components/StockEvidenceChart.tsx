@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi } from 'lightweight-charts';
 
 interface ChartData {
   symbol: string;
@@ -73,7 +73,7 @@ export default function StockEvidenceChart({ data }: Props) {
     chartRef.current = chart;
 
     // Add candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries('Candlestick' as any, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -94,7 +94,7 @@ export default function StockEvidenceChart({ data }: Props) {
 
     // Add EMA lines
     if (data.indicators.ema20) {
-      const ema20Series = chart.addLineSeries({
+      const ema20Series = chart.addSeries('Line' as any, {
         color: '#2962FF',
         lineWidth: 2,
         title: 'EMA 20',
@@ -103,7 +103,7 @@ export default function StockEvidenceChart({ data }: Props) {
     }
 
     if (data.indicators.ema50) {
-      const ema50Series = chart.addLineSeries({
+      const ema50Series = chart.addSeries('Line' as any, {
         color: '#FF6D00',
         lineWidth: 2,
         title: 'EMA 50',
@@ -115,7 +115,7 @@ export default function StockEvidenceChart({ data }: Props) {
     const lastTime = candleData[candleData.length - 1].time;
 
     // Entry level
-    const entryLine = chart.addLineSeries({
+    const entryLine = chart.addSeries('Line' as any, {
       color: '#2196F3',
       lineWidth: 2,
       lineStyle: 2, // Dashed
@@ -129,7 +129,7 @@ export default function StockEvidenceChart({ data }: Props) {
     ]);
 
     // Target level
-    const targetLine = chart.addLineSeries({
+    const targetLine = chart.addSeries('Line' as any, {
       color: '#4CAF50',
       lineWidth: 2,
       lineStyle: 2, // Dashed
@@ -143,7 +143,7 @@ export default function StockEvidenceChart({ data }: Props) {
     ]);
 
     // Stop Loss level
-    const stopLine = chart.addLineSeries({
+    const stopLine = chart.addSeries('Line' as any, {
       color: '#F44336',
       lineWidth: 2,
       lineStyle: 2, // Dashed

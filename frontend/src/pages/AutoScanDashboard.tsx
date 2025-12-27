@@ -92,9 +92,8 @@ export default function AutoScanDashboard() {
     try {
       if (!silent) setLoading(true);
 
-      const [resultsRes, alertsRes] = await Promise.all([
+      const [resultsRes] = await Promise.all([
         dashboardAPI.getScanResults(24, selectedType === 'ALL' ? undefined : selectedType),
-        dashboardAPI.getAlerts(24, false),
       ]);
 
       setScanResults(resultsRes.data.results || {});
