@@ -385,10 +385,21 @@ class DatabaseService {
     if (!this.db) throw new Error('Database not initialized');
 
     // Try to get existing config
-    const existing = this.db.prepare('SELECT * FROM autoscan_config WHERE strategy = ?').get(strategy) as AutoScanConfig | undefined;
+    const existing = this.db.prepare('SELECT * FROM autoscan_config WHERE strategy = ?').get(strategy) as any;
 
     if (existing) {
-      return existing;
+      // Convert snake_case to camelCase
+      return {
+        id: existing.id,
+        strategy: existing.strategy,
+        enabled: Boolean(existing.enabled),
+        scanInterval: existing.scan_interval,
+        lastScanTime: existing.last_scan_time ? new Date(existing.last_scan_time) : undefined,
+        nextScanTime: existing.next_scan_time ? new Date(existing.next_scan_time) : undefined,
+        markets: existing.markets,
+        minConfidenceScore: existing.min_confidence_score,
+        maxResultsPerScan: existing.max_results_per_scan,
+      };
     }
 
     // Create new config
@@ -406,7 +417,20 @@ class DatabaseService {
       defaultConfig.maxResultsPerScan || 20
     );
 
-    return this.db.prepare('SELECT * FROM autoscan_config WHERE id = ?').get(info.lastInsertRowid) as AutoScanConfig;
+    const newRow = this.db.prepare('SELECT * FROM autoscan_config WHERE id = ?').get(info.lastInsertRowid) as any;
+
+    // Convert snake_case to camelCase
+    return {
+      id: newRow.id,
+      strategy: newRow.strategy,
+      enabled: Boolean(newRow.enabled),
+      scanInterval: newRow.scan_interval,
+      lastScanTime: newRow.last_scan_time ? new Date(newRow.last_scan_time) : undefined,
+      nextScanTime: newRow.next_scan_time ? new Date(newRow.next_scan_time) : undefined,
+      markets: newRow.markets,
+      minConfidenceScore: newRow.min_confidence_score,
+      maxResultsPerScan: newRow.max_results_per_scan,
+    };
   }
 
   /**
@@ -463,7 +487,20 @@ class DatabaseService {
     if (!this.db) throw new Error('Database not initialized');
 
     const stmt = this.db.prepare('SELECT * FROM autoscan_config WHERE enabled = 1');
-    return stmt.all() as AutoScanConfig[];
+    const rows = stmt.all() as any[];
+
+    // Convert snake_case to camelCase
+    return rows.map(row => ({
+      id: row.id,
+      strategy: row.strategy,
+      enabled: Boolean(row.enabled),
+      scanInterval: row.scan_interval,
+      lastScanTime: row.last_scan_time ? new Date(row.last_scan_time) : undefined,
+      nextScanTime: row.next_scan_time ? new Date(row.next_scan_time) : undefined,
+      markets: row.markets,
+      minConfidenceScore: row.min_confidence_score,
+      maxResultsPerScan: row.max_results_per_scan,
+    }));
   }
 
   /**
