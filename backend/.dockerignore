@@ -52,4 +52,4 @@ logs
 .editorconfig
 .prettierrc
 .eslintrc
-tsconfig.json
+# Note: tsconfig.json is needed for TypeScript compilation during build
