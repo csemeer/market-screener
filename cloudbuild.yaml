@@ -87,6 +87,7 @@ steps:
       - '--cpu=1'
       - '--max-instances=10'
       - '--timeout=300'
+      - '--remove-env-vars=PORT'
       - '--update-env-vars=NODE_ENV=production'
     waitFor: ['push-backend', 'push-backend-latest']
 
