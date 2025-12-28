@@ -54,6 +54,10 @@ RUN npm ci --only=production && \
 # Copy built application from builder
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 
+# Create data directory for SQLite database with proper ownership
+RUN mkdir -p /app/data && \
+    chown -R nodejs:nodejs /app/data
+
 # Switch to non-root user
 USER nodejs
 
