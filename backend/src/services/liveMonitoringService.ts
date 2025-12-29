@@ -142,10 +142,17 @@ class LiveMonitoringService {
    */
   private async monitorStock(stock: any): Promise<void> {
     try {
-      // Fetch current price
-      const quote = await marketDataService.getQuote(stock.symbol, stock.exchange);
+      // Fetch current price with timeout and error handling
+      const quote: any = await Promise.race([
+        marketDataService.getQuote(stock.symbol, stock.exchange),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]).catch(error => {
+        loggerService.debug(`Failed to fetch quote for ${stock.symbol}`, { error: error instanceof Error ? error.message : String(error) });
+        return null;
+      });
 
-      if (!quote || !quote.price) {
+      if (!quote || !quote.price || typeof quote.price !== 'number') {
+        loggerService.debug(`Invalid quote data for ${stock.symbol}`, { quote });
         return;
       }
 
