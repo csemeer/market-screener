@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface WatchlistStock {
   id: number;

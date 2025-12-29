@@ -183,3 +183,80 @@ export const dashboardAPI = {
       params: { days },
     }),
 };
+
+export const eodAPI = {
+  // Trigger EOD scan
+  triggerScan: (config?: {
+    exchanges?: string[];
+    minScore?: number;
+    maxStocks?: number;
+    lookbackDays?: number;
+  }) => api.post('/eod/scan', config),
+
+  // Trigger EOD scan synchronously
+  triggerScanSync: (config?: {
+    exchanges?: string[];
+    minScore?: number;
+    maxStocks?: number;
+    lookbackDays?: number;
+  }) => api.get('/eod/scan/sync', { params: config }),
+
+  // Get latest watchlist
+  getLatestWatchlist: () =>
+    api.get('/eod/watchlist'),
+
+  // Get watchlist by date
+  getWatchlistByDate: (date: string) =>
+    api.get(`/eod/watchlist/${date}`),
+
+  // Get today's watchlist
+  getTodayWatchlist: () =>
+    api.get('/eod/watchlist/today'),
+
+  // Get stocks by status
+  getStocksByStatus: (status: string) =>
+    api.get(`/eod/stocks/${status}`),
+
+  // Update stock status
+  updateStockStatus: (id: number, data: {
+    status: string;
+    triggerPrice?: number;
+    triggerTime?: string;
+  }) => api.put(`/eod/stocks/${id}/status`, data),
+
+  // Get EOD scanner status
+  getStatus: () =>
+    api.get('/eod/status'),
+
+  // Get trades
+  getTrades: (status?: 'OPEN' | 'CLOSED', limit?: number) =>
+    api.get('/eod/trades', {
+      params: { status, limit },
+    }),
+
+  // Get open positions
+  getPositions: () =>
+    api.get('/eod/positions'),
+
+  // Get performance statistics
+  getPerformance: (days: number = 30) =>
+    api.get('/eod/performance', {
+      params: { days },
+    }),
+
+  // Live monitoring control
+  getMonitoringStatus: () =>
+    api.get('/eod/monitoring/status'),
+
+  startMonitoring: () =>
+    api.post('/eod/monitoring/start'),
+
+  stopMonitoring: () =>
+    api.post('/eod/monitoring/stop'),
+
+  updateMonitoringConfig: (config: any) =>
+    api.put('/eod/monitoring/config', config),
+
+  testMonitoring: (symbol: string, exchange: string) =>
+    api.post(`/eod/monitoring/test/${symbol}`, { exchange }),
+};
