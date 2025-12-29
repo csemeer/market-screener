@@ -745,6 +745,561 @@ class DatabaseService {
     return info.changes;
   }
 
+  // ==================== EOD WATCHLIST METHODS ====================
+
+  /**
+   * Create a new daily watchlist
+   */
+  createWatchlist(
+    date: Date,
+    exchange: string,
+    totalStocksAnalyzed: number,
+    stocksSelected: number,
+    notes?: string
+  ): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO watchlists (date, exchange, scan_timestamp, total_stocks_analyzed, stocks_selected, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+      exchange,
+      new Date().toISOString(),
+      totalStocksAnalyzed,
+      stocksSelected,
+      notes || null
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Insert a stock into a watchlist
+   */
+  insertWatchlistStock(watchlistId: number, stock: {
+    symbol: string;
+    companyName?: string;
+    exchange: string;
+    currency: 'USD' | 'INR';
+    setupType: string;
+    timeframe: string;
+    score: number;
+    entryPrice: number;
+    entryTrigger?: number;
+    entryCondition?: string;
+    stopLoss: number;
+    target1: number;
+    target2?: number;
+    target3?: number;
+    trailingStopPercent?: number;
+    riskRewardRatio: number;
+    positionSizePercent?: number;
+    maxLossAmount?: number;
+    technicalData: string;
+    signals?: string;
+    chartPatterns?: string;
+    setupNotes?: string;
+  }): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO watchlist_stocks (
+        watchlist_id, symbol, company_name, exchange, currency,
+        setup_type, timeframe, score,
+        entry_price, entry_trigger, entry_condition,
+        stop_loss, target_1, target_2, target_3, trailing_stop_percent,
+        risk_reward_ratio, position_size_percent, max_loss_amount,
+        technical_data, signals, chart_patterns, setup_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      watchlistId,
+      stock.symbol,
+      stock.companyName || null,
+      stock.exchange,
+      stock.currency,
+      stock.setupType,
+      stock.timeframe,
+      stock.score,
+      stock.entryPrice,
+      stock.entryTrigger || null,
+      stock.entryCondition || null,
+      stock.stopLoss,
+      stock.target1,
+      stock.target2 || null,
+      stock.target3 || null,
+      stock.trailingStopPercent || null,
+      stock.riskRewardRatio,
+      stock.positionSizePercent || null,
+      stock.maxLossAmount || null,
+      stock.technicalData,
+      stock.signals || null,
+      stock.chartPatterns || null,
+      stock.setupNotes || null
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Get watchlist for a specific date
+   */
+  getWatchlistByDate(date: Date): {
+    watchlist: any;
+    stocks: any[];
+  } | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const dateStr = date.toISOString().split('T')[0];
+
+    const watchlist = this.db.prepare(`
+      SELECT * FROM watchlists WHERE date = ?
+    `).get(dateStr);
+
+    if (!watchlist) return null;
+
+    const stocks = this.db.prepare(`
+      SELECT * FROM watchlist_stocks
+      WHERE watchlist_id = ?
+      ORDER BY score DESC
+    `).all((watchlist as any).id);
+
+    return {
+      watchlist,
+      stocks
+    };
+  }
+
+  /**
+   * Get latest watchlist
+   */
+  getLatestWatchlist(): {
+    watchlist: any;
+    stocks: any[];
+  } | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const watchlist = this.db.prepare(`
+      SELECT * FROM watchlists
+      ORDER BY date DESC, created_at DESC
+      LIMIT 1
+    `).get();
+
+    if (!watchlist) return null;
+
+    const stocks = this.db.prepare(`
+      SELECT * FROM watchlist_stocks
+      WHERE watchlist_id = ?
+      ORDER BY score DESC
+    `).all((watchlist as any).id);
+
+    return {
+      watchlist,
+      stocks
+    };
+  }
+
+  /**
+   * Get today's watchlist stocks
+   */
+  getTodayWatchlist(): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const stmt = this.db.prepare(`
+      SELECT ws.* FROM watchlist_stocks ws
+      JOIN watchlists w ON ws.watchlist_id = w.id
+      WHERE w.date = ?
+      ORDER BY ws.score DESC
+    `);
+
+    return stmt.all(today);
+  }
+
+  /**
+   * Update watchlist stock status
+   */
+  updateWatchlistStockStatus(
+    id: number,
+    status: string,
+    triggerPrice?: number,
+    triggerTime?: Date
+  ): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      UPDATE watchlist_stocks
+      SET status = ?,
+          trigger_price = ?,
+          triggered_at = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      status,
+      triggerPrice || null,
+      triggerTime ? triggerTime.toISOString() : null,
+      id
+    );
+  }
+
+  /**
+   * Get watchlist stocks by status
+   */
+  getWatchlistStocksByStatus(status: string): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      SELECT ws.*, w.date as watchlist_date
+      FROM watchlist_stocks ws
+      JOIN watchlists w ON ws.watchlist_id = w.id
+      WHERE ws.status = ?
+      ORDER BY ws.score DESC
+    `);
+
+    return stmt.all(status);
+  }
+
+  // ==================== TRADE MANAGEMENT METHODS ====================
+
+  /**
+   * Create a new trade
+   */
+  createTrade(trade: {
+    watchlistStockId?: number;
+    symbol: string;
+    companyName?: string;
+    exchange: string;
+    currency: 'USD' | 'INR';
+    tradeType: 'LONG' | 'SHORT';
+    timeframe: string;
+    entryDate: Date;
+    entryPrice: number;
+    quantity: number;
+    entryNotes?: string;
+    initialStopLoss: number;
+    riskAmount: number;
+    rewardAmount: number;
+  }): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const entryValue = trade.entryPrice * trade.quantity;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO trades (
+        watchlist_stock_id, symbol, company_name, exchange, currency,
+        trade_type, timeframe, entry_date, entry_price, quantity, entry_value,
+        entry_notes, initial_stop_loss, risk_amount, reward_amount, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
+    `);
+
+    const info = stmt.run(
+      trade.watchlistStockId || null,
+      trade.symbol,
+      trade.companyName || null,
+      trade.exchange,
+      trade.currency,
+      trade.tradeType,
+      trade.timeframe,
+      trade.entryDate.toISOString(),
+      trade.entryPrice,
+      trade.quantity,
+      entryValue,
+      trade.entryNotes || null,
+      trade.initialStopLoss,
+      trade.riskAmount,
+      trade.rewardAmount
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update trade exit
+   */
+  updateTradeExit(
+    tradeId: number,
+    exitDate: Date,
+    exitPrice: number,
+    exitReason: string,
+    fees: number = 0,
+    taxes: number = 0,
+    exitNotes?: string
+  ): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get trade details for P&L calculation
+    const trade = this.db.prepare('SELECT * FROM trades WHERE id = ?').get(tradeId) as any;
+    if (!trade) throw new Error('Trade not found');
+
+    const exitValue = exitPrice * trade.quantity;
+    const grossPnl = trade.trade_type === 'LONG'
+      ? exitValue - trade.entry_value
+      : trade.entry_value - exitValue;
+
+    const grossPnlPercent = (grossPnl / trade.entry_value) * 100;
+    const netPnl = grossPnl - fees - taxes;
+    const netPnlPercent = (netPnl / trade.entry_value) * 100;
+
+    const holdingMinutes = Math.floor(
+      (exitDate.getTime() - new Date(trade.entry_date).getTime()) / (1000 * 60)
+    );
+
+    const actualRR = Math.abs(netPnl / trade.risk_amount);
+
+    const stmt = this.db.prepare(`
+      UPDATE trades
+      SET exit_date = ?,
+          exit_price = ?,
+          exit_value = ?,
+          exit_reason = ?,
+          exit_notes = ?,
+          gross_pnl = ?,
+          gross_pnl_percent = ?,
+          fees = ?,
+          taxes = ?,
+          net_pnl = ?,
+          net_pnl_percent = ?,
+          holding_duration_minutes = ?,
+          actual_rr_ratio = ?,
+          status = 'CLOSED',
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      exitDate.toISOString(),
+      exitPrice,
+      exitValue,
+      exitReason,
+      exitNotes || null,
+      grossPnl,
+      grossPnlPercent,
+      fees,
+      taxes,
+      netPnl,
+      netPnlPercent,
+      holdingMinutes,
+      actualRR,
+      tradeId
+    );
+  }
+
+  /**
+   * Create a position for real-time tracking
+   */
+  createPosition(position: {
+    tradeId: number;
+    symbol: string;
+    entryPrice: number;
+    quantity: number;
+    currentPrice: number;
+    currentStopLoss: number;
+    stopType: 'FIXED' | 'TRAILING' | 'BREAKEVEN';
+  }): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const currentValue = position.currentPrice * position.quantity;
+    const unrealizedPnl = (position.currentPrice - position.entryPrice) * position.quantity;
+    const unrealizedPnlPercent = (unrealizedPnl / (position.entryPrice * position.quantity)) * 100;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO positions (
+        trade_id, symbol, entry_price, quantity,
+        current_price, current_value, unrealized_pnl, unrealized_pnl_percent,
+        current_stop_loss, stop_type, highest_price, lowest_price, last_updated
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      position.tradeId,
+      position.symbol,
+      position.entryPrice,
+      position.quantity,
+      position.currentPrice,
+      currentValue,
+      unrealizedPnl,
+      unrealizedPnlPercent,
+      position.currentStopLoss,
+      position.stopType,
+      position.currentPrice,
+      position.currentPrice,
+      new Date().toISOString()
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update position with latest price
+   */
+  updatePosition(
+    positionId: number,
+    currentPrice: number,
+    stopLoss?: number,
+    stopType?: string
+  ): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get current position
+    const position = this.db.prepare('SELECT * FROM positions WHERE id = ?').get(positionId) as any;
+    if (!position) throw new Error('Position not found');
+
+    const currentValue = currentPrice * position.quantity;
+    const unrealizedPnl = (currentPrice - position.entry_price) * position.quantity;
+    const unrealizedPnlPercent = (unrealizedPnl / (position.entry_price * position.quantity)) * 100;
+
+    const highestPrice = Math.max(position.highest_price, currentPrice);
+    const lowestPrice = Math.min(position.lowest_price, currentPrice);
+
+    const stmt = this.db.prepare(`
+      UPDATE positions
+      SET current_price = ?,
+          current_value = ?,
+          unrealized_pnl = ?,
+          unrealized_pnl_percent = ?,
+          current_stop_loss = COALESCE(?, current_stop_loss),
+          stop_type = COALESCE(?, stop_type),
+          highest_price = ?,
+          lowest_price = ?,
+          last_updated = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      currentPrice,
+      currentValue,
+      unrealizedPnl,
+      unrealizedPnlPercent,
+      stopLoss || null,
+      stopType || null,
+      highestPrice,
+      lowestPrice,
+      new Date().toISOString(),
+      positionId
+    );
+  }
+
+  /**
+   * Get all open positions
+   */
+  getOpenPositions(): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      SELECT p.*, t.symbol, t.company_name, t.exchange, t.currency,
+             t.trade_type, t.timeframe
+      FROM positions p
+      JOIN trades t ON p.trade_id = t.id
+      WHERE t.status = 'OPEN'
+      ORDER BY p.unrealized_pnl_percent DESC
+    `);
+
+    return stmt.all();
+  }
+
+  /**
+   * Close a position
+   */
+  closePosition(positionId: number): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare('DELETE FROM positions WHERE id = ?');
+    stmt.run(positionId);
+  }
+
+  /**
+   * Get open trades
+   */
+  getOpenTrades(): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM trades
+      WHERE status = 'OPEN'
+      ORDER BY entry_date DESC
+    `);
+
+    return stmt.all();
+  }
+
+  /**
+   * Get closed trades with P&L
+   */
+  getClosedTrades(limit: number = 100): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM trades
+      WHERE status = 'CLOSED'
+      ORDER BY exit_date DESC
+      LIMIT ?
+    `);
+
+    return stmt.all(limit);
+  }
+
+  /**
+   * Get trade performance statistics
+   */
+  getTradePerformanceStats(days: number = 30): {
+    totalTrades: number;
+    openTrades: number;
+    closedTrades: number;
+    winningTrades: number;
+    losingTrades: number;
+    winRate: number;
+    totalPnl: number;
+    averagePnl: number;
+    averageRR: number;
+    profitFactor: number;
+  } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stats = this.db.prepare(`
+      SELECT
+        COUNT(*) as total_trades,
+        SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open_trades,
+        SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END) as closed_trades,
+        SUM(CASE WHEN status = 'CLOSED' AND net_pnl > 0 THEN 1 ELSE 0 END) as winning_trades,
+        SUM(CASE WHEN status = 'CLOSED' AND net_pnl < 0 THEN 1 ELSE 0 END) as losing_trades,
+        SUM(CASE WHEN status = 'CLOSED' THEN net_pnl ELSE 0 END) as total_pnl,
+        AVG(CASE WHEN status = 'CLOSED' THEN net_pnl ELSE NULL END) as avg_pnl,
+        AVG(CASE WHEN status = 'CLOSED' THEN actual_rr_ratio ELSE NULL END) as avg_rr,
+        SUM(CASE WHEN status = 'CLOSED' AND net_pnl > 0 THEN net_pnl ELSE 0 END) as total_profit,
+        ABS(SUM(CASE WHEN status = 'CLOSED' AND net_pnl < 0 THEN net_pnl ELSE 0 END)) as total_loss
+      FROM trades
+      WHERE entry_date > datetime('now', '-' || ? || ' days')
+    `).get(days) as any;
+
+    const winRate = stats.winning_trades + stats.losing_trades > 0
+      ? (stats.winning_trades / (stats.winning_trades + stats.losing_trades)) * 100
+      : 0;
+
+    const profitFactor = stats.total_loss > 0
+      ? stats.total_profit / stats.total_loss
+      : stats.total_profit > 0 ? 999 : 0;
+
+    return {
+      totalTrades: stats.total_trades || 0,
+      openTrades: stats.open_trades || 0,
+      closedTrades: stats.closed_trades || 0,
+      winningTrades: stats.winning_trades || 0,
+      losingTrades: stats.losing_trades || 0,
+      winRate: Math.round(winRate * 100) / 100,
+      totalPnl: Math.round((stats.total_pnl || 0) * 100) / 100,
+      averagePnl: Math.round((stats.avg_pnl || 0) * 100) / 100,
+      averageRR: Math.round((stats.avg_rr || 0) * 100) / 100,
+      profitFactor: Math.round(profitFactor * 100) / 100
+    };
+  }
+
   /**
    * Close database connection
    */

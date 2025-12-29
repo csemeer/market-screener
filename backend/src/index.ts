@@ -7,6 +7,7 @@ import { csvRoutes } from './routes/csvRoutes';
 import { indexRoutes } from './routes/indexRoutes';
 import { loggerRoutes } from './routes/loggerRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import eodRoutes from './routes/eodRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
@@ -32,6 +33,7 @@ app.use('/api/csv', csvRoutes);
 app.use('/api/indexes', indexRoutes);
 app.use('/api/logs', loggerRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/eod', eodRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
