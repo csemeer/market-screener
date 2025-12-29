@@ -20,7 +20,7 @@ export const INTRADAY_STRATEGIES = {
     description: 'High volume breakouts with strong momentum (3-15 minute holds)',
     type: 'INTRADAY' as const,
     scanInterval: 5, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // Now supports US and Indian markets
     criteria: {
       rsiMin: 60,
       rsiMax: 85,
@@ -40,7 +40,7 @@ export const INTRADAY_STRATEGIES = {
     description: 'Fast 1-5 minute scalps on volatile stocks',
     type: 'INTRADAY' as const,
     scanInterval: 2, // minutes
-    markets: ['NSE'],
+    markets: ['NSE', 'NYSE', 'NASDAQ'], // High-volume markets
     criteria: {
       rsiMin: 40,
       rsiMax: 60,
@@ -59,7 +59,7 @@ export const INTRADAY_STRATEGIES = {
     description: 'Stocks gapping up/down with reversal signals',
     type: 'INTRADAY' as const,
     scanInterval: 15, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets for gap trading
     criteria: {
       gapPercentMin: 2.0, // 2% gap
       rsiExtremes: true, // RSI > 70 or < 30
@@ -77,7 +77,7 @@ export const INTRADAY_STRATEGIES = {
     description: 'Price bouncing off VWAP with volume confirmation',
     type: 'INTRADAY' as const,
     scanInterval: 5, // minutes
-    markets: ['NSE'],
+    markets: ['NSE', 'NYSE', 'NASDAQ'], // Liquid markets with good VWAP data
     criteria: {
       priceNearVWAP: true, // Within 0.5% of VWAP
       volumeMultiplier: 1.5,
@@ -101,7 +101,7 @@ export const SWING_STRATEGIES = {
     description: 'Multi-day trend rides with EMA alignment (3-10 day holds)',
     type: 'SWING' as const,
     scanInterval: 60, // minutes (scan once per hour)
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets
     criteria: {
       emaAlignment: true, // 9 > 20 > 50 > 200
       adxMin: 25,
@@ -121,7 +121,7 @@ export const SWING_STRATEGIES = {
     description: 'Buying at key support levels with reversal confirmation',
     type: 'SWING' as const,
     scanInterval: 30, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets
     criteria: {
       nearSupport: true,
       rsiMin: 30,
@@ -141,7 +141,7 @@ export const SWING_STRATEGIES = {
     description: 'Stocks breaking out of multi-week consolidation',
     type: 'SWING' as const,
     scanInterval: 60, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets
     criteria: {
       consolidationBreakout: true,
       volumeMultiplier: 2.0, // Strong breakout volume
@@ -161,7 +161,7 @@ export const SWING_STRATEGIES = {
     description: 'Buying pullbacks in established uptrends',
     type: 'SWING' as const,
     scanInterval: 30, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets
     criteria: {
       longTermTrendUp: true, // Above 200 EMA
       shortTermPullback: true, // Below 20 EMA
@@ -181,7 +181,7 @@ export const SWING_STRATEGIES = {
     description: 'Stocks with strong earnings showing continued momentum',
     type: 'SWING' as const,
     scanInterval: 120, // minutes
-    markets: ['NSE', 'BSE'],
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'], // All markets
     criteria: {
       recentEarningsBeat: true,
       volumeMultiplier: 1.5,
