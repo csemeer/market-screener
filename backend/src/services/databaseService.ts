@@ -172,6 +172,188 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_alerts_priority ON alerts(priority);
     `);
 
+    // Watchlists Table - Daily EOD watchlists
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS watchlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date DATE NOT NULL UNIQUE,
+        exchange TEXT NOT NULL,
+        scan_timestamp DATETIME NOT NULL,
+        total_stocks_analyzed INTEGER NOT NULL DEFAULT 0,
+        stocks_selected INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Watchlist Stocks - Individual stocks in watchlist
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS watchlist_stocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watchlist_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        company_name TEXT,
+        exchange TEXT NOT NULL,
+        currency TEXT NOT NULL CHECK(currency IN ('USD', 'INR')),
+
+        -- Analysis Data
+        setup_type TEXT NOT NULL CHECK(setup_type IN ('BREAKOUT', 'BREAKDOWN', 'PULLBACK', 'REVERSAL', 'CONSOLIDATION')),
+        timeframe TEXT NOT NULL CHECK(timeframe IN ('INTRADAY', 'SWING', 'POSITIONAL')),
+        score REAL NOT NULL CHECK(score >= 0 AND score <= 100),
+
+        -- Entry Levels
+        entry_price REAL NOT NULL,
+        entry_trigger REAL,
+        entry_condition TEXT CHECK(entry_condition IN ('BREAK_ABOVE', 'BREAK_BELOW', 'PULLBACK_TO', 'HOLD_ABOVE', 'HOLD_BELOW')),
+
+        -- Exit Levels
+        stop_loss REAL NOT NULL,
+        target_1 REAL NOT NULL,
+        target_2 REAL,
+        target_3 REAL,
+        trailing_stop_percent REAL,
+
+        -- Risk Management
+        risk_reward_ratio REAL NOT NULL,
+        position_size_percent REAL,
+        max_loss_amount REAL,
+
+        -- Technical Data
+        technical_data TEXT NOT NULL,
+        signals TEXT,
+        chart_patterns TEXT,
+
+        -- Status Tracking
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'TRIGGERED', 'ENTERED', 'EXITED', 'CANCELLED', 'EXPIRED')),
+        triggered_at DATETIME,
+        trigger_price REAL,
+
+        -- Notes
+        setup_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (watchlist_id) REFERENCES watchlists(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_watchlist_stocks_status ON watchlist_stocks(status);
+      CREATE INDEX IF NOT EXISTS idx_watchlist_stocks_symbol ON watchlist_stocks(symbol);
+      CREATE INDEX IF NOT EXISTS idx_watchlist_stocks_score ON watchlist_stocks(score DESC);
+      CREATE INDEX IF NOT EXISTS idx_watchlist_stocks_watchlist ON watchlist_stocks(watchlist_id);
+    `);
+
+    // Trades Table - Actual trade executions
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS trades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watchlist_stock_id INTEGER,
+        symbol TEXT NOT NULL,
+        company_name TEXT,
+        exchange TEXT NOT NULL,
+        currency TEXT NOT NULL CHECK(currency IN ('USD', 'INR')),
+
+        -- Trade Type
+        trade_type TEXT NOT NULL CHECK(trade_type IN ('LONG', 'SHORT')),
+        timeframe TEXT NOT NULL CHECK(timeframe IN ('INTRADAY', 'SWING', 'POSITIONAL')),
+
+        -- Entry
+        entry_date DATETIME NOT NULL,
+        entry_price REAL NOT NULL,
+        quantity INTEGER NOT NULL,
+        entry_value REAL NOT NULL,
+        entry_notes TEXT,
+
+        -- Exit
+        exit_date DATETIME,
+        exit_price REAL,
+        exit_value REAL,
+        exit_reason TEXT CHECK(exit_reason IN ('TARGET_1', 'TARGET_2', 'TARGET_3', 'STOP_LOSS', 'TRAILING_STOP', 'TIME_EXIT', 'MANUAL', 'MARKET_CLOSE')),
+        exit_notes TEXT,
+
+        -- P&L Calculation
+        gross_pnl REAL,
+        gross_pnl_percent REAL,
+        fees REAL DEFAULT 0,
+        taxes REAL DEFAULT 0,
+        net_pnl REAL,
+        net_pnl_percent REAL,
+
+        -- Performance Metrics
+        holding_duration_minutes INTEGER,
+        max_favorable_excursion REAL,
+        max_favorable_excursion_percent REAL,
+        max_adverse_excursion REAL,
+        max_adverse_excursion_percent REAL,
+
+        -- Risk Management
+        initial_stop_loss REAL,
+        final_stop_loss REAL,
+        risk_amount REAL,
+        reward_amount REAL,
+        actual_rr_ratio REAL,
+
+        -- Status
+        status TEXT NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN', 'CLOSED', 'CANCELLED')),
+
+        -- Timestamps
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (watchlist_stock_id) REFERENCES watchlist_stocks(id) ON DELETE SET NULL
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
+      CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);
+      CREATE INDEX IF NOT EXISTS idx_trades_entry_date ON trades(entry_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_trades_watchlist_stock ON trades(watchlist_stock_id);
+    `);
+
+    // Positions Table - Real-time open position tracking
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS positions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trade_id INTEGER NOT NULL UNIQUE,
+        symbol TEXT NOT NULL,
+        entry_price REAL NOT NULL,
+        quantity INTEGER NOT NULL,
+        current_price REAL NOT NULL,
+        current_value REAL NOT NULL,
+        unrealized_pnl REAL NOT NULL,
+        unrealized_pnl_percent REAL NOT NULL,
+
+        -- Stop Loss Tracking
+        current_stop_loss REAL NOT NULL,
+        stop_type TEXT NOT NULL CHECK(stop_type IN ('FIXED', 'TRAILING', 'BREAKEVEN')),
+        trailing_stop_price REAL,
+        highest_price REAL,
+        lowest_price REAL,
+
+        -- Target Tracking
+        target_1_hit BOOLEAN DEFAULT 0,
+        target_2_hit BOOLEAN DEFAULT 0,
+        target_3_hit BOOLEAN DEFAULT 0,
+
+        -- Status
+        alert_triggered BOOLEAN DEFAULT 0,
+        last_alert_time DATETIME,
+
+        -- Timestamps
+        last_updated DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (trade_id) REFERENCES trades(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
+      CREATE INDEX IF NOT EXISTS idx_positions_last_updated ON positions(last_updated DESC);
+    `);
+
     // Auto-Scan Configuration Table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS autoscan_config (
