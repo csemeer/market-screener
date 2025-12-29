@@ -9,6 +9,7 @@ import { createChart, ColorType, IChartApi } from 'lightweight-charts';
 interface ChartData {
   symbol: string;
   currentPrice: number;
+  currency?: 'USD' | 'INR';
   historicalPrices: Array<{
     date: string;
     open: number;
@@ -36,6 +37,11 @@ interface ChartData {
 interface Props {
   data: ChartData;
 }
+
+// Helper function to get currency symbol
+const getCurrencySymbol = (currency?: 'USD' | 'INR'): string => {
+  return currency === 'USD' ? '$' : '₹';
+};
 
 export default function StockEvidenceChart({ data }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -193,15 +199,15 @@ export default function StockEvidenceChart({ data }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-blue-600"></div>
-          <span className="text-gray-700">Entry: ₹{data.levels.entry.toFixed(2)}</span>
+          <span className="text-gray-700">Entry: {getCurrencySymbol(data.currency)}{data.levels.entry.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-green-600"></div>
-          <span className="text-gray-700">Target: ₹{data.levels.target.toFixed(2)}</span>
+          <span className="text-gray-700">Target: {getCurrencySymbol(data.currency)}{data.levels.target.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-0.5 bg-red-600"></div>
-          <span className="text-gray-700">Stop Loss: ₹{data.levels.stopLoss.toFixed(2)}</span>
+          <span className="text-gray-700">Stop Loss: {getCurrencySymbol(data.currency)}{data.levels.stopLoss.toFixed(2)}</span>
         </div>
         {data.indicators.ema20 && (
           <div className="flex items-center gap-2">

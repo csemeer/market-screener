@@ -28,6 +28,7 @@ interface ScanResult {
   symbol: string;
   exchange: string;
   company_name: string;
+  currency: 'USD' | 'INR';
   current_price: number;
   entry_price: number;
   stop_loss: number;
@@ -61,6 +62,11 @@ interface Alert {
   priority: string;
   read: boolean;
 }
+
+// Helper function to get currency symbol
+const getCurrencySymbol = (currency: 'USD' | 'INR'): string => {
+  return currency === 'USD' ? '$' : '₹';
+};
 
 export default function AutoScanDashboard() {
   const [scanResults, setScanResults] = useState<Record<string, ScanResult[]>>({});
@@ -429,19 +435,19 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
       <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
         <div>
           <p className="text-xs text-gray-600">Entry</p>
-          <p className="text-sm font-semibold text-gray-900 truncate">₹{stock.entry_price.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-gray-900 truncate">{getCurrencySymbol(stock.currency)}{stock.entry_price.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-xs text-gray-600">Current</p>
-          <p className="text-sm font-semibold text-gray-900 truncate">₹{stock.current_price.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-gray-900 truncate">{getCurrencySymbol(stock.currency)}{stock.current_price.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-xs text-gray-600">Target</p>
-          <p className="text-sm font-semibold text-green-600 truncate">₹{stock.target.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-green-600 truncate">{getCurrencySymbol(stock.currency)}{stock.target.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-xs text-gray-600">Stop</p>
-          <p className="text-sm font-semibold text-red-600 truncate">₹{stock.stop_loss.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-red-600 truncate">{getCurrencySymbol(stock.currency)}{stock.stop_loss.toFixed(2)}</p>
         </div>
       </div>
 
@@ -473,7 +479,7 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
 
 // Stock Evidence Modal Component
 function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: () => void }) {
-  const chartData = JSON.parse(stock.evidence_chart_data || '{}');
+  const chartData = { ...JSON.parse(stock.evidence_chart_data || '{}'), currency: stock.currency };
   const technicalData = JSON.parse(stock.technical_data || '{}');
   const signals = JSON.parse(stock.signals || '[]');
 
@@ -516,18 +522,18 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
               <p className="text-xs sm:text-sm text-blue-700 font-medium mb-1">Entry Price</p>
-              <p className="text-xl sm:text-2xl font-bold text-blue-900">₹{stock.entry_price.toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-900">{getCurrencySymbol(stock.currency)}{stock.entry_price.toFixed(2)}</p>
             </div>
             <div className="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
               <p className="text-xs sm:text-sm text-green-700 font-medium mb-1">Target</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-900">₹{stock.target.toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-900">{getCurrencySymbol(stock.currency)}{stock.target.toFixed(2)}</p>
               <p className="text-xs text-green-600 mt-1">
                 +{(((stock.target - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
               </p>
             </div>
             <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
               <p className="text-xs sm:text-sm text-red-700 font-medium mb-1">Stop Loss</p>
-              <p className="text-xl sm:text-2xl font-bold text-red-900">₹{stock.stop_loss.toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-900">{getCurrencySymbol(stock.currency)}{stock.stop_loss.toFixed(2)}</p>
               <p className="text-xs text-red-600 mt-1">
                 {(((stock.stop_loss - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
               </p>

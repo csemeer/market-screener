@@ -9,6 +9,7 @@ import { databaseService, ScanResult, Alert } from './databaseService';
 import { loggerService } from './loggerService';
 import { screenerService } from './screenerService';
 import { marketDataService } from './marketDataService';
+import { getCurrencyForExchange, isWithinMarketHours, Exchange } from '../utils/marketUtils';
 
 /**
  * Pre-configured intraday trading strategies
@@ -401,6 +402,7 @@ class AutoScanService {
           symbol: result.symbol,
           exchange: result.exchange,
           companyName: result.name || result.symbol,
+          currency: getCurrencyForExchange(result.exchange as Exchange),
           currentPrice: result.price,
           entryPrice: result.riskReward?.entryPrice || result.price,
           stopLoss: result.riskReward?.stopLoss || result.price * 0.98,

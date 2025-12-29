@@ -17,6 +17,7 @@ export interface ScanResult {
   symbol: string;
   exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ';
   companyName: string;
+  currency: 'USD' | 'INR'; // Currency for price values
   currentPrice: number;
   entryPrice: number;
   stopLoss: number;
@@ -116,6 +117,7 @@ class DatabaseService {
         symbol TEXT NOT NULL,
         exchange TEXT NOT NULL,
         company_name TEXT,
+        currency TEXT NOT NULL DEFAULT 'INR' CHECK(currency IN ('USD', 'INR')),
         current_price REAL NOT NULL,
         entry_price REAL NOT NULL,
         stop_loss REAL NOT NULL,
@@ -198,10 +200,10 @@ class DatabaseService {
 
     const stmt = this.db.prepare(`
       INSERT INTO scan_results (
-        scan_id, timestamp, strategy, strategy_type, symbol, exchange, company_name,
+        scan_id, timestamp, strategy, strategy_type, symbol, exchange, company_name, currency,
         current_price, entry_price, stop_loss, target, risk_reward_ratio, confidence_score,
         signals, technical_data, fundamental_data, evidence_chart_data, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const info = stmt.run(
@@ -212,6 +214,7 @@ class DatabaseService {
       result.symbol,
       result.exchange,
       result.companyName,
+      result.currency,
       result.currentPrice,
       result.entryPrice,
       result.stopLoss,
