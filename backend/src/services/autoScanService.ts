@@ -199,10 +199,17 @@ export const SWING_STRATEGIES = {
 
 class AutoScanService {
   private scheduledJobs: Map<string, cron.ScheduledTask> = new Map();
-  private isMarketHours: boolean = false;
+  private isMarketHours: boolean = false; // Legacy - kept for backward compatibility
+  private marketHoursStatus: Map<Exchange, boolean> = new Map(); // Per-exchange market hours status
   private initialized: boolean = false;
 
-  constructor() {}
+  constructor() {
+    // Initialize market hours status for all exchanges
+    this.marketHoursStatus.set('NSE', false);
+    this.marketHoursStatus.set('BSE', false);
+    this.marketHoursStatus.set('NYSE', false);
+    this.marketHoursStatus.set('NASDAQ', false);
+  }
 
   /**
    * Initialize auto-scan service
@@ -283,10 +290,18 @@ class AutoScanService {
     const cronExpression = `*/${intervalMinutes} * * * *`; // Every N minutes
 
     const job = cron.schedule(cronExpression, async () => {
-      // Only run during market hours for intraday strategies
-      if (strategy.type === 'INTRADAY' && !this.isMarketHours) {
-        loggerService.debug(`Skipping ${strategyKey} scan - market closed`);
-        return;
+      // For intraday strategies, check if relevant markets are open
+      if (strategy.type === 'INTRADAY') {
+        // Check if any of the target markets are currently open
+        const targetMarkets = strategy.markets || ['NSE', 'BSE'];
+        const anyMarketOpen = targetMarkets.some((market: string) =>
+          this.marketHoursStatus.get(market as Exchange) === true
+        );
+
+        if (!anyMarketOpen) {
+          loggerService.debug(`Skipping ${strategyKey} scan - target markets closed`, { markets: targetMarkets });
+          return;
+        }
       }
 
       try {
@@ -296,7 +311,6 @@ class AutoScanService {
       }
     }, {
       scheduled: true,
-      timezone: 'Asia/Kolkata', // IST timezone
     });
 
     this.scheduledJobs.set(strategyKey, job);
@@ -304,30 +318,31 @@ class AutoScanService {
   }
 
   /**
-   * Setup market hours checker
+   * Setup market hours checker - monitors all exchanges
    */
   private setupMarketHoursChecker(): void {
-    // NSE/BSE trading hours: 9:15 AM - 3:30 PM IST (Monday-Friday)
+    // Check market hours for all exchanges every minute
     cron.schedule('* * * * *', () => {
       const now = new Date();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      const day = now.getDay(); // 0 = Sunday, 6 = Saturday
 
-      // Check if it's a weekday (Monday-Friday)
-      const isWeekday = day >= 1 && day <= 5;
+      // Check each exchange
+      const exchanges: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ'];
+      exchanges.forEach(exchange => {
+        const isOpen = isWithinMarketHours(exchange, now);
+        this.marketHoursStatus.set(exchange, isOpen);
+      });
 
-      // Market hours: 9:15 AM to 3:30 PM
-      const isWithinHours = (hour === 9 && minute >= 15) ||
-                           (hour >= 10 && hour < 15) ||
-                           (hour === 15 && minute <= 30);
+      // Legacy: Set isMarketHours to true if ANY Indian market is open
+      this.isMarketHours = this.marketHoursStatus.get('NSE') || this.marketHoursStatus.get('BSE') || false;
 
-      this.isMarketHours = isWeekday && isWithinHours;
-    }, {
-      timezone: 'Asia/Kolkata',
+      // Log market status changes
+      const openMarkets = exchanges.filter(ex => this.marketHoursStatus.get(ex));
+      if (openMarkets.length > 0) {
+        loggerService.debug('Markets currently open', { markets: openMarkets });
+      }
     });
 
-    loggerService.info('Market hours checker setup complete');
+    loggerService.info('Market hours checker setup complete (monitoring NSE, BSE, NYSE, NASDAQ)');
   }
 
   /**
@@ -342,7 +357,6 @@ class AutoScanService {
       }
     }, {
       scheduled: true,
-      timezone: 'Asia/Kolkata',
     });
 
     loggerService.info('Result status updater setup complete');
@@ -655,7 +669,13 @@ class AutoScanService {
   getStatus(): any {
     return {
       initialized: this.initialized,
-      isMarketHours: this.isMarketHours,
+      isMarketHours: this.isMarketHours, // Legacy field
+      marketHoursStatus: {
+        NSE: this.marketHoursStatus.get('NSE') || false,
+        BSE: this.marketHoursStatus.get('BSE') || false,
+        NYSE: this.marketHoursStatus.get('NYSE') || false,
+        NASDAQ: this.marketHoursStatus.get('NASDAQ') || false,
+      },
       scheduledJobs: Array.from(this.scheduledJobs.keys()),
       intradayStrategies: Object.entries(INTRADAY_STRATEGIES).map(([key, strategy]) => ({
         key: `INTRADAY_${key}`,
