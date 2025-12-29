@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { databaseService } from '../services/databaseService';
 import { eodScannerService } from '../services/eodScannerService';
+import { liveMonitoringService } from '../services/liveMonitoringService';
 import { loggerService } from '../services/loggerService';
 
 const router = Router();
@@ -344,6 +345,123 @@ router.get('/performance', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch performance statistics',
+    });
+  }
+});
+
+/**
+ * GET /api/eod/monitoring/status
+ * Get live monitoring status
+ */
+router.get('/monitoring/status', async (req: Request, res: Response) => {
+  try {
+    const status = liveMonitoringService.getStatus();
+
+    res.json({
+      success: true,
+      ...status,
+    });
+  } catch (error) {
+    loggerService.error('Error fetching monitoring status', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch monitoring status',
+    });
+  }
+});
+
+/**
+ * POST /api/eod/monitoring/start
+ * Manually start live monitoring
+ */
+router.post('/monitoring/start', async (req: Request, res: Response) => {
+  try {
+    await liveMonitoringService.startMonitoring();
+
+    res.json({
+      success: true,
+      message: 'Live monitoring started',
+    });
+  } catch (error) {
+    loggerService.error('Error starting monitoring', { error });
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start monitoring',
+    });
+  }
+});
+
+/**
+ * POST /api/eod/monitoring/stop
+ * Manually stop live monitoring
+ */
+router.post('/monitoring/stop', async (req: Request, res: Response) => {
+  try {
+    liveMonitoringService.stopMonitoring();
+
+    res.json({
+      success: true,
+      message: 'Live monitoring stopped',
+    });
+  } catch (error) {
+    loggerService.error('Error stopping monitoring', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop monitoring',
+    });
+  }
+});
+
+/**
+ * PUT /api/eod/monitoring/config
+ * Update monitoring configuration
+ */
+router.put('/monitoring/config', async (req: Request, res: Response) => {
+  try {
+    const config = req.body;
+    liveMonitoringService.updateConfig(config);
+
+    res.json({
+      success: true,
+      message: 'Monitoring config updated',
+      config,
+    });
+  } catch (error) {
+    loggerService.error('Error updating monitoring config', { error });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update config',
+    });
+  }
+});
+
+/**
+ * POST /api/eod/monitoring/test/:symbol
+ * Manually monitor a specific stock (for testing)
+ */
+router.post('/monitoring/test/:symbol', async (req: Request, res: Response) => {
+  try {
+    const { symbol } = req.params;
+    const { exchange } = req.body;
+
+    if (!exchange) {
+      return res.status(400).json({
+        success: false,
+        error: 'Exchange is required',
+      });
+    }
+
+    const result = await liveMonitoringService.monitorStockManually(symbol, exchange);
+
+    res.json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    loggerService.error('Error in manual stock monitoring', { error });
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to monitor stock',
     });
   }
 });

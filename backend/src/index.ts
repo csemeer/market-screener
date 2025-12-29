@@ -12,6 +12,7 @@ import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
 import { autoScanService } from './services/autoScanService';
+import { liveMonitoringService } from './services/liveMonitoringService';
 import { loggingMiddleware, errorLoggingMiddleware } from './middleware/loggingMiddleware';
 
 dotenv.config();
@@ -72,6 +73,20 @@ app.listen(PORT, async () => {
       stack: errorStack
     });
     console.error('❌ Auto-Scan Service Error Details:', error);
+  }
+
+  // Initialize Live Monitoring Service (monitors watchlist during market hours)
+  try {
+    await liveMonitoringService.initialize();
+    loggerService.success('Live Monitoring Service initialized successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    loggerService.error('Failed to initialize Live Monitoring Service', {
+      error: errorMessage,
+      stack: errorStack
+    });
+    console.error('❌ Live Monitoring Service Error Details:', error);
   }
 
   loggerService.success('All services initialized successfully');
