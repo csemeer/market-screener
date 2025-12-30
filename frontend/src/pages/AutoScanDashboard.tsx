@@ -399,10 +399,13 @@ export default function AutoScanDashboard() {
 
       {/* Stock Evidence Modal */}
       {selectedStock && (
-        <StockEvidenceModal
-          stock={selectedStock}
-          onClose={() => setSelectedStock(null)}
-        />
+        <>
+          {console.log('Rendering modal for:', selectedStock.symbol)}
+          <StockEvidenceModal
+            stock={selectedStock}
+            onClose={() => setSelectedStock(null)}
+          />
+        </>
       )}
     </div>
   );
@@ -413,9 +416,16 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
   const signals = JSON.parse(stock.signals || '[]');
   const profitPotential = ((stock.target - stock.entry_price) / stock.entry_price) * 100;
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Stock card clicked:', stock.symbol);
+    onClick();
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-         onClick={onClick}>
+         onClick={handleClick}>
       <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
         <div className="flex-1 min-w-0">
           <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate">{stock.symbol}</h4>
@@ -480,6 +490,8 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
 
 // Stock Evidence Modal Component
 function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: () => void }) {
+  console.log('🎯 StockEvidenceModal mounted for:', stock.symbol);
+
   let chartData: any = { currency: stock.currency };
   let technicalData: any = {};
   let signals: string[] = [];
