@@ -5,8 +5,52 @@
 import express from 'express';
 import { databaseService } from '../services/databaseService';
 import { loggerService } from '../services/loggerService';
+import { screenerService } from '../services/screenerService';
 
 const router = express.Router();
+
+// ==================== STOCK ANALYSIS FOR WATCHLIST ====================
+
+/**
+ * GET /api/watchlist/analyze/:symbol/:exchange
+ * Analyze a single stock and get intelligent entry/stop/target recommendations
+ * This endpoint is used by the watchlist to auto-populate trading parameters
+ */
+router.get('/analyze/:symbol/:exchange', async (req, res) => {
+  try {
+    const { symbol, exchange } = req.params;
+
+    // Validate exchange
+    const validExchanges = ['NSE', 'BSE', 'NYSE', 'NASDAQ'];
+    if (!validExchanges.includes(exchange.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid exchange. Must be one of: ${validExchanges.join(', ')}`,
+      });
+    }
+
+    loggerService.info('Analyzing stock for watchlist', { symbol, exchange });
+
+    // Analyze the stock using screenerService
+    const result = await screenerService.analyzeSingleStock(
+      symbol.toUpperCase(),
+      exchange.toUpperCase() as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'
+    );
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    loggerService.success('Stock analysis completed', { symbol, exchange });
+    res.json(result);
+  } catch (error) {
+    loggerService.error('Error analyzing stock', { error, symbol: req.params.symbol });
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to analyze stock',
+    });
+  }
+});
 
 // ==================== WATCHLIST MANAGEMENT ====================
 

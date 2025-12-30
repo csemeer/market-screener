@@ -715,6 +715,179 @@ class ScreenerService {
       ratio: Math.abs((target - currentPrice) / (currentPrice - stopLoss))
     };
   }
+
+  /**
+   * Analyze a single stock for watchlist - provides comprehensive analysis and intelligent price recommendations
+   * Used by watchlist to auto-populate entry/stop/target prices
+   */
+  async analyzeSingleStock(symbol: string, exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ') {
+    try {
+      // Fetch current quote
+      const quote = await marketDataService.getQuote(symbol, exchange);
+      if (!quote) {
+        throw new Error(`Unable to fetch quote for ${symbol}`);
+      }
+
+      // Fetch 1 year historical data for accurate indicators
+      const historicalData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '1y');
+      if (!historicalData || historicalData.length === 0) {
+        throw new Error(`Unable to fetch historical data for ${symbol}`);
+      }
+
+      // Calculate all technical indicators
+      const indicators = TechnicalAnalysis.calculateAllIndicators(historicalData);
+
+      // Calculate confluence score and detect patterns
+      const confluenceScore = TechnicalAnalysis.calculateConfluence(historicalData, indicators);
+      const patterns = TechnicalAnalysis.detectCandlestickPatterns(historicalData);
+
+      // Calculate technical score and signals
+      const { score: technicalScore, signals } = this.calculateScoreAndSignals(quote, indicators, historicalData);
+
+      // Calculate intelligent entry/stop/target prices
+      const currentPrice = quote.price;
+      const atr = indicators.atr || (currentPrice * 0.02); // Fallback to 2% if ATR not available
+
+      // Find recent support/resistance levels from last 20 days
+      const recentData = historicalData.slice(-20);
+      const recentLows = recentData.map(d => d.low);
+      const recentHighs = recentData.map(d => d.high);
+      const supportLevel = Math.min(...recentLows);
+      const resistanceLevel = Math.max(...recentHighs);
+
+      // Intelligent price calculations based on trend direction
+      const trendDirection = this.determineTrendDirection(indicators);
+      let entryPrice, stopLoss, target1, target2, target3;
+
+      if (trendDirection === 'UPTREND') {
+        // For uptrend: Entry slightly above current, stop below support, targets based on R:R
+        entryPrice = currentPrice * 1.002; // 0.2% above current price
+        stopLoss = Math.max(supportLevel, currentPrice - (atr * 2));
+        const riskAmount = entryPrice - stopLoss;
+        target1 = entryPrice + (riskAmount * 1.5); // 1.5:1 R:R
+        target2 = entryPrice + (riskAmount * 2.5); // 2.5:1 R:R
+        target3 = entryPrice + (riskAmount * 3.5); // 3.5:1 R:R
+      } else if (trendDirection === 'DOWNTREND') {
+        // For downtrend: Conservative entry, wider stop
+        entryPrice = currentPrice;
+        stopLoss = Math.min(resistanceLevel, currentPrice + (atr * 2.5));
+        const riskAmount = stopLoss - entryPrice;
+        target1 = entryPrice - (riskAmount * 1.5);
+        target2 = entryPrice - (riskAmount * 2.5);
+        target3 = entryPrice - (riskAmount * 3.5);
+      } else {
+        // For sideways/unknown: Use ATR-based calculations
+        entryPrice = currentPrice;
+        stopLoss = currentPrice - (atr * 2);
+        target1 = currentPrice + (atr * 2);
+        target2 = currentPrice + (atr * 3.5);
+        target3 = currentPrice + (atr * 5);
+      }
+
+      // Calculate risk/reward ratio
+      const riskRewardRatio = Math.abs((target1 - entryPrice) / (entryPrice - stopLoss));
+
+      // Prepare chart data (last 180 days for display)
+      const chartData = {
+        symbol,
+        currentPrice,
+        historicalPrices: historicalData.slice(-180).map((d: any) => ({
+          date: d.date,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+          volume: d.volume,
+        })),
+        indicators: {
+          ema9: indicators.ema?.ema9,
+          ema20: indicators.ema?.ema20,
+          ema50: indicators.ema?.ema50,
+          ema200: indicators.ema?.ema200,
+          rsi: indicators.rsi,
+          macd: indicators.macd,
+          bollingerBands: indicators.bollingerBands,
+          adx: indicators.adx,
+          atr: indicators.atr,
+          stochastic: indicators.stochastic,
+        },
+        levels: {
+          entry: entryPrice,
+          stopLoss,
+          target: target1,
+        },
+        analysis: {
+          confluenceScore,
+          patterns,
+          signals,
+          trendDirection,
+          volumeAnalysis: indicators.volumeProfile,
+        },
+      };
+
+      // Return comprehensive analysis
+      return {
+        success: true,
+        data: {
+          symbol,
+          exchange,
+          currentPrice: quote.price,
+          change: quote.change,
+          changePercent: quote.changePercent,
+          volume: quote.volume,
+          // Intelligent price recommendations
+          recommendations: {
+            entryPrice: parseFloat(entryPrice.toFixed(2)),
+            stopLoss: parseFloat(stopLoss.toFixed(2)),
+            target1: parseFloat(target1.toFixed(2)),
+            target2: parseFloat(target2.toFixed(2)),
+            target3: parseFloat(target3.toFixed(2)),
+            riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
+            setupType: trendDirection === 'UPTREND' ? 'BREAKOUT' : trendDirection === 'DOWNTREND' ? 'BREAKDOWN' : 'CONSOLIDATION',
+          },
+          // Technical analysis
+          technicalScore,
+          confluenceScore,
+          signals,
+          patterns,
+          trendDirection,
+          // Indicators
+          indicators,
+          // Chart data for stock report modal
+          chartData,
+          // Historical data
+          historicalData: historicalData.slice(-180),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to analyze stock',
+      };
+    }
+  }
+
+  /**
+   * Determine trend direction from indicators (helper for single stock analysis)
+   */
+  private determineTrendDirection(indicators: any): 'UPTREND' | 'DOWNTREND' | 'SIDEWAYS' | 'UNKNOWN' {
+    if (!indicators?.ema) return 'UNKNOWN';
+
+    const { ema20, ema50, ema200 } = indicators.ema;
+
+    if (ema20 && ema50 && ema200) {
+      // Strong uptrend: EMA 20 > EMA 50 > EMA 200
+      if (ema20 > ema50 && ema50 > ema200) return 'UPTREND';
+
+      // Strong downtrend: EMA 20 < EMA 50 < EMA 200
+      if (ema20 < ema50 && ema50 < ema200) return 'DOWNTREND';
+    }
+
+    // Check ADX for trend strength
+    if (indicators.adx && indicators.adx < 20) return 'SIDEWAYS';
+
+    return 'SIDEWAYS';
+  }
 }
 
 export const screenerService = new ScreenerService();

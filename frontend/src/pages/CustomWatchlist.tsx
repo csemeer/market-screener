@@ -17,6 +17,11 @@ import {
   X,
   Search,
   Check,
+  Loader2,
+  Sparkles,
+  Activity,
+  BarChart3,
+  AlertCircle,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -65,6 +70,9 @@ export default function CustomWatchlist() {
   const [showCreateWatchlist, setShowCreateWatchlist] = useState(false);
   const [showAddStock, setShowAddStock] = useState(false);
   const [editingStock, setEditingStock] = useState<WatchlistStock | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showStockReport, setShowStockReport] = useState(false);
+  const [stockReportData, setStockReportData] = useState<any>(null);
 
   // Form states
   const [watchlistForm, setWatchlistForm] = useState({
@@ -291,6 +299,85 @@ export default function CustomWatchlist() {
     setEditingStock(null);
   };
 
+  /**
+   * Analyze stock and auto-populate entry/stop/target prices
+   */
+  const analyzeStock = async () => {
+    if (!stockForm.symbol || !stockForm.exchange) {
+      alert('Please enter a symbol and select an exchange first');
+      return;
+    }
+
+    try {
+      setAnalyzing(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/api/watchlist/analyze/${stockForm.symbol.toUpperCase()}/${stockForm.exchange}`
+      );
+
+      if (response.data.success) {
+        const { data } = response.data;
+        const { recommendations, currentPrice } = data;
+
+        // Auto-populate form fields with intelligent recommendations
+        setStockForm({
+          ...stockForm,
+          symbol: data.symbol,
+          companyName: stockForm.companyName || data.symbol,
+          setupType: recommendations.setupType || stockForm.setupType,
+          timeframe: stockForm.timeframe, // Keep user's selection
+          entryPrice: recommendations.entryPrice.toString(),
+          stopLoss: recommendations.stopLoss.toString(),
+          target1: recommendations.target1.toString(),
+          target2: recommendations.target2?.toString() || '',
+          target3: recommendations.target3?.toString() || '',
+          trailingStopPercent: '1.0',
+          positionSizePercent: '1.0',
+          notes: `Auto-analyzed at ₹${currentPrice.toFixed(2)} | R:R ${recommendations.riskRewardRatio}:1 | ${data.trendDirection}`,
+        });
+
+        alert(`✅ Analysis complete! Entry, stop, and target prices have been auto-populated based on technical analysis.`);
+      } else {
+        alert(`Failed to analyze ${stockForm.symbol}: ${response.data.error}`);
+      }
+    } catch (error: any) {
+      console.error('Error analyzing stock:', error);
+      const message = error.response?.data?.error || 'Failed to analyze stock. Please try again.';
+      alert(message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  /**
+   * Show professional stock report modal
+   */
+  const showStockAnalysis = async (stock: WatchlistStock) => {
+    try {
+      setAnalyzing(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/api/watchlist/analyze/${stock.symbol}/${stock.exchange}`
+      );
+
+      if (response.data.success) {
+        setStockReportData({
+          ...response.data.data,
+          // Add watchlist-specific data
+          watchlistEntry: stock.entryPrice,
+          watchlistStop: stock.stopLoss,
+          watchlistTarget: stock.target1,
+        });
+        setShowStockReport(true);
+      } else {
+        alert(`Failed to load analysis: ${response.data.error}`);
+      }
+    } catch (error) {
+      console.error('Error fetching stock analysis:', error);
+      alert('Failed to load stock analysis');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING': return 'bg-blue-100 text-blue-800';
@@ -451,7 +538,8 @@ export default function CustomWatchlist() {
                     {stocks.map((stock) => (
                       <div
                         key={stock.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-all cursor-pointer hover:border-primary-300 relative group"
+                        onClick={() => showStockAnalysis(stock)}
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
@@ -471,19 +559,32 @@ export default function CustomWatchlist() {
                           </div>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => startEditStock(stock)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditStock(stock);
+                              }}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                               title="Edit"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => deleteStock(stock.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteStock(stock.id);
+                              }}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
+                          </div>
+                          {/* Click indicator */}
+                          <div className="absolute top-4 right-16 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 text-xs text-primary-600 font-medium bg-primary-50 px-2 py-1 rounded-full">
+                              <BarChart3 className="w-3 h-3" />
+                              View Report
+                            </div>
                           </div>
                         </div>
 
@@ -669,6 +770,33 @@ export default function CustomWatchlist() {
                       <option value="NASDAQ">NASDAQ</option>
                     </select>
                   </div>
+
+                  {/* Auto-Analyze Button */}
+                  {!editingStock && (
+                    <div className="sm:col-span-2">
+                      <button
+                        type="button"
+                        onClick={analyzeStock}
+                        disabled={analyzing || !stockForm.symbol}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transition-all"
+                      >
+                        {analyzing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Analyzing Stock...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-5 h-5" />
+                            Auto-Analyze & Populate Prices
+                          </>
+                        )}
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Click to automatically calculate entry, stop loss, and target prices based on technical analysis
+                      </p>
+                    </div>
+                  )}
 
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -869,6 +997,297 @@ export default function CustomWatchlist() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Professional Stock Report Modal */}
+      {showStockReport && stockReportData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full my-8 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-primary-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {stockReportData.symbol} <span className="text-sm text-gray-500">({stockReportData.exchange})</span>
+                  </h2>
+                  <p className="text-sm text-gray-600">Professional Stock Analysis Report</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowStockReport(false);
+                  setStockReportData(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 sm:p-6 space-y-6">
+              {/* Current Price & Change */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Current Price</p>
+                    <p className="text-2xl font-bold text-gray-900">₹{stockReportData.currentPrice.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Change</p>
+                    <p className={`text-2xl font-bold ${stockReportData.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {stockReportData.change >= 0 ? '+' : ''}{stockReportData.change.toFixed(2)} ({stockReportData.changePercent.toFixed(2)}%)
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Technical Score</p>
+                    <p className="text-2xl font-bold text-blue-600">{stockReportData.technicalScore}/100</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Confluence</p>
+                    <p className="text-2xl font-bold text-purple-600">{stockReportData.confluenceScore}%</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Recommendations vs Watchlist Values */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border-2 border-green-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-600" />
+                  Price Levels Comparison
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* AI Recommendations */}
+                  <div className="bg-white rounded-lg p-3 border border-green-300">
+                    <p className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                      <Sparkles className="w-4 h-4" />
+                      AI Recommended Levels
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Entry:</span>
+                        <span className="font-bold text-blue-900">₹{stockReportData.recommendations.entryPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Stop Loss:</span>
+                        <span className="font-bold text-red-900">₹{stockReportData.recommendations.stopLoss.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Target 1:</span>
+                        <span className="font-bold text-green-900">₹{stockReportData.recommendations.target1.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">R:R Ratio:</span>
+                        <span className="font-bold text-purple-900">{stockReportData.recommendations.riskRewardRatio}:1</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Your Watchlist Levels */}
+                  <div className="bg-white rounded-lg p-3 border border-blue-300">
+                    <p className="text-sm font-semibold text-blue-700 mb-2">Your Watchlist Levels</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Entry:</span>
+                        <span className="font-bold text-blue-900">₹{stockReportData.watchlistEntry.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Stop Loss:</span>
+                        <span className="font-bold text-red-900">₹{stockReportData.watchlistStop.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Target 1:</span>
+                        <span className="font-bold text-green-900">₹{stockReportData.watchlistTarget.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Market Trend Analysis */}
+              {stockReportData.trendDirection && (
+                <div className={`rounded-lg p-4 border-2 ${
+                  stockReportData.trendDirection === 'UPTREND' ? 'bg-green-50 border-green-500' :
+                  stockReportData.trendDirection === 'DOWNTREND' ? 'bg-red-50 border-red-500' :
+                  'bg-gray-50 border-gray-300'
+                }`}>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Market Trend Analysis
+                  </h3>
+                  <p className={`text-xl font-bold ${
+                    stockReportData.trendDirection === 'UPTREND' ? 'text-green-700' :
+                    stockReportData.trendDirection === 'DOWNTREND' ? 'text-red-700' :
+                    'text-gray-700'
+                  }`}>
+                    {stockReportData.trendDirection === 'UPTREND' && '📈 Strong Uptrend'}
+                    {stockReportData.trendDirection === 'DOWNTREND' && '📉 Strong Downtrend'}
+                    {stockReportData.trendDirection === 'SIDEWAYS' && '↔️ Sideways/Consolidation'}
+                    {stockReportData.trendDirection === 'UNKNOWN' && '❓ Trend Unclear'}
+                  </p>
+                </div>
+              )}
+
+              {/* Technical Indicators Grid */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Technical Indicators
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {/* RSI */}
+                  {stockReportData.indicators?.rsi && (
+                    <div className={`rounded-lg p-3 border-2 ${
+                      stockReportData.indicators.rsi > 70 ? 'bg-red-50 border-red-200' :
+                      stockReportData.indicators.rsi < 30 ? 'bg-green-50 border-green-200' :
+                      'bg-gray-50 border-gray-200'
+                    }`}>
+                      <p className="text-xs text-gray-600 mb-1">RSI (14)</p>
+                      <p className="text-lg font-bold text-gray-900">{stockReportData.indicators.rsi.toFixed(2)}</p>
+                      <p className="text-xs mt-1 text-gray-500">
+                        {stockReportData.indicators.rsi > 70 ? 'Overbought' :
+                         stockReportData.indicators.rsi < 30 ? 'Oversold' : 'Neutral'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* EMA 20 */}
+                  {stockReportData.indicators?.ema?.ema20 && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">EMA 20</p>
+                      <p className="text-lg font-bold text-gray-900">₹{stockReportData.indicators.ema.ema20.toFixed(2)}</p>
+                      <p className="text-xs mt-1">
+                        {stockReportData.currentPrice > stockReportData.indicators.ema.ema20 ? '🟢 Above' : '🔴 Below'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* EMA 50 */}
+                  {stockReportData.indicators?.ema?.ema50 && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">EMA 50</p>
+                      <p className="text-lg font-bold text-gray-900">₹{stockReportData.indicators.ema.ema50.toFixed(2)}</p>
+                      <p className="text-xs mt-1">
+                        {stockReportData.currentPrice > stockReportData.indicators.ema.ema50 ? '🟢 Above' : '🔴 Below'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* EMA 200 */}
+                  {stockReportData.indicators?.ema?.ema200 && (
+                    <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                      <p className="text-xs text-gray-600 mb-1">EMA 200</p>
+                      <p className="text-lg font-bold text-gray-900">₹{stockReportData.indicators.ema.ema200.toFixed(2)}</p>
+                      <p className="text-xs mt-1">
+                        {stockReportData.currentPrice > stockReportData.indicators.ema.ema200 ? '🟢 Above' : '🔴 Below'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ADX */}
+                  {stockReportData.indicators?.adx && (
+                    <div className={`rounded-lg p-3 border ${
+                      stockReportData.indicators.adx > 25 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <p className="text-xs text-gray-600 mb-1">ADX</p>
+                      <p className="text-lg font-bold text-gray-900">{stockReportData.indicators.adx.toFixed(2)}</p>
+                      <p className="text-xs mt-1 text-gray-500">
+                        {stockReportData.indicators.adx > 25 ? 'Strong Trend' : 'Weak Trend'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ATR */}
+                  {stockReportData.indicators?.atr && (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-1">ATR</p>
+                      <p className="text-lg font-bold text-gray-900">₹{stockReportData.indicators.atr.toFixed(2)}</p>
+                      <p className="text-xs mt-1 text-gray-500">Volatility</p>
+                    </div>
+                  )}
+
+                  {/* MACD */}
+                  {stockReportData.indicators?.macd && (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-1">MACD</p>
+                      <p className="text-lg font-bold text-gray-900">{stockReportData.indicators.macd.histogram.toFixed(2)}</p>
+                      <p className="text-xs mt-1 text-gray-500">Histogram</p>
+                    </div>
+                  )}
+
+                  {/* Volume */}
+                  {stockReportData.volume && (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs text-gray-600 mb-1">Volume</p>
+                      <p className="text-lg font-bold text-gray-900">{(stockReportData.volume / 1000000).toFixed(2)}M</p>
+                      <p className="text-xs mt-1 text-gray-500">Shares</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pattern Recognition */}
+              {stockReportData.patterns && stockReportData.patterns.length > 0 && (
+                <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-amber-600" />
+                    Candlestick Patterns Detected
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {stockReportData.patterns.map((pattern: string, idx: number) => (
+                      <span key={idx} className="px-3 py-2 bg-white border-2 border-amber-300 text-amber-800 rounded-lg text-sm font-semibold">
+                        {pattern}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Signals */}
+              {stockReportData.signals && stockReportData.signals.length > 0 && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-blue-600" />
+                    Trading Signals
+                  </h3>
+                  <div className="space-y-1">
+                    {stockReportData.signals.map((signal: string, idx: number) => (
+                      <p key={idx} className="text-sm text-gray-700">• {signal}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowStockReport(false);
+                  setStockReportData(null);
+                }}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {analyzing && !showStockReport && !showAddStock && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+              <p className="text-gray-900 font-medium">Analyzing stock...</p>
+            </div>
           </div>
         </div>
       )}
