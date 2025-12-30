@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, CandlestickSeries, LineSeries, LineStyle } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, CandlestickSeries, LineSeries, LineStyle, Time } from 'lightweight-charts';
 
 interface ChartData {
   symbol: string;
@@ -85,13 +85,13 @@ export default function StockEvidenceChart({ data }: Props) {
     const candleData = data.historicalPrices.map(d => {
       const timestamp = new Date(d.date).getTime() / 1000;
       return {
-        time: timestamp,
+        time: timestamp as Time,
         open: d.open,
         high: d.high,
         low: d.low,
         close: d.close,
       };
-    }).sort((a, b) => a.time - b.time); // Ensure chronological order
+    }).sort((a, b) => (a.time as number) - (b.time as number)); // Ensure chronological order
 
     console.log('📈 Prepared candlestick data:', candleData.length, 'candles');
 
@@ -113,7 +113,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 20',
       });
-      ema20Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema20! })));
+      ema20Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema20! })));
     }
 
     if (data.indicators.ema50) {
@@ -122,7 +122,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 50',
       });
-      ema50Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema50! })));
+      ema50Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema50! })));
     }
 
     // Add entry/target/stop lines
@@ -138,8 +138,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     entryLine.setData([
-      { time: candleData[0].time, value: data.levels.entry },
-      { time: lastTime, value: data.levels.entry },
+      { time: candleData[0].time as Time, value: data.levels.entry },
+      { time: lastTime as Time, value: data.levels.entry },
     ]);
 
     // Target level
@@ -152,8 +152,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     targetLine.setData([
-      { time: candleData[0].time, value: data.levels.target },
-      { time: lastTime, value: data.levels.target },
+      { time: candleData[0].time as Time, value: data.levels.target },
+      { time: lastTime as Time, value: data.levels.target },
     ]);
 
     // Stop Loss level
@@ -166,8 +166,8 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     stopLine.setData([
-      { time: candleData[0].time, value: data.levels.stopLoss },
-      { time: lastTime, value: data.levels.stopLoss },
+      { time: candleData[0].time as Time, value: data.levels.stopLoss },
+      { time: lastTime as Time, value: data.levels.stopLoss },
     ]);
 
     // Fit content
