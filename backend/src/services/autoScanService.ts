@@ -540,7 +540,7 @@ class AutoScanService {
       currentPrice: result.price,
       // Chart display data (last 6 months)
       historicalPrices: displayData.map((d: any) => ({
-        date: d.date,
+        date: d.timestamp || d.date, // Use timestamp field from marketDataService
         open: d.open,
         high: d.high,
         low: d.low,

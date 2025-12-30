@@ -792,7 +792,7 @@ class ScreenerService {
         symbol,
         currentPrice,
         historicalPrices: historicalData.slice(-180).map((d: any) => ({
-          date: d.date,
+          date: d.timestamp || d.date, // Use timestamp field from marketDataService
           open: d.open,
           high: d.high,
           low: d.low,
