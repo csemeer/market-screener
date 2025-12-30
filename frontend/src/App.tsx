@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar } from 'lucide-react';
+import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon } from 'lucide-react';
 import { useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import AutoScanDashboard from './pages/AutoScanDashboard';
 import EODDashboard from './pages/EODDashboard';
+import Settings from './pages/Settings';
 import Screener from './pages/Screener';
 import IntradayScanner from './pages/IntradayScanner';
 import SwingScanner from './pages/SwingScanner';
@@ -22,6 +23,7 @@ function App() {
     { to: '/intraday', label: 'Intraday', icon: TrendingUp },
     { to: '/swing', label: 'Swing', icon: TrendingUp },
     { to: '/risk-calculator', label: 'Risk Calc', icon: Calculator },
+    { to: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -93,6 +95,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/autoscan" element={<AutoScanDashboard />} />
             <Route path="/eod" element={<EODDashboard />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/screener" element={<Screener />} />
             <Route path="/intraday" element={<IntradayScanner />} />
             <Route path="/swing" element={<SwingScanner />} />
