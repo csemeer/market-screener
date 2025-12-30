@@ -6,6 +6,7 @@
 import { databaseService } from './databaseService';
 import { loggerService } from './loggerService';
 import { marketDataService } from './marketDataService';
+import { notificationService } from './notificationService';
 import { isWithinMarketHours, Exchange } from '../utils/marketUtils';
 import * as cron from 'node-cron';
 
@@ -380,7 +381,7 @@ class LiveMonitoringService {
 
     // Create alert
     if (this.config.alertOnTrigger) {
-      databaseService.insertAlert({
+      const alertId = databaseService.insertAlert({
         timestamp: new Date(),
         symbol: signal.symbol,
         exchange: signal.exchange,
@@ -390,6 +391,14 @@ class LiveMonitoringService {
         priority: signal.confidence === 'HIGH' ? 'HIGH' : 'MEDIUM',
         read: false,
       });
+
+      // Send multi-channel notification
+      const alert = databaseService.getAlertById(alertId);
+      if (alert) {
+        notificationService.sendAlertNotification(alert).catch(error => {
+          loggerService.error('Failed to send entry signal notification', { error, alertId });
+        });
+      }
     }
   }
 
@@ -409,7 +418,7 @@ class LiveMonitoringService {
       if (currentPrice < triggerPrice * 0.98) {
         loggerService.warn(`${stock.symbol} fell back below trigger - setup may be invalid`);
 
-        databaseService.insertAlert({
+        const alertId = databaseService.insertAlert({
           timestamp: new Date(),
           symbol: stock.symbol,
           exchange: stock.exchange,
@@ -419,6 +428,14 @@ class LiveMonitoringService {
           priority: 'MEDIUM',
           read: false,
         });
+
+        // Send notification
+        const alert = databaseService.getAlertById(alertId);
+        if (alert) {
+          notificationService.sendAlertNotification(alert).catch(error => {
+            loggerService.error('Failed to send price alert notification', { error, alertId });
+          });
+        }
       }
     }
 
@@ -426,7 +443,7 @@ class LiveMonitoringService {
     if (currentPrice >= stock.target_1) {
       loggerService.info(`${stock.symbol} hit target without entry - missed opportunity`);
 
-      databaseService.insertAlert({
+      const alertId = databaseService.insertAlert({
         timestamp: new Date(),
         symbol: stock.symbol,
         exchange: stock.exchange,
@@ -437,6 +454,14 @@ class LiveMonitoringService {
         read: false,
       });
 
+      // Send notification
+      const alert = databaseService.getAlertById(alertId);
+      if (alert) {
+        notificationService.sendAlertNotification(alert).catch(error => {
+          loggerService.error('Failed to send target hit notification', { error, alertId });
+        });
+      }
+
       // Expire the stock
       databaseService.updateWatchlistStockStatus(stock.id, 'EXPIRED');
     }
@@ -445,7 +470,7 @@ class LiveMonitoringService {
     if (currentPrice <= stock.stop_loss) {
       loggerService.warn(`${stock.symbol} hit stop loss - setup invalid`);
 
-      databaseService.insertAlert({
+      const alertId = databaseService.insertAlert({
         timestamp: new Date(),
         symbol: stock.symbol,
         exchange: stock.exchange,
@@ -455,6 +480,14 @@ class LiveMonitoringService {
         priority: 'MEDIUM',
         read: false,
       });
+
+      // Send notification
+      const alert = databaseService.getAlertById(alertId);
+      if (alert) {
+        notificationService.sendAlertNotification(alert).catch(error => {
+          loggerService.error('Failed to send stop loss notification', { error, alertId });
+        });
+      }
 
       // Cancel the stock
       databaseService.updateWatchlistStockStatus(stock.id, 'CANCELLED');

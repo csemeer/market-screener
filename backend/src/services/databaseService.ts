@@ -769,6 +769,33 @@ class DatabaseService {
   }
 
   /**
+   * Get alert by ID
+   */
+  getAlertById(id: number): Alert | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM alerts WHERE id = ?
+    `);
+
+    const result = stmt.get(id) as any;
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      timestamp: new Date(result.timestamp),
+      symbol: result.symbol,
+      exchange: result.exchange,
+      strategy: result.strategy,
+      alertType: result.alert_type,
+      message: result.message,
+      priority: result.priority,
+      read: Boolean(result.read),
+      scanResultId: result.scan_result_id,
+    };
+  }
+
+  /**
    * Mark alert as read
    */
   markAlertAsRead(id: number): void {

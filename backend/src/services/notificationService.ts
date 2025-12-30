@@ -23,6 +23,17 @@ class NotificationService {
   private initialized: boolean = false;
 
   /**
+   * Map alert type from database format to notification format
+   */
+  private mapAlertType(alertType: string): 'ENTRY_SIGNAL' | 'TARGET_HIT' | 'STOPLOSS_HIT' | 'PRICE_ALERT' {
+    // Map NEW_SIGNAL to ENTRY_SIGNAL for notifications
+    if (alertType === 'NEW_SIGNAL') {
+      return 'ENTRY_SIGNAL';
+    }
+    return alertType as 'ENTRY_SIGNAL' | 'TARGET_HIT' | 'STOPLOSS_HIT' | 'PRICE_ALERT';
+  }
+
+  /**
    * Initialize notification service with credentials
    */
   async initialize(config: NotificationServiceConfig = {}): Promise<void> {
@@ -121,8 +132,9 @@ class NotificationService {
 
       // Check if this alert type should be sent
       const alertTypes = JSON.parse(settings.alertTypes);
-      if (!alertTypes.includes(alert.alertType)) {
-        loggerService.debug(`Alert type ${alert.alertType} not enabled, skipping`);
+      const mappedAlertType = this.mapAlertType(alert.alertType);
+      if (!alertTypes.includes(mappedAlertType)) {
+        loggerService.debug(`Alert type ${mappedAlertType} not enabled, skipping`);
         return;
       }
 
@@ -131,7 +143,7 @@ class NotificationService {
         alertId: alert.id || 0,
         symbol: alert.symbol,
         exchange: alert.exchange,
-        alertType: alert.alertType,
+        alertType: this.mapAlertType(alert.alertType),
         message: alert.message,
         data: {}, // Can be extended with additional data
       };

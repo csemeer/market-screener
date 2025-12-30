@@ -44,7 +44,7 @@ class EmailService extends BaseNotificationService {
         });
       } else if (config.provider === 'gmail' && config.auth) {
         // Gmail configuration
-        this.transporter = nodemailer.createTransporter({
+        this.transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: config.auth,
         });

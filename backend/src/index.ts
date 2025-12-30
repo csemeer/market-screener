@@ -8,9 +8,11 @@ import { indexRoutes } from './routes/indexRoutes';
 import { loggerRoutes } from './routes/loggerRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import eodRoutes from './routes/eodRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
+import { notificationService } from './services/notificationService';
 import { autoScanService } from './services/autoScanService';
 import { liveMonitoringService } from './services/liveMonitoringService';
 import { loggingMiddleware, errorLoggingMiddleware } from './middleware/loggingMiddleware';
@@ -35,6 +37,7 @@ app.use('/api/indexes', indexRoutes);
 app.use('/api/logs', loggerRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eod', eodRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -60,6 +63,24 @@ app.listen(PORT, async () => {
 
   marketDataService.initialize();
   loggerService.info('Market Data Service initialized');
+
+  // Initialize Notification Service (multi-channel alerts)
+  try {
+    await notificationService.initialize();
+    const status = notificationService.getStatus();
+    loggerService.success('Notification Service initialized successfully', {
+      channels: status.availableChannels.join(', ')
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    loggerService.error('Failed to initialize Notification Service', {
+      error: errorMessage,
+      stack: errorStack
+    });
+    console.error('⚠️ Notification Service Error Details:', error);
+    console.error('⚠️ Notifications will be disabled. Configure environment variables to enable.');
+  }
 
   // Initialize Auto-Scan Service (runs in background)
   try {
