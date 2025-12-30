@@ -205,6 +205,7 @@ class DatabaseService {
       this.db.pragma('journal_mode = WAL');
 
       this.createTables();
+      this.runMigrations();
       this.initialized = true;
       loggerService.info('Database initialized successfully');
     } catch (error) {
@@ -670,6 +671,32 @@ class DatabaseService {
     `);
 
     loggerService.info('Database tables created successfully');
+  }
+
+  /**
+   * Run database migrations to handle schema updates
+   */
+  private runMigrations(): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      // Check if currency column exists in scan_results table
+      const tableInfo = this.db.pragma('table_info(scan_results)') as Array<{ name: string }>;
+      const hasCurrencyColumn = tableInfo.some((col) => col.name === 'currency');
+
+      if (!hasCurrencyColumn) {
+        loggerService.info('Running migration: Adding currency column to scan_results table');
+        this.db.exec(`
+          ALTER TABLE scan_results ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR' CHECK(currency IN ('USD', 'INR'))
+        `);
+        loggerService.info('Migration completed: currency column added');
+      }
+
+      loggerService.info('Database migrations completed successfully');
+    } catch (error) {
+      loggerService.error('Failed to run database migrations', { error });
+      throw error;
+    }
   }
 
   /**
