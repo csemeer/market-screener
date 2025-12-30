@@ -112,22 +112,51 @@ class LiveMonitoringService {
   }
 
   /**
-   * Monitor today's watchlist stocks
+   * Monitor today's watchlist stocks (EOD + Custom Watchlists)
    */
   private async monitorWatchlist(): Promise<void> {
     try {
-      // Get all PENDING and TRIGGERED stocks from today's watchlist
-      const pendingStocks = databaseService.getWatchlistStocksByStatus('PENDING');
-      const triggeredStocks = databaseService.getWatchlistStocksByStatus('TRIGGERED');
+      // Get all PENDING and TRIGGERED stocks from today's EOD watchlist
+      const eodPendingStocks = databaseService.getWatchlistStocksByStatus('PENDING');
+      const eodTriggeredStocks = databaseService.getWatchlistStocksByStatus('TRIGGERED');
 
-      const stocksToMonitor = [...pendingStocks, ...triggeredStocks];
+      // Get all active stocks from custom watchlists
+      const customWatchlistStocks = databaseService.getAllActiveCustomWatchlistStocks();
+
+      // Normalize custom watchlist stocks to match EOD watchlist format
+      const normalizedCustomStocks = customWatchlistStocks.map(stock => ({
+        id: stock.id,
+        symbol: stock.symbol,
+        exchange: stock.exchange,
+        setup_type: stock.setupType,
+        entry_price: stock.entryPrice,
+        entry_trigger: stock.entryTrigger,
+        stop_loss: stock.stopLoss,
+        target_1: stock.target1,
+        target_2: stock.target2,
+        target_3: stock.target3,
+        trailing_stop_percent: stock.trailingStopPercent,
+        status: stock.status,
+        trigger_price: stock.triggerPrice,
+        isCustomWatchlist: true, // Flag to identify source
+        watchlistId: stock.watchlistId,
+      }));
+
+      const stocksToMonitor = [
+        ...eodPendingStocks,
+        ...eodTriggeredStocks,
+        ...normalizedCustomStocks,
+      ];
 
       if (stocksToMonitor.length === 0) {
         loggerService.debug('No stocks to monitor');
         return;
       }
 
-      loggerService.info(`Monitoring ${stocksToMonitor.length} stocks`);
+      const eodCount = eodPendingStocks.length + eodTriggeredStocks.length;
+      const customCount = normalizedCustomStocks.length;
+
+      loggerService.info(`Monitoring ${stocksToMonitor.length} stocks (${eodCount} EOD, ${customCount} Custom)`);
 
       // Monitor each stock
       for (const stock of stocksToMonitor) {
@@ -165,7 +194,11 @@ class LiveMonitoringService {
         const signal = this.detectEntrySignal(stock, currentPrice, volume);
 
         if (signal) {
-          await this.handleEntrySignal(signal);
+          // Pass the isCustomWatchlist flag to handleEntrySignal
+          await this.handleEntrySignal({
+            ...signal,
+            isCustomWatchlist: stock.isCustomWatchlist || false,
+          });
         }
       }
 
@@ -362,21 +395,33 @@ class LiveMonitoringService {
   /**
    * Handle entry signal detection
    */
-  private async handleEntrySignal(signal: EntrySignal): Promise<void> {
+  private async handleEntrySignal(signal: EntrySignal & { isCustomWatchlist?: boolean }): Promise<void> {
     loggerService.success(`Entry signal detected for ${signal.symbol}`, {
       confidence: signal.confidence,
       price: signal.currentPrice,
       signals: signal.signals,
+      source: signal.isCustomWatchlist ? 'Custom Watchlist' : 'EOD Watchlist',
     });
 
     // Update stock status to TRIGGERED
     if (this.config.autoUpdateStatus) {
-      databaseService.updateWatchlistStockStatus(
-        signal.stockId,
-        'TRIGGERED',
-        signal.currentPrice,
-        new Date()
-      );
+      if (signal.isCustomWatchlist) {
+        // Update custom watchlist stock
+        databaseService.updateCustomWatchlistStockStatus(
+          signal.stockId,
+          'TRIGGERED',
+          signal.currentPrice,
+          new Date()
+        );
+      } else {
+        // Update EOD watchlist stock
+        databaseService.updateWatchlistStockStatus(
+          signal.stockId,
+          'TRIGGERED',
+          signal.currentPrice,
+          new Date()
+        );
+      }
     }
 
     // Create alert
@@ -385,7 +430,7 @@ class LiveMonitoringService {
         timestamp: new Date(),
         symbol: signal.symbol,
         exchange: signal.exchange,
-        strategy: 'EOD_WATCHLIST',
+        strategy: signal.isCustomWatchlist ? 'CUSTOM_WATCHLIST' : 'EOD_WATCHLIST',
         alertType: 'NEW_SIGNAL',
         message: `${signal.symbol} entry triggered at ${signal.currentPrice.toFixed(2)} - Confidence: ${signal.confidence}. ${signal.signals.join(', ')}`,
         priority: signal.confidence === 'HIGH' ? 'HIGH' : 'MEDIUM',
@@ -412,6 +457,8 @@ class LiveMonitoringService {
   ): Promise<void> {
     // Check if price moved significantly away from trigger (invalidating the setup)
     const triggerPrice = stock.trigger_price || stock.entry_trigger;
+    const isCustomWatchlist = stock.isCustomWatchlist || false;
+    const strategy = isCustomWatchlist ? 'CUSTOM_WATCHLIST' : 'EOD_WATCHLIST';
 
     if (stock.setup_type === 'BREAKOUT' || stock.setup_type === 'CONSOLIDATION') {
       // If price fell back below trigger significantly, might want to cancel
@@ -422,7 +469,7 @@ class LiveMonitoringService {
           timestamp: new Date(),
           symbol: stock.symbol,
           exchange: stock.exchange,
-          strategy: 'EOD_WATCHLIST',
+          strategy,
           alertType: 'PRICE_ALERT',
           message: `${stock.symbol} fell back below trigger price. Setup may be invalid.`,
           priority: 'MEDIUM',
@@ -447,7 +494,7 @@ class LiveMonitoringService {
         timestamp: new Date(),
         symbol: stock.symbol,
         exchange: stock.exchange,
-        strategy: 'EOD_WATCHLIST',
+        strategy,
         alertType: 'TARGET_HIT',
         message: `${stock.symbol} hit target ${stock.target_1.toFixed(2)} without entry. Missed opportunity.`,
         priority: 'LOW',
@@ -463,7 +510,11 @@ class LiveMonitoringService {
       }
 
       // Expire the stock
-      databaseService.updateWatchlistStockStatus(stock.id, 'EXPIRED');
+      if (isCustomWatchlist) {
+        databaseService.updateCustomWatchlistStockStatus(stock.id, 'EXPIRED');
+      } else {
+        databaseService.updateWatchlistStockStatus(stock.id, 'EXPIRED');
+      }
     }
 
     // Check if price hit stop loss (invalidating setup)
@@ -474,7 +525,7 @@ class LiveMonitoringService {
         timestamp: new Date(),
         symbol: stock.symbol,
         exchange: stock.exchange,
-        strategy: 'EOD_WATCHLIST',
+        strategy,
         alertType: 'STOPLOSS_HIT',
         message: `${stock.symbol} hit stop loss ${stock.stop_loss.toFixed(2)} before entry. Setup invalid.`,
         priority: 'MEDIUM',
@@ -490,7 +541,11 @@ class LiveMonitoringService {
       }
 
       // Cancel the stock
-      databaseService.updateWatchlistStockStatus(stock.id, 'CANCELLED');
+      if (isCustomWatchlist) {
+        databaseService.updateCustomWatchlistStockStatus(stock.id, 'CANCELLED');
+      } else {
+        databaseService.updateWatchlistStockStatus(stock.id, 'CANCELLED');
+      }
     }
   }
 

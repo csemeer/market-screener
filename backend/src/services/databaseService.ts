@@ -140,6 +140,40 @@ export interface BrokerPosition {
   lastUpdated?: Date;
 }
 
+export interface CustomWatchlist {
+  id?: number;
+  userId: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CustomWatchlistStock {
+  id?: number;
+  watchlistId: number;
+  symbol: string;
+  exchange: string;
+  companyName?: string;
+  setupType?: 'BREAKOUT' | 'BREAKDOWN' | 'PULLBACK' | 'REVERSAL' | 'CONSOLIDATION' | 'CUSTOM';
+  timeframe?: 'INTRADAY' | 'SWING' | 'POSITIONAL';
+  entryPrice: number;
+  entryTrigger?: number;
+  stopLoss: number;
+  target1: number;
+  target2?: number;
+  target3?: number;
+  trailingStopPercent?: number;
+  positionSizePercent?: number;
+  notes?: string;
+  status: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED';
+  triggerPrice?: number;
+  triggerTime?: Date;
+  addedAt?: Date;
+  updatedAt?: Date;
+}
+
 class DatabaseService {
   private db: Database.Database | null = null;
   private dbPath: string;
@@ -584,6 +618,55 @@ class DatabaseService {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_broker_positions_broker_account_id ON broker_positions(broker_account_id);
       CREATE INDEX IF NOT EXISTS idx_broker_positions_symbol ON broker_positions(symbol);
+    `);
+
+    // Custom Watchlists Table - User-defined watchlists
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS custom_watchlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL DEFAULT 'default',
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, name)
+      )
+    `);
+
+    // Custom Watchlist Stocks - Individual stocks in custom watchlists
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS custom_watchlist_stocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watchlist_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        company_name TEXT,
+        setup_type TEXT CHECK(setup_type IN ('BREAKOUT', 'BREAKDOWN', 'PULLBACK', 'REVERSAL', 'CONSOLIDATION', 'CUSTOM')),
+        timeframe TEXT CHECK(timeframe IN ('INTRADAY', 'SWING', 'POSITIONAL')),
+        entry_price REAL NOT NULL,
+        entry_trigger REAL,
+        stop_loss REAL NOT NULL,
+        target_1 REAL NOT NULL,
+        target_2 REAL,
+        target_3 REAL,
+        trailing_stop_percent REAL DEFAULT 1.0,
+        position_size_percent REAL DEFAULT 1.0,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'TRIGGERED', 'CANCELLED', 'EXPIRED')),
+        trigger_price REAL,
+        trigger_time DATETIME,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (watchlist_id) REFERENCES custom_watchlists(id) ON DELETE CASCADE,
+        UNIQUE(watchlist_id, symbol, exchange)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_watchlist_id ON custom_watchlist_stocks(watchlist_id);
+      CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_symbol ON custom_watchlist_stocks(symbol);
+      CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_status ON custom_watchlist_stocks(status);
     `);
 
     loggerService.info('Database tables created successfully');
@@ -2019,6 +2102,294 @@ class DatabaseService {
       pnlPercent: pos.pnl_percent,
       lastUpdated: new Date(pos.last_updated)
     }));
+  }
+
+  // ==================== CUSTOM WATCHLIST METHODS ====================
+
+  /**
+   * Get all custom watchlists for a user
+   */
+  getCustomWatchlists(userId: string = 'default'): CustomWatchlist[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const watchlists = this.db.prepare(`
+      SELECT * FROM custom_watchlists WHERE user_id = ? ORDER BY created_at DESC
+    `).all(userId) as any[];
+
+    return watchlists.map(wl => ({
+      id: wl.id,
+      userId: wl.user_id,
+      name: wl.name,
+      description: wl.description,
+      isActive: Boolean(wl.is_active),
+      createdAt: new Date(wl.created_at),
+      updatedAt: new Date(wl.updated_at)
+    }));
+  }
+
+  /**
+   * Get custom watchlist by ID
+   */
+  getCustomWatchlistById(id: number): CustomWatchlist | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const wl = this.db.prepare(`
+      SELECT * FROM custom_watchlists WHERE id = ?
+    `).get(id) as any;
+
+    if (!wl) return null;
+
+    return {
+      id: wl.id,
+      userId: wl.user_id,
+      name: wl.name,
+      description: wl.description,
+      isActive: Boolean(wl.is_active),
+      createdAt: new Date(wl.created_at),
+      updatedAt: new Date(wl.updated_at)
+    };
+  }
+
+  /**
+   * Create a new custom watchlist
+   */
+  createCustomWatchlist(watchlist: Omit<CustomWatchlist, 'id' | 'createdAt' | 'updatedAt'>): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO custom_watchlists (user_id, name, description, is_active)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      watchlist.userId,
+      watchlist.name,
+      watchlist.description || null,
+      watchlist.isActive ? 1 : 0
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update a custom watchlist
+   */
+  updateCustomWatchlist(id: number, updates: Partial<CustomWatchlist>): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.name !== undefined) {
+      updateFields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      updateFields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.isActive !== undefined) {
+      updateFields.push('is_active = ?');
+      values.push(updates.isActive ? 1 : 0);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    this.db.prepare(`
+      UPDATE custom_watchlists SET ${updateFields.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  /**
+   * Delete a custom watchlist (cascades to stocks)
+   */
+  deleteCustomWatchlist(id: number): void {
+    if (!this.db) throw new Error('Database not initialized');
+    this.db.prepare('DELETE FROM custom_watchlists WHERE id = ?').run(id);
+  }
+
+  /**
+   * Get all stocks in a custom watchlist
+   */
+  getCustomWatchlistStocks(watchlistId: number): CustomWatchlistStock[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stocks = this.db.prepare(`
+      SELECT * FROM custom_watchlist_stocks WHERE watchlist_id = ? ORDER BY added_at DESC
+    `).all(watchlistId) as any[];
+
+    return stocks.map(stock => this.mapCustomWatchlistStock(stock));
+  }
+
+  /**
+   * Get all active custom watchlist stocks (for monitoring)
+   */
+  getAllActiveCustomWatchlistStocks(): CustomWatchlistStock[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stocks = this.db.prepare(`
+      SELECT cws.* FROM custom_watchlist_stocks cws
+      INNER JOIN custom_watchlists cw ON cws.watchlist_id = cw.id
+      WHERE cw.is_active = 1 AND cws.status IN ('PENDING', 'TRIGGERED')
+      ORDER BY cws.added_at DESC
+    `).all() as any[];
+
+    return stocks.map(stock => this.mapCustomWatchlistStock(stock));
+  }
+
+  /**
+   * Add stock to custom watchlist
+   */
+  addStockToCustomWatchlist(stock: Omit<CustomWatchlistStock, 'id' | 'addedAt' | 'updatedAt'>): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO custom_watchlist_stocks (
+        watchlist_id, symbol, exchange, company_name, setup_type, timeframe,
+        entry_price, entry_trigger, stop_loss, target_1, target_2, target_3,
+        trailing_stop_percent, position_size_percent, notes, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      stock.watchlistId,
+      stock.symbol,
+      stock.exchange,
+      stock.companyName || null,
+      stock.setupType || null,
+      stock.timeframe || null,
+      stock.entryPrice,
+      stock.entryTrigger || null,
+      stock.stopLoss,
+      stock.target1,
+      stock.target2 || null,
+      stock.target3 || null,
+      stock.trailingStopPercent || 1.0,
+      stock.positionSizePercent || 1.0,
+      stock.notes || null,
+      stock.status
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update custom watchlist stock
+   */
+  updateCustomWatchlistStock(id: number, updates: Partial<CustomWatchlistStock>): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.entryPrice !== undefined) {
+      updateFields.push('entry_price = ?');
+      values.push(updates.entryPrice);
+    }
+    if (updates.entryTrigger !== undefined) {
+      updateFields.push('entry_trigger = ?');
+      values.push(updates.entryTrigger);
+    }
+    if (updates.stopLoss !== undefined) {
+      updateFields.push('stop_loss = ?');
+      values.push(updates.stopLoss);
+    }
+    if (updates.target1 !== undefined) {
+      updateFields.push('target_1 = ?');
+      values.push(updates.target1);
+    }
+    if (updates.target2 !== undefined) {
+      updateFields.push('target_2 = ?');
+      values.push(updates.target2);
+    }
+    if (updates.target3 !== undefined) {
+      updateFields.push('target_3 = ?');
+      values.push(updates.target3);
+    }
+    if (updates.status !== undefined) {
+      updateFields.push('status = ?');
+      values.push(updates.status);
+    }
+    if (updates.triggerPrice !== undefined) {
+      updateFields.push('trigger_price = ?');
+      values.push(updates.triggerPrice);
+    }
+    if (updates.triggerTime !== undefined) {
+      updateFields.push('trigger_time = ?');
+      values.push(updates.triggerTime ? new Date(updates.triggerTime).toISOString() : null);
+    }
+    if (updates.notes !== undefined) {
+      updateFields.push('notes = ?');
+      values.push(updates.notes);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    this.db.prepare(`
+      UPDATE custom_watchlist_stocks SET ${updateFields.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  /**
+   * Delete stock from custom watchlist
+   */
+  deleteCustomWatchlistStock(id: number): void {
+    if (!this.db) throw new Error('Database not initialized');
+    this.db.prepare('DELETE FROM custom_watchlist_stocks WHERE id = ?').run(id);
+  }
+
+  /**
+   * Update custom watchlist stock status
+   */
+  updateCustomWatchlistStockStatus(
+    id: number,
+    status: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED',
+    triggerPrice?: number,
+    triggerTime?: Date
+  ): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.prepare(`
+      UPDATE custom_watchlist_stocks
+      SET status = ?, trigger_price = ?, trigger_time = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      status,
+      triggerPrice || null,
+      triggerTime ? new Date(triggerTime).toISOString() : null,
+      id
+    );
+  }
+
+  /**
+   * Map database row to CustomWatchlistStock
+   */
+  private mapCustomWatchlistStock(stock: any): CustomWatchlistStock {
+    return {
+      id: stock.id,
+      watchlistId: stock.watchlist_id,
+      symbol: stock.symbol,
+      exchange: stock.exchange,
+      companyName: stock.company_name,
+      setupType: stock.setup_type,
+      timeframe: stock.timeframe,
+      entryPrice: stock.entry_price,
+      entryTrigger: stock.entry_trigger,
+      stopLoss: stock.stop_loss,
+      target1: stock.target_1,
+      target2: stock.target_2,
+      target3: stock.target_3,
+      trailingStopPercent: stock.trailing_stop_percent,
+      positionSizePercent: stock.position_size_percent,
+      notes: stock.notes,
+      status: stock.status,
+      triggerPrice: stock.trigger_price,
+      triggerTime: stock.trigger_time ? new Date(stock.trigger_time) : undefined,
+      addedAt: new Date(stock.added_at),
+      updatedAt: new Date(stock.updated_at)
+    };
   }
 
   /**
