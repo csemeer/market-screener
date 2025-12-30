@@ -49,8 +49,11 @@ export default function StockEvidenceChart({ data }: Props) {
 
   useEffect(() => {
     if (!chartContainerRef.current || !data.historicalPrices || data.historicalPrices.length === 0) {
+      console.log('⚠️ Chart not rendering: missing container or data');
       return;
     }
+
+    console.log('📊 Creating chart with', data.historicalPrices.length, 'candles');
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -78,8 +81,22 @@ export default function StockEvidenceChart({ data }: Props) {
 
     chartRef.current = chart;
 
-    // Add candlestick series
-    const candlestickSeries = chart.addSeries('Candlestick' as any, {
+    // Prepare candlestick data first
+    const candleData = data.historicalPrices.map(d => {
+      const timestamp = new Date(d.date).getTime() / 1000;
+      return {
+        time: timestamp,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+      };
+    }).sort((a, b) => a.time - b.time); // Ensure chronological order
+
+    console.log('📈 Prepared candlestick data:', candleData.length, 'candles');
+
+    // Add candlestick series - using type-safe approach for v5
+    const candlestickSeries = (chart as any).addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -87,41 +104,32 @@ export default function StockEvidenceChart({ data }: Props) {
       wickDownColor: '#ef5350',
     });
 
-    // Prepare candlestick data
-    const candleData = data.historicalPrices.map(d => ({
-      time: (new Date(d.date).getTime() / 1000) as any,
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close,
-    }));
-
     candlestickSeries.setData(candleData);
 
     // Add EMA lines
     if (data.indicators.ema20) {
-      const ema20Series = chart.addSeries('Line' as any, {
+      const ema20Series = (chart as any).addLineSeries({
         color: '#2962FF',
         lineWidth: 2,
         title: 'EMA 20',
       });
-      ema20Series.setData(candleData.map(d => ({ time: d.time as any, value: data.indicators.ema20! })));
+      ema20Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema20! })));
     }
 
     if (data.indicators.ema50) {
-      const ema50Series = chart.addSeries('Line' as any, {
+      const ema50Series = (chart as any).addLineSeries({
         color: '#FF6D00',
         lineWidth: 2,
         title: 'EMA 50',
       });
-      ema50Series.setData(candleData.map(d => ({ time: d.time as any, value: data.indicators.ema50! })));
+      ema50Series.setData(candleData.map(d => ({ time: d.time, value: data.indicators.ema50! })));
     }
 
     // Add entry/target/stop lines
     const lastTime = candleData[candleData.length - 1].time;
 
     // Entry level
-    const entryLine = chart.addSeries('Line' as any, {
+    const entryLine = (chart as any).addLineSeries({
       color: '#2196F3',
       lineWidth: 2,
       lineStyle: 2, // Dashed
@@ -130,12 +138,12 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     entryLine.setData([
-      { time: candleData[0].time as any, value: data.levels.entry },
-      { time: lastTime as any, value: data.levels.entry },
+      { time: candleData[0].time, value: data.levels.entry },
+      { time: lastTime, value: data.levels.entry },
     ]);
 
     // Target level
-    const targetLine = chart.addSeries('Line' as any, {
+    const targetLine = (chart as any).addLineSeries({
       color: '#4CAF50',
       lineWidth: 2,
       lineStyle: 2, // Dashed
@@ -144,12 +152,12 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     targetLine.setData([
-      { time: candleData[0].time as any, value: data.levels.target },
-      { time: lastTime as any, value: data.levels.target },
+      { time: candleData[0].time, value: data.levels.target },
+      { time: lastTime, value: data.levels.target },
     ]);
 
     // Stop Loss level
-    const stopLine = chart.addSeries('Line' as any, {
+    const stopLine = (chart as any).addLineSeries({
       color: '#F44336',
       lineWidth: 2,
       lineStyle: 2, // Dashed
@@ -158,12 +166,14 @@ export default function StockEvidenceChart({ data }: Props) {
       lastValueVisible: true,
     });
     stopLine.setData([
-      { time: candleData[0].time as any, value: data.levels.stopLoss },
-      { time: lastTime as any, value: data.levels.stopLoss },
+      { time: candleData[0].time, value: data.levels.stopLoss },
+      { time: lastTime, value: data.levels.stopLoss },
     ]);
 
     // Fit content
     chart.timeScale().fitContent();
+
+    console.log('✅ Chart created successfully');
 
     // Handle resize
     const handleResize = () => {
