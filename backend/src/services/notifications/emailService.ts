@@ -293,8 +293,8 @@ class EmailService extends BaseNotificationService {
     }
 
     <div class="footer">
-      <p>This is an automated trading alert from your Stock Market Screener.</p>
-      <p>Please verify all information before taking action.</p>
+      <p>This is an automated trading alert from AlphaStream v1.0.0.</p>
+      <p>Stream Alpha. Trade Smarter. Please verify all information before taking action.</p>
     </div>
   </div>
 </body>

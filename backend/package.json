@@ -1,7 +1,7 @@
 {
-  "name": "market-screener-backend",
+  "name": "alphastream-backend",
   "version": "1.0.0",
-  "description": "Backend API for stock market screener",
+  "description": "AlphaStream - Backend API for stock market analysis and trading alerts",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

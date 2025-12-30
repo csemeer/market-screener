@@ -1,9 +1,12 @@
-# 📊 Stock Market Screener Pro
+# 🌊 AlphaStream v1.0.0
 
-A comprehensive, full-stack stock market screening and analysis platform for **Indian (NSE/BSE)** and **US (NYSE/NASDAQ)** markets. Built with advanced technical analysis, intraday and swing trade scanners, and professional risk management tools.
+**Stream Alpha. Trade Smarter.**
+
+A comprehensive, professional-grade stock market analysis platform for **Indian (NSE/BSE)** and **US (NYSE/NASDAQ)** markets. Built with advanced technical analysis, real-time monitoring, multi-channel notifications, broker integration, and professional risk management tools.
 
 ![Markets](https://img.shields.io/badge/Markets-NSE%20%7C%20BSE%20%7C%20NYSE%20%7C%20NASDAQ-blue)
 ![Tech](https://img.shields.io/badge/Stack-React%20%7C%20TypeScript%20%7C%20Node.js-green)
+![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ## 🎯 Features
@@ -13,6 +16,56 @@ A comprehensive, full-stack stock market screening and analysis platform for **I
 - **US Markets**: NYSE (New York Stock Exchange), NASDAQ
 - Real-time and historical data integration
 - Support for 50+ popular stocks across all markets
+
+### 🎯 Custom Watchlist System
+- **Create Unlimited Watchlists**: Organize stocks by strategy, timeframe, or sector
+- **Advanced Stock Tracking**: Set entry triggers, stop loss, and multiple profit targets
+- **Live Monitoring**: Automatic price monitoring every 30 seconds during market hours
+- **Status Management**: Track stocks from PENDING → TRIGGERED → COMPLETED
+- **Position Sizing**: Configure position size and trailing stop percentages
+- **Setup Types**: BREAKOUT, BREAKDOWN, PULLBACK, REVERSAL, CONSOLIDATION
+- **Timeframes**: INTRADAY, SWING, POSITIONAL trading styles
+- **Mobile-Friendly UI**: Manage watchlists on any device
+
+### 📅 EOD (End-of-Day) Trading System
+- **Automated EOD Scans**: Schedule daily scans after market close
+- **Setup Detection**: Identify overnight/swing trade opportunities
+- **Scan History**: Review past scans and performance
+- **One-Click Add to Watchlist**: Instantly add EOD setups to custom watchlists
+- **Dashboard Overview**: Track recent scans and watchlist statistics
+
+### 🔔 Multi-Channel Notification System
+- **5 Notification Channels**:
+  - 📧 **Email** (SendGrid/SMTP)
+  - 📱 **SMS** (Twilio)
+  - 💬 **WhatsApp** (Twilio)
+  - 📲 **Telegram** (Bot API)
+  - 🔗 **Webhooks** (Custom integrations)
+- **Real-Time Alerts**: Instant notifications for entry triggers, target hits, and stop loss
+- **Alert Types**: ENTRY_SIGNAL, TARGET_HIT, STOPLOSS_HIT, PRICE_ALERT
+- **Channel Selection**: Enable/disable channels individually
+- **Test Notifications**: Verify channels before going live
+- **Notification Logs**: Track all sent notifications with delivery status
+
+### 💼 Broker Integration & Auto-Trading
+- **Multi-Broker Support**:
+  - 🇮🇳 **Zerodha** (Kite Connect API)
+  - 🇮🇳 **Upstox** (API v2)
+  - 🌍 **Interactive Brokers** (IBKR) - Coming Soon
+- **Unified Interface**: Single API for all brokers
+- **Order Management**: Place, modify, and cancel orders
+- **Position Tracking**: Real-time position and P&L monitoring
+- **Funds Management**: Check available margin and funds
+- **Order Validation**: Pre-execution order validation
+- **Secure Credentials**: Encrypted storage of API keys and tokens
+- **OAuth2 Authentication**: Secure broker authentication flows
+
+### 🔴 Live Monitoring Service
+- **24/7 Monitoring**: Continuous price monitoring during market hours
+- **30-Second Intervals**: Fast price checks for timely alerts
+- **Multi-Source Tracking**: Monitor both EOD and custom watchlist stocks
+- **Automatic Status Updates**: Update stock status on trigger events
+- **Multi-Channel Delivery**: Send alerts to all enabled channels simultaneously
 
 ### 🔬 Advanced Technical Analysis
 - **15+ Technical Indicators**:
@@ -74,8 +127,8 @@ A comprehensive, full-stack stock market screening and analysis platform for **I
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/market-screener.git
-cd market-screener
+git clone https://github.com/yourusername/alphastream.git
+cd alphastream
 ```
 
 2. **Install all dependencies**
@@ -314,10 +367,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For questions, suggestions, or issues:
 - Create an issue on GitHub
-- Email: support@marketscreener.pro (placeholder)
+- Email: support@alphastream.pro (placeholder)
 
 ---
 
-**Built with ❤️ for traders, by traders**
+**AlphaStream v1.0.0 - Stream Alpha. Trade Smarter.**
+
+Built with ❤️ for traders, by traders
 
 Happy Trading! 📈🚀

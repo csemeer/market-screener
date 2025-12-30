@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon, ListPlus } from 'lucide-react';
 import { useState } from 'react';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import AutoScanDashboard from './pages/AutoScanDashboard';
 import EODDashboard from './pages/EODDashboard';
@@ -17,7 +18,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { to: '/', label: 'Dashboard', icon: BarChart3 },
+    { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { to: '/autoscan', label: 'Auto-Scan', icon: Activity },
     { to: '/eod', label: 'EOD Trading', icon: Calendar },
     { to: '/watchlist', label: 'Watchlist', icon: ListPlus },
@@ -39,11 +40,16 @@ function App() {
             <div className="flex justify-between items-center h-16">
               {/* Logo */}
               <Link to="/" className="flex items-center space-x-2" onClick={closeMobileMenu}>
-                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600" />
-                <span className="text-lg sm:text-xl font-bold text-gray-900">
-                  <span className="hidden sm:inline">Market Screener Pro</span>
-                  <span className="sm:hidden">MSP</span>
-                </span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+                  <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-lg sm:text-xl font-bold text-gray-900">
+                    <span className="hidden sm:inline">AlphaStream</span>
+                    <span className="sm:hidden">AS</span>
+                  </div>
+                  <div className="text-xs text-cyan-600 font-medium -mt-1">v1.0.0</div>
+                </div>
               </Link>
 
               {/* Desktop Navigation */}
@@ -94,7 +100,8 @@ function App() {
         {/* Main Content */}
         <main>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/autoscan" element={<AutoScanDashboard />} />
             <Route path="/eod" element={<EODDashboard />} />
             <Route path="/watchlist" element={<CustomWatchlist />} />
@@ -111,7 +118,7 @@ function App() {
         <footer className="bg-white border-t border-gray-200 mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <p className="text-center text-gray-600 text-sm">
-              Market Screener Pro - Advanced Stock Analysis for Indian & US Markets
+              AlphaStream v1.0.0 - Stream Alpha. Trade Smarter.
             </p>
             <p className="text-center text-gray-500 text-xs mt-2">
               Disclaimer: This tool is for educational purposes. Always do your own research before trading.
