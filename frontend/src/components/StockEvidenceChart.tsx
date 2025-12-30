@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, CandlestickSeries, LineSeries, LineStyle } from 'lightweight-charts';
 
 interface ChartData {
   symbol: string;
@@ -95,8 +95,8 @@ export default function StockEvidenceChart({ data }: Props) {
 
     console.log('📈 Prepared candlestick data:', candleData.length, 'candles');
 
-    // Add candlestick series - using type-safe approach for v5
-    const candlestickSeries = (chart as any).addCandlestickSeries({
+    // Add candlestick series using correct v5 API
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -108,7 +108,7 @@ export default function StockEvidenceChart({ data }: Props) {
 
     // Add EMA lines
     if (data.indicators.ema20) {
-      const ema20Series = (chart as any).addLineSeries({
+      const ema20Series = chart.addSeries(LineSeries, {
         color: '#2962FF',
         lineWidth: 2,
         title: 'EMA 20',
@@ -117,7 +117,7 @@ export default function StockEvidenceChart({ data }: Props) {
     }
 
     if (data.indicators.ema50) {
-      const ema50Series = (chart as any).addLineSeries({
+      const ema50Series = chart.addSeries(LineSeries, {
         color: '#FF6D00',
         lineWidth: 2,
         title: 'EMA 50',
@@ -129,10 +129,10 @@ export default function StockEvidenceChart({ data }: Props) {
     const lastTime = candleData[candleData.length - 1].time;
 
     // Entry level
-    const entryLine = (chart as any).addLineSeries({
+    const entryLine = chart.addSeries(LineSeries, {
       color: '#2196F3',
       lineWidth: 2,
-      lineStyle: 2, // Dashed
+      lineStyle: LineStyle.Dashed,
       title: 'Entry',
       priceLineVisible: true,
       lastValueVisible: true,
@@ -143,10 +143,10 @@ export default function StockEvidenceChart({ data }: Props) {
     ]);
 
     // Target level
-    const targetLine = (chart as any).addLineSeries({
+    const targetLine = chart.addSeries(LineSeries, {
       color: '#4CAF50',
       lineWidth: 2,
-      lineStyle: 2, // Dashed
+      lineStyle: LineStyle.Dashed,
       title: 'Target',
       priceLineVisible: true,
       lastValueVisible: true,
@@ -157,10 +157,10 @@ export default function StockEvidenceChart({ data }: Props) {
     ]);
 
     // Stop Loss level
-    const stopLine = (chart as any).addLineSeries({
+    const stopLine = chart.addSeries(LineSeries, {
       color: '#F44336',
       lineWidth: 2,
-      lineStyle: 2, // Dashed
+      lineStyle: LineStyle.Dashed,
       title: 'Stop Loss',
       priceLineVisible: true,
       lastValueVisible: true,
