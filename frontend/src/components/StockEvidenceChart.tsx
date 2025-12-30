@@ -82,18 +82,35 @@ export default function StockEvidenceChart({ data }: Props) {
     chartRef.current = chart;
 
     // Prepare candlestick data first
-    const candleData = data.historicalPrices.map(d => {
-      const timestamp = new Date(d.date).getTime() / 1000;
-      return {
-        time: timestamp as Time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-      };
-    }).sort((a, b) => (a.time as number) - (b.time as number)); // Ensure chronological order
+    console.log('🔍 Sample raw date:', data.historicalPrices[0]?.date);
+
+    const candleData = data.historicalPrices
+      .map(d => {
+        const timestamp = new Date(d.date).getTime() / 1000;
+
+        // Validate timestamp
+        if (isNaN(timestamp)) {
+          console.error('❌ Invalid date:', d.date);
+          return null;
+        }
+
+        return {
+          time: timestamp as Time,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+        };
+      })
+      .filter((d): d is NonNullable<typeof d> => d !== null) // Remove invalid entries
+      .sort((a, b) => (a.time as number) - (b.time as number)); // Ensure chronological order
 
     console.log('📈 Prepared candlestick data:', candleData.length, 'candles');
+
+    if (candleData.length === 0) {
+      console.error('❌ No valid candle data after parsing');
+      return;
+    }
 
     // Add candlestick series using correct v5 API
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
