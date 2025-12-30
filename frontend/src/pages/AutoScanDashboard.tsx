@@ -479,9 +479,31 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
 
 // Stock Evidence Modal Component
 function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: () => void }) {
-  const chartData = { ...JSON.parse(stock.evidence_chart_data || '{}'), currency: stock.currency };
-  const technicalData = JSON.parse(stock.technical_data || '{}');
-  const signals = JSON.parse(stock.signals || '[]');
+  let chartData: any = { currency: stock.currency };
+  let technicalData: any = {};
+  let signals: string[] = [];
+  let parseError: string | null = null;
+
+  try {
+    // Parse evidence chart data
+    const parsedChartData = JSON.parse(stock.evidence_chart_data || '{}');
+    console.log('📊 Parsed chart data:', parsedChartData);
+    chartData = { ...parsedChartData, currency: stock.currency };
+
+    // Verify chart data structure
+    if (!chartData.historicalPrices || chartData.historicalPrices.length === 0) {
+      console.warn('⚠️ No historical prices in chart data');
+    }
+
+    // Parse technical data
+    technicalData = JSON.parse(stock.technical_data || '{}');
+
+    // Parse signals
+    signals = JSON.parse(stock.signals || '[]');
+  } catch (error) {
+    console.error('❌ Error parsing stock data:', error);
+    parseError = error instanceof Error ? error.message : 'Unknown error';
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
@@ -518,6 +540,15 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
 
         {/* Modal Content */}
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Error Message */}
+          {parseError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-semibold">Error loading stock data</p>
+              <p className="text-red-600 text-sm mt-1">{parseError}</p>
+              <p className="text-red-600 text-sm mt-2">Please check the browser console for more details.</p>
+            </div>
+          )}
+
           {/* Price Levels */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
