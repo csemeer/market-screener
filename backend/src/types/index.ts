@@ -229,4 +229,5 @@ export interface EnhancedScreenerResult extends ScreenerResult {
   fundamentalScore?: FundamentalScore;
   combinedScore?: number;        // Technical (60%) + Fundamental (40%)
   recommendation?: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  historicalData?: OHLCV[];      // Historical price data for chart display
 }

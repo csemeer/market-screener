@@ -110,7 +110,8 @@ class ScreenerService {
           fundamentalScore,
           combinedScore,
           recommendation,
-          riskReward: this.calculateRiskReward(quote.price, indicators)
+          riskReward: this.calculateRiskReward(quote.price, indicators),
+          historicalData: historicalData.slice(-30) // Include last 30 days for chart
         });
       } catch (error) {
         console.error(`Error screening ${symbol}:`, error);
@@ -177,7 +178,8 @@ class ScreenerService {
           fundamentalScore,
           combinedScore,
           recommendation,
-          riskReward: this.calculateRiskReward(quote.price, indicators)
+          riskReward: this.calculateRiskReward(quote.price, indicators),
+          historicalData: historicalData.slice(-30) // Include last 30 days for chart
         });
       } catch (error) {
         console.error(`Error analyzing ${symbol}:`, error);
