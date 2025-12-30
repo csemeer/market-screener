@@ -61,6 +61,85 @@ export interface AutoScanConfig {
   maxResultsPerScan: number;
 }
 
+export interface NotificationSettings {
+  id?: number;
+  userId: string;
+  emailEnabled: boolean;
+  emailAddress?: string;
+  smsEnabled: boolean;
+  smsNumber?: string;
+  whatsappEnabled: boolean;
+  whatsappNumber?: string;
+  telegramEnabled: boolean;
+  telegramChatId?: string;
+  webhookEnabled: boolean;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  alertTypes: string; // JSON array
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface NotificationLog {
+  id?: number;
+  alertId: number;
+  channel: 'email' | 'sms' | 'whatsapp' | 'telegram' | 'webhook';
+  recipient: string;
+  status: 'pending' | 'sent' | 'failed' | 'retrying';
+  attempts: number;
+  errorMessage?: string;
+  sentAt?: Date;
+  createdAt?: Date;
+}
+
+export interface BrokerAccount {
+  id?: number;
+  userId: string;
+  broker: 'upstox' | 'zerodha' | 'ibkr';
+  accountId: string;
+  credentials: string; // Encrypted JSON
+  isActive: boolean;
+  autoTradeEnabled: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface BrokerOrder {
+  id?: number;
+  watchlistStockId?: number;
+  brokerAccountId: number;
+  broker: string;
+  brokerOrderId?: string;
+  symbol: string;
+  exchange: string;
+  orderType: 'MARKET' | 'LIMIT' | 'SL' | 'SL-M';
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  price?: number;
+  triggerPrice?: number;
+  status: 'PENDING' | 'OPEN' | 'EXECUTED' | 'CANCELLED' | 'REJECTED';
+  filledQuantity: number;
+  averagePrice?: number;
+  orderTimestamp?: Date;
+  executionTimestamp?: Date;
+  errorMessage?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface BrokerPosition {
+  id?: number;
+  brokerAccountId: number;
+  symbol: string;
+  exchange: string;
+  quantity: number;
+  averagePrice: number;
+  currentPrice?: number;
+  pnl?: number;
+  pnlPercent?: number;
+  lastUpdated?: Date;
+}
+
 class DatabaseService {
   private db: Database.Database | null = null;
   private dbPath: string;
@@ -369,6 +448,142 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Notification Settings Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS notification_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL DEFAULT 'default',
+        email_enabled BOOLEAN NOT NULL DEFAULT 0,
+        email_address TEXT,
+        sms_enabled BOOLEAN NOT NULL DEFAULT 0,
+        sms_number TEXT,
+        whatsapp_enabled BOOLEAN NOT NULL DEFAULT 0,
+        whatsapp_number TEXT,
+        telegram_enabled BOOLEAN NOT NULL DEFAULT 0,
+        telegram_chat_id TEXT,
+        webhook_enabled BOOLEAN NOT NULL DEFAULT 0,
+        webhook_url TEXT,
+        webhook_secret TEXT,
+        alert_types TEXT NOT NULL DEFAULT '["ENTRY_SIGNAL","TARGET_HIT","STOPLOSS_HIT"]',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
+      )
+    `);
+
+    // Notification Log Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS notification_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        alert_id INTEGER NOT NULL,
+        channel TEXT NOT NULL CHECK(channel IN ('email', 'sms', 'whatsapp', 'telegram', 'webhook')),
+        recipient TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'sent', 'failed', 'retrying')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        sent_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (alert_id) REFERENCES alerts(id)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_notification_log_alert_id ON notification_log(alert_id);
+      CREATE INDEX IF NOT EXISTS idx_notification_log_status ON notification_log(status);
+      CREATE INDEX IF NOT EXISTS idx_notification_log_created_at ON notification_log(created_at DESC);
+    `);
+
+    // Notification Credentials Table (for service API keys - encrypted)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS notification_credentials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service TEXT NOT NULL UNIQUE,
+        credentials TEXT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Broker Accounts Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS broker_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL DEFAULT 'default',
+        broker TEXT NOT NULL CHECK(broker IN ('upstox', 'zerodha', 'ibkr')),
+        account_id TEXT NOT NULL,
+        credentials TEXT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        auto_trade_enabled BOOLEAN NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, broker, account_id)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_broker_accounts_user_id ON broker_accounts(user_id);
+      CREATE INDEX IF NOT EXISTS idx_broker_accounts_broker ON broker_accounts(broker);
+    `);
+
+    // Broker Orders Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS broker_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watchlist_stock_id INTEGER,
+        broker_account_id INTEGER NOT NULL,
+        broker TEXT NOT NULL,
+        broker_order_id TEXT,
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        order_type TEXT NOT NULL CHECK(order_type IN ('MARKET', 'LIMIT', 'SL', 'SL-M')),
+        side TEXT NOT NULL CHECK(side IN ('BUY', 'SELL')),
+        quantity INTEGER NOT NULL,
+        price REAL,
+        trigger_price REAL,
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'OPEN', 'EXECUTED', 'CANCELLED', 'REJECTED')),
+        filled_quantity INTEGER NOT NULL DEFAULT 0,
+        average_price REAL,
+        order_timestamp DATETIME,
+        execution_timestamp DATETIME,
+        error_message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (watchlist_stock_id) REFERENCES watchlist_stocks(id),
+        FOREIGN KEY (broker_account_id) REFERENCES broker_accounts(id)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_broker_orders_watchlist_stock_id ON broker_orders(watchlist_stock_id);
+      CREATE INDEX IF NOT EXISTS idx_broker_orders_broker_account_id ON broker_orders(broker_account_id);
+      CREATE INDEX IF NOT EXISTS idx_broker_orders_status ON broker_orders(status);
+      CREATE INDEX IF NOT EXISTS idx_broker_orders_symbol ON broker_orders(symbol);
+    `);
+
+    // Broker Positions Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS broker_positions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        broker_account_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        average_price REAL NOT NULL,
+        current_price REAL,
+        pnl REAL,
+        pnl_percent REAL,
+        last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (broker_account_id) REFERENCES broker_accounts(id),
+        UNIQUE(broker_account_id, symbol, exchange)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_broker_positions_broker_account_id ON broker_positions(broker_account_id);
+      CREATE INDEX IF NOT EXISTS idx_broker_positions_symbol ON broker_positions(symbol);
     `);
 
     loggerService.info('Database tables created successfully');
@@ -1298,6 +1513,485 @@ class DatabaseService {
       averageRR: Math.round((stats.avg_rr || 0) * 100) / 100,
       profitFactor: Math.round(profitFactor * 100) / 100
     };
+  }
+
+  // ==================== NOTIFICATION SETTINGS METHODS ====================
+
+  /**
+   * Get notification settings for a user
+   */
+  getNotificationSettings(userId: string = 'default'): NotificationSettings | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const settings = this.db.prepare(`
+      SELECT * FROM notification_settings WHERE user_id = ?
+    `).get(userId) as any;
+
+    if (!settings) return null;
+
+    return {
+      id: settings.id,
+      userId: settings.user_id,
+      emailEnabled: Boolean(settings.email_enabled),
+      emailAddress: settings.email_address,
+      smsEnabled: Boolean(settings.sms_enabled),
+      smsNumber: settings.sms_number,
+      whatsappEnabled: Boolean(settings.whatsapp_enabled),
+      whatsappNumber: settings.whatsapp_number,
+      telegramEnabled: Boolean(settings.telegram_enabled),
+      telegramChatId: settings.telegram_chat_id,
+      webhookEnabled: Boolean(settings.webhook_enabled),
+      webhookUrl: settings.webhook_url,
+      webhookSecret: settings.webhook_secret,
+      alertTypes: settings.alert_types,
+      createdAt: new Date(settings.created_at),
+      updatedAt: new Date(settings.updated_at)
+    };
+  }
+
+  /**
+   * Upsert notification settings
+   */
+  upsertNotificationSettings(settings: Partial<NotificationSettings> & { userId: string }): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.getNotificationSettings(settings.userId);
+
+    if (existing) {
+      // Update
+      const updates: string[] = [];
+      const values: any[] = [];
+
+      if (settings.emailEnabled !== undefined) {
+        updates.push('email_enabled = ?');
+        values.push(settings.emailEnabled ? 1 : 0);
+      }
+      if (settings.emailAddress !== undefined) {
+        updates.push('email_address = ?');
+        values.push(settings.emailAddress);
+      }
+      if (settings.smsEnabled !== undefined) {
+        updates.push('sms_enabled = ?');
+        values.push(settings.smsEnabled ? 1 : 0);
+      }
+      if (settings.smsNumber !== undefined) {
+        updates.push('sms_number = ?');
+        values.push(settings.smsNumber);
+      }
+      if (settings.whatsappEnabled !== undefined) {
+        updates.push('whatsapp_enabled = ?');
+        values.push(settings.whatsappEnabled ? 1 : 0);
+      }
+      if (settings.whatsappNumber !== undefined) {
+        updates.push('whatsapp_number = ?');
+        values.push(settings.whatsappNumber);
+      }
+      if (settings.telegramEnabled !== undefined) {
+        updates.push('telegram_enabled = ?');
+        values.push(settings.telegramEnabled ? 1 : 0);
+      }
+      if (settings.telegramChatId !== undefined) {
+        updates.push('telegram_chat_id = ?');
+        values.push(settings.telegramChatId);
+      }
+      if (settings.webhookEnabled !== undefined) {
+        updates.push('webhook_enabled = ?');
+        values.push(settings.webhookEnabled ? 1 : 0);
+      }
+      if (settings.webhookUrl !== undefined) {
+        updates.push('webhook_url = ?');
+        values.push(settings.webhookUrl);
+      }
+      if (settings.webhookSecret !== undefined) {
+        updates.push('webhook_secret = ?');
+        values.push(settings.webhookSecret);
+      }
+      if (settings.alertTypes !== undefined) {
+        updates.push('alert_types = ?');
+        values.push(settings.alertTypes);
+      }
+
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(settings.userId);
+
+      this.db.prepare(`
+        UPDATE notification_settings SET ${updates.join(', ')} WHERE user_id = ?
+      `).run(...values);
+
+      return existing.id!;
+    } else {
+      // Insert
+      const stmt = this.db.prepare(`
+        INSERT INTO notification_settings (
+          user_id, email_enabled, email_address, sms_enabled, sms_number,
+          whatsapp_enabled, whatsapp_number, telegram_enabled, telegram_chat_id,
+          webhook_enabled, webhook_url, webhook_secret, alert_types
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const info = stmt.run(
+        settings.userId,
+        settings.emailEnabled ? 1 : 0,
+        settings.emailAddress || null,
+        settings.smsEnabled ? 1 : 0,
+        settings.smsNumber || null,
+        settings.whatsappEnabled ? 1 : 0,
+        settings.whatsappNumber || null,
+        settings.telegramEnabled ? 1 : 0,
+        settings.telegramChatId || null,
+        settings.webhookEnabled ? 1 : 0,
+        settings.webhookUrl || null,
+        settings.webhookSecret || null,
+        settings.alertTypes || '["ENTRY_SIGNAL","TARGET_HIT","STOPLOSS_HIT"]'
+      );
+
+      return info.lastInsertRowid as number;
+    }
+  }
+
+  /**
+   * Insert notification log entry
+   */
+  insertNotificationLog(log: Omit<NotificationLog, 'id' | 'createdAt'>): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO notification_log (
+        alert_id, channel, recipient, status, attempts, error_message, sent_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      log.alertId,
+      log.channel,
+      log.recipient,
+      log.status,
+      log.attempts,
+      log.errorMessage || null,
+      log.sentAt ? new Date(log.sentAt).toISOString() : null
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update notification log status
+   */
+  updateNotificationLogStatus(
+    id: number,
+    status: 'sent' | 'failed' | 'retrying',
+    errorMessage?: string
+  ): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.prepare(`
+      UPDATE notification_log
+      SET status = ?, attempts = attempts + 1, error_message = ?, sent_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(status, errorMessage || null, id);
+  }
+
+  // ==================== BROKER ACCOUNT METHODS ====================
+
+  /**
+   * Get all broker accounts for a user
+   */
+  getBrokerAccounts(userId: string = 'default'): BrokerAccount[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const accounts = this.db.prepare(`
+      SELECT * FROM broker_accounts WHERE user_id = ? ORDER BY created_at DESC
+    `).all(userId) as any[];
+
+    return accounts.map(acc => ({
+      id: acc.id,
+      userId: acc.user_id,
+      broker: acc.broker,
+      accountId: acc.account_id,
+      credentials: acc.credentials,
+      isActive: Boolean(acc.is_active),
+      autoTradeEnabled: Boolean(acc.auto_trade_enabled),
+      createdAt: new Date(acc.created_at),
+      updatedAt: new Date(acc.updated_at)
+    }));
+  }
+
+  /**
+   * Get a specific broker account
+   */
+  getBrokerAccountById(id: number): BrokerAccount | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const acc = this.db.prepare(`
+      SELECT * FROM broker_accounts WHERE id = ?
+    `).get(id) as any;
+
+    if (!acc) return null;
+
+    return {
+      id: acc.id,
+      userId: acc.user_id,
+      broker: acc.broker,
+      accountId: acc.account_id,
+      credentials: acc.credentials,
+      isActive: Boolean(acc.is_active),
+      autoTradeEnabled: Boolean(acc.auto_trade_enabled),
+      createdAt: new Date(acc.created_at),
+      updatedAt: new Date(acc.updated_at)
+    };
+  }
+
+  /**
+   * Insert a broker account
+   */
+  insertBrokerAccount(account: Omit<BrokerAccount, 'id' | 'createdAt' | 'updatedAt'>): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO broker_accounts (
+        user_id, broker, account_id, credentials, is_active, auto_trade_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      account.userId,
+      account.broker,
+      account.accountId,
+      account.credentials,
+      account.isActive ? 1 : 0,
+      account.autoTradeEnabled ? 1 : 0
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update broker account
+   */
+  updateBrokerAccount(id: number, updates: Partial<BrokerAccount>): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.credentials !== undefined) {
+      updateFields.push('credentials = ?');
+      values.push(updates.credentials);
+    }
+    if (updates.isActive !== undefined) {
+      updateFields.push('is_active = ?');
+      values.push(updates.isActive ? 1 : 0);
+    }
+    if (updates.autoTradeEnabled !== undefined) {
+      updateFields.push('auto_trade_enabled = ?');
+      values.push(updates.autoTradeEnabled ? 1 : 0);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    this.db.prepare(`
+      UPDATE broker_accounts SET ${updateFields.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  /**
+   * Delete broker account
+   */
+  deleteBrokerAccount(id: number): void {
+    if (!this.db) throw new Error('Database not initialized');
+    this.db.prepare('DELETE FROM broker_accounts WHERE id = ?').run(id);
+  }
+
+  // ==================== BROKER ORDER METHODS ====================
+
+  /**
+   * Insert a broker order
+   */
+  insertBrokerOrder(order: Omit<BrokerOrder, 'id' | 'createdAt' | 'updatedAt'>): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO broker_orders (
+        watchlist_stock_id, broker_account_id, broker, broker_order_id, symbol, exchange,
+        order_type, side, quantity, price, trigger_price, status, filled_quantity,
+        average_price, order_timestamp, execution_timestamp, error_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+      order.watchlistStockId || null,
+      order.brokerAccountId,
+      order.broker,
+      order.brokerOrderId || null,
+      order.symbol,
+      order.exchange,
+      order.orderType,
+      order.side,
+      order.quantity,
+      order.price || null,
+      order.triggerPrice || null,
+      order.status,
+      order.filledQuantity,
+      order.averagePrice || null,
+      order.orderTimestamp ? new Date(order.orderTimestamp).toISOString() : null,
+      order.executionTimestamp ? new Date(order.executionTimestamp).toISOString() : null,
+      order.errorMessage || null
+    );
+
+    return info.lastInsertRowid as number;
+  }
+
+  /**
+   * Update broker order status
+   */
+  updateBrokerOrder(id: number, updates: Partial<BrokerOrder>): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.brokerOrderId !== undefined) {
+      updateFields.push('broker_order_id = ?');
+      values.push(updates.brokerOrderId);
+    }
+    if (updates.status !== undefined) {
+      updateFields.push('status = ?');
+      values.push(updates.status);
+    }
+    if (updates.filledQuantity !== undefined) {
+      updateFields.push('filled_quantity = ?');
+      values.push(updates.filledQuantity);
+    }
+    if (updates.averagePrice !== undefined) {
+      updateFields.push('average_price = ?');
+      values.push(updates.averagePrice);
+    }
+    if (updates.executionTimestamp !== undefined) {
+      updateFields.push('execution_timestamp = ?');
+      values.push(updates.executionTimestamp ? new Date(updates.executionTimestamp).toISOString() : null);
+    }
+    if (updates.errorMessage !== undefined) {
+      updateFields.push('error_message = ?');
+      values.push(updates.errorMessage);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    this.db.prepare(`
+      UPDATE broker_orders SET ${updateFields.join(', ')} WHERE id = ?
+    `).run(...values);
+  }
+
+  /**
+   * Get orders for a watchlist stock
+   */
+  getOrdersForWatchlistStock(watchlistStockId: number): BrokerOrder[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const orders = this.db.prepare(`
+      SELECT * FROM broker_orders WHERE watchlist_stock_id = ? ORDER BY created_at DESC
+    `).all(watchlistStockId) as any[];
+
+    return orders.map(ord => this.mapBrokerOrder(ord));
+  }
+
+  /**
+   * Get all active orders
+   */
+  getActiveBrokerOrders(): BrokerOrder[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const orders = this.db.prepare(`
+      SELECT * FROM broker_orders
+      WHERE status IN ('PENDING', 'OPEN')
+      ORDER BY created_at DESC
+    `).all() as any[];
+
+    return orders.map(ord => this.mapBrokerOrder(ord));
+  }
+
+  private mapBrokerOrder(ord: any): BrokerOrder {
+    return {
+      id: ord.id,
+      watchlistStockId: ord.watchlist_stock_id,
+      brokerAccountId: ord.broker_account_id,
+      broker: ord.broker,
+      brokerOrderId: ord.broker_order_id,
+      symbol: ord.symbol,
+      exchange: ord.exchange,
+      orderType: ord.order_type,
+      side: ord.side,
+      quantity: ord.quantity,
+      price: ord.price,
+      triggerPrice: ord.trigger_price,
+      status: ord.status,
+      filledQuantity: ord.filled_quantity,
+      averagePrice: ord.average_price,
+      orderTimestamp: ord.order_timestamp ? new Date(ord.order_timestamp) : undefined,
+      executionTimestamp: ord.execution_timestamp ? new Date(ord.execution_timestamp) : undefined,
+      errorMessage: ord.error_message,
+      createdAt: new Date(ord.created_at),
+      updatedAt: new Date(ord.updated_at)
+    };
+  }
+
+  // ==================== BROKER POSITION METHODS ====================
+
+  /**
+   * Upsert broker position
+   */
+  upsertBrokerPosition(position: Omit<BrokerPosition, 'id' | 'lastUpdated'>): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stmt = this.db.prepare(`
+      INSERT INTO broker_positions (
+        broker_account_id, symbol, exchange, quantity, average_price, current_price, pnl, pnl_percent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(broker_account_id, symbol, exchange) DO UPDATE SET
+        quantity = excluded.quantity,
+        average_price = excluded.average_price,
+        current_price = excluded.current_price,
+        pnl = excluded.pnl,
+        pnl_percent = excluded.pnl_percent,
+        last_updated = CURRENT_TIMESTAMP
+    `);
+
+    stmt.run(
+      position.brokerAccountId,
+      position.symbol,
+      position.exchange,
+      position.quantity,
+      position.averagePrice,
+      position.currentPrice || null,
+      position.pnl || null,
+      position.pnlPercent || null
+    );
+  }
+
+  /**
+   * Get positions for a broker account
+   */
+  getBrokerPositions(brokerAccountId: number): BrokerPosition[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const positions = this.db.prepare(`
+      SELECT * FROM broker_positions WHERE broker_account_id = ? ORDER BY symbol
+    `).all(brokerAccountId) as any[];
+
+    return positions.map(pos => ({
+      id: pos.id,
+      brokerAccountId: pos.broker_account_id,
+      symbol: pos.symbol,
+      exchange: pos.exchange,
+      quantity: pos.quantity,
+      averagePrice: pos.average_price,
+      currentPrice: pos.current_price,
+      pnl: pos.pnl,
+      pnlPercent: pos.pnl_percent,
+      lastUpdated: new Date(pos.last_updated)
+    }));
   }
 
   /**
