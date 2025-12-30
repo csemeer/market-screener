@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Sparkles,
 } from 'lucide-react';
 import { dashboardAPI } from '../api/client';
 import StockEvidenceChart from '../components/StockEvidenceChart';
@@ -580,32 +581,205 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
             <StockEvidenceChart data={chartData} />
           </div>
 
-          {/* Technical Indicators */}
+          {/* Risk/Reward Analysis */}
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              Risk/Reward Analysis
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Risk/Reward Ratio</p>
+                <p className="text-2xl font-bold text-purple-900">{stock.risk_reward_ratio.toFixed(2)}:1</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Potential Profit</p>
+                <p className="text-2xl font-bold text-green-600">
+                  +{(((stock.target - stock.entry_price) / stock.entry_price) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Potential Loss</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {(((stock.stop_loss - stock.entry_price) / stock.entry_price) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Confidence</p>
+                <p className={`text-2xl font-bold ${
+                  stock.confidence_score >= 80 ? 'text-green-600' :
+                  stock.confidence_score >= 70 ? 'text-blue-600' : 'text-yellow-600'
+                }`}>
+                  {stock.confidence_score}/100
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Trend Analysis */}
+          {chartData.analysis?.trendDirection && (
+            <div className="bg-white rounded-lg border-2 border-gray-200 p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Market Trend Analysis
+              </h3>
+              <div className="flex items-center gap-4">
+                <div className={`flex-1 rounded-lg p-4 ${
+                  chartData.analysis.trendDirection === 'UPTREND' ? 'bg-green-50 border-2 border-green-500' :
+                  chartData.analysis.trendDirection === 'DOWNTREND' ? 'bg-red-50 border-2 border-red-500' :
+                  'bg-gray-50 border-2 border-gray-300'
+                }`}>
+                  <p className="text-sm text-gray-600 mb-1">Trend Direction</p>
+                  <p className={`text-xl font-bold ${
+                    chartData.analysis.trendDirection === 'UPTREND' ? 'text-green-700' :
+                    chartData.analysis.trendDirection === 'DOWNTREND' ? 'text-red-700' :
+                    'text-gray-700'
+                  }`}>
+                    {chartData.analysis.trendDirection === 'UPTREND' && '📈 Strong Uptrend'}
+                    {chartData.analysis.trendDirection === 'DOWNTREND' && '📉 Strong Downtrend'}
+                    {chartData.analysis.trendDirection === 'SIDEWAYS' && '↔️ Sideways/Consolidation'}
+                    {chartData.analysis.trendDirection === 'UNKNOWN' && '❓ Trend Unclear'}
+                  </p>
+                </div>
+                {chartData.analysis.confluenceScore > 0 && (
+                  <div className="flex-shrink-0">
+                    <p className="text-xs text-gray-600 mb-1">Confluence Score</p>
+                    <p className="text-3xl font-bold text-blue-600">{chartData.analysis.confluenceScore}%</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Technical Indicators - Enhanced Grid */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Technical Indicators</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Technical Indicators
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Momentum Indicators */}
               {technicalData.rsi && (
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <p className="text-xs text-gray-600 mb-1">RSI</p>
+                <div className={`rounded-lg p-3 border-2 ${
+                  technicalData.rsi > 70 ? 'bg-red-50 border-red-200' :
+                  technicalData.rsi < 30 ? 'bg-green-50 border-green-200' :
+                  'bg-gray-50 border-gray-200'
+                }`}>
+                  <p className="text-xs text-gray-600 mb-1">RSI (14)</p>
                   <p className="text-lg font-bold text-gray-900">{technicalData.rsi.toFixed(2)}</p>
+                  <p className="text-xs mt-1 text-gray-500">
+                    {technicalData.rsi > 70 ? 'Overbought' :
+                     technicalData.rsi < 30 ? 'Oversold' : 'Neutral'}
+                  </p>
                 </div>
               )}
+
               {technicalData.macd && (
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                   <p className="text-xs text-gray-600 mb-1">MACD</p>
                   <p className="text-lg font-bold text-gray-900">
-                    {technicalData.macd.signal === 'BULLISH' ? '🟢 Bullish' : '🔴 Bearish'}
+                    {technicalData.macd.macd ? technicalData.macd.macd.toFixed(2) : 'N/A'}
+                  </p>
+                  <p className="text-xs mt-1">
+                    {(technicalData.macd.macd || 0) > (technicalData.macd.signal || 0) ?
+                      '🟢 Bullish' : '🔴 Bearish'}
                   </p>
                 </div>
               )}
+
               {technicalData.adx && (
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className={`rounded-lg p-3 border-2 ${
+                  technicalData.adx > 25 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                }`}>
                   <p className="text-xs text-gray-600 mb-1">ADX</p>
                   <p className="text-lg font-bold text-gray-900">{technicalData.adx.toFixed(2)}</p>
+                  <p className="text-xs mt-1 text-gray-500">
+                    {technicalData.adx > 25 ? 'Strong Trend' : 'Weak Trend'}
+                  </p>
+                </div>
+              )}
+
+              {technicalData.atr && (
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <p className="text-xs text-gray-600 mb-1">ATR (14)</p>
+                  <p className="text-lg font-bold text-gray-900">{technicalData.atr.toFixed(2)}</p>
+                  <p className="text-xs mt-1 text-gray-500">Volatility</p>
+                </div>
+              )}
+
+              {/* Moving Averages */}
+              {chartData.indicators?.ema20 && (
+                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs text-gray-600 mb-1">EMA 20</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {getCurrencySymbol(stock.currency)}{chartData.indicators.ema20.toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {chartData.indicators?.ema50 && (
+                <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                  <p className="text-xs text-gray-600 mb-1">EMA 50</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {getCurrencySymbol(stock.currency)}{chartData.indicators.ema50.toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {chartData.indicators?.ema200 && (
+                <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-gray-600 mb-1">EMA 200</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {getCurrencySymbol(stock.currency)}{chartData.indicators.ema200.toFixed(2)}
+                  </p>
+                  <p className="text-xs mt-1">
+                    {stock.current_price > chartData.indicators.ema200 ? '🟢 Above' : '🔴 Below'}
+                  </p>
+                </div>
+              )}
+
+              {/* Bollinger Bands */}
+              {technicalData.bollingerBands && (
+                <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-gray-600 mb-1">Bollinger Bands</p>
+                  <p className="text-xs text-gray-700">
+                    Upper: {getCurrencySymbol(stock.currency)}{technicalData.bollingerBands.upper?.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    Lower: {getCurrencySymbol(stock.currency)}{technicalData.bollingerBands.lower?.toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {/* Volume */}
+              {chartData.analysis?.volumeAnalysis && (
+                <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-200">
+                  <p className="text-xs text-gray-600 mb-1">Volume Ratio</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {chartData.analysis.volumeAnalysis.volumeRatio?.toFixed(2)}x
+                  </p>
+                  <p className="text-xs mt-1 text-gray-500">vs Avg</p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Pattern Recognition */}
+          {chartData.analysis?.patterns && chartData.analysis.patterns.length > 0 && (
+            <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+                Candlestick Patterns Detected
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {chartData.analysis.patterns.map((pattern: string, idx: number) => (
+                  <span key={idx} className="px-3 py-2 bg-white border-2 border-amber-300 text-amber-800 rounded-lg text-sm font-semibold">
+                    {pattern}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Signals */}
           <div>

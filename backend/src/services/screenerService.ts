@@ -63,7 +63,8 @@ class ScreenerService {
         if (criteria.volumeMin && quote.volume < criteria.volumeMin) continue;
 
         // Get historical data and calculate technical indicators
-        const historicalData = await marketDataService.getHistoricalData(symbol, exchange as any, '1d', '3mo');
+        // Using 1 year for accurate EMA 200 calculation (needs 200+ candles)
+        const historicalData = await marketDataService.getHistoricalData(symbol, exchange as any, '1d', '1y');
         const indicators = TechnicalAnalysis.calculateAllIndicators(historicalData);
 
         // Apply technical filters
@@ -111,7 +112,7 @@ class ScreenerService {
           combinedScore,
           recommendation,
           riskReward: this.calculateRiskReward(quote.price, indicators),
-          historicalData: historicalData.slice(-30) // Include last 30 days for chart
+          historicalData: historicalData.slice(-180) // Display last 6 months (180 days) for optimal swing trading view
         });
       } catch (error) {
         console.error(`Error screening ${symbol}:`, error);
@@ -146,7 +147,8 @@ class ScreenerService {
         }
 
         // Get historical data and calculate technical indicators
-        const historicalData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '3mo');
+        // Using 1 year for accurate EMA 200 calculation (needs 200+ candles)
+        const historicalData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '1y');
         const indicators = TechnicalAnalysis.calculateAllIndicators(historicalData);
 
         // Fetch fundamental data
@@ -179,7 +181,7 @@ class ScreenerService {
           combinedScore,
           recommendation,
           riskReward: this.calculateRiskReward(quote.price, indicators),
-          historicalData: historicalData.slice(-30) // Include last 30 days for chart
+          historicalData: historicalData.slice(-180) // Display last 6 months (180 days) for optimal swing trading view
         });
       } catch (error) {
         console.error(`Error analyzing ${symbol}:`, error);
@@ -254,7 +256,8 @@ class ScreenerService {
 
       for (const symbol of limitedSymbols) {
         try {
-          const dailyData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '6mo');
+          // Using 1 year for swing trading analysis (needs 200+ candles for EMA 200)
+          const dailyData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '1y');
           const indicators = TechnicalAnalysis.calculateAllIndicators(dailyData);
 
           // Trend following signals

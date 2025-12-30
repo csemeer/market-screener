@@ -526,19 +526,28 @@ class AutoScanService {
 
   /**
    * Build evidence chart data for visualization
+   * Industry best practice: Display last 6 months (180 days) for optimal swing trading view
    */
   private buildEvidenceChartData(result: any): any {
+    const fullHistoricalData = result.historicalData || [];
+
+    // Display last 180 days (6 months) - industry standard for swing trading
+    // This provides optimal balance between context and chart readability
+    const displayData = fullHistoricalData.slice(-180);
+
     return {
       symbol: result.symbol,
       currentPrice: result.price,
-      historicalPrices: result.historicalData?.map((d: any) => ({
+      // Chart display data (last 6 months)
+      historicalPrices: displayData.map((d: any) => ({
         date: d.date,
         open: d.open,
         high: d.high,
         low: d.low,
         close: d.close,
         volume: d.volume,
-      })) || [],
+      })),
+      // Technical indicators (calculated from full dataset for accuracy)
       indicators: {
         ema9: result.indicators?.ema?.ema9,
         ema20: result.indicators?.ema?.ema20,
@@ -547,13 +556,47 @@ class AutoScanService {
         rsi: result.indicators?.rsi,
         macd: result.indicators?.macd,
         bollingerBands: result.indicators?.bollingerBands,
+        adx: result.indicators?.adx,
+        atr: result.indicators?.atr,
+        stochastic: result.indicators?.stochastic,
       },
+      // Entry/Exit/Stop levels
       levels: {
         entry: result.riskReward?.entryPrice || result.price,
         stopLoss: result.riskReward?.stopLoss || result.price * 0.98,
         target: result.riskReward?.target || result.price * 1.02,
       },
+      // Additional analysis data
+      analysis: {
+        confluenceScore: result.confluenceScore || 0,
+        patterns: result.patterns || [],
+        signals: result.signals || [],
+        trendDirection: this.determineTrendDirection(result.indicators),
+        volumeAnalysis: result.indicators?.volumeProfile,
+      },
     };
+  }
+
+  /**
+   * Determine trend direction from indicators
+   */
+  private determineTrendDirection(indicators: any): 'UPTREND' | 'DOWNTREND' | 'SIDEWAYS' | 'UNKNOWN' {
+    if (!indicators?.ema) return 'UNKNOWN';
+
+    const { ema20, ema50, ema200 } = indicators.ema;
+
+    if (ema20 && ema50 && ema200) {
+      // Strong uptrend: EMA 20 > EMA 50 > EMA 200
+      if (ema20 > ema50 && ema50 > ema200) return 'UPTREND';
+
+      // Strong downtrend: EMA 20 < EMA 50 < EMA 200
+      if (ema20 < ema50 && ema50 < ema200) return 'DOWNTREND';
+    }
+
+    // Check ADX for trend strength
+    if (indicators.adx && indicators.adx < 20) return 'SIDEWAYS';
+
+    return 'SIDEWAYS';
   }
 
   /**
