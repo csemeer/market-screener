@@ -56,22 +56,14 @@ router.get('/analyze/:symbol/:exchange', async (req, res) => {
 
 /**
  * GET /api/watchlist
- * Get all custom watchlists for a user
+ * Get all custom watchlists for a user (Phase 4: Unified with source counts)
  */
 router.get('/', (req, res) => {
   try {
     const userId = (req.query.userId as string) || 'default';
-    const watchlists = databaseService.getCustomWatchlists(userId);
 
-    // Add stock count to each watchlist
-    const watchlistsWithCounts = watchlists.map(watchlist => {
-      const stocks = databaseService.getCustomWatchlistStocks(watchlist.id!);
-      return {
-        ...watchlist,
-        stockCount: stocks.length,
-        activeStockCount: stocks.filter(s => s.status === 'PENDING').length,
-      };
-    });
+    // Phase 4: Use unified method with source counts
+    const watchlistsWithCounts = databaseService.getWatchlistsWithCounts(userId);
 
     res.json(watchlistsWithCounts);
   } catch (error) {
@@ -234,11 +226,14 @@ router.delete('/:id', (req, res) => {
 
 /**
  * GET /api/watchlist/:id/stocks
- * Get all stocks in a custom watchlist
+ * Get all stocks in a custom watchlist (Phase 4: with optional source filtering)
+ * Query params: ?source=AUTO_SCAN|MANUAL|SCREENER, ?status=PENDING|TRIGGERED|CANCELLED|EXPIRED
  */
 router.get('/:id/stocks', (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const source = req.query.source as 'AUTO_SCAN' | 'MANUAL' | 'SCREENER' | undefined;
+    const status = req.query.status as 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED' | undefined;
 
     const watchlist = databaseService.getCustomWatchlistById(id);
     if (!watchlist) {
@@ -247,7 +242,12 @@ router.get('/:id/stocks', (req, res) => {
       });
     }
 
-    const stocks = databaseService.getCustomWatchlistStocks(id);
+    // Phase 4: Use filtered method with source support
+    const filters: any = {};
+    if (source) filters.source = source;
+    if (status) filters.status = status;
+
+    const stocks = databaseService.getCustomWatchlistStocksFiltered(id, filters);
 
     res.json(stocks);
   } catch (error) {
@@ -260,7 +260,7 @@ router.get('/:id/stocks', (req, res) => {
 
 /**
  * POST /api/watchlist/:id/stocks
- * Add a stock to a custom watchlist
+ * Add a stock to a custom watchlist (manual entry with optional source tracking)
  */
 router.post('/:id/stocks', (req, res) => {
   try {
@@ -277,6 +277,10 @@ router.post('/:id/stocks', (req, res) => {
       symbol,
       exchange,
       companyName,
+      // Phase 4: Source tracking fields
+      source = 'MANUAL',
+      sourceId,
+      sourceMetadata,
       setupType,
       timeframe,
       entryPrice,
@@ -329,6 +333,10 @@ router.post('/:id/stocks', (req, res) => {
       symbol: symbol.toUpperCase().trim(),
       exchange: exchange.toUpperCase().trim(),
       companyName,
+      // Phase 4: Source tracking
+      source,
+      sourceId,
+      sourceMetadata,
       setupType,
       timeframe,
       entryPrice,
@@ -371,6 +379,163 @@ router.post('/:id/stocks', (req, res) => {
 
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to add stock to watchlist',
+    });
+  }
+});
+
+// ==================== PHASE 4C: SOURCE-SPECIFIC ENDPOINTS ====================
+
+/**
+ * POST /api/watchlist/:id/stocks/from-scan/:scanId
+ * Add a stock from auto-scan result to watchlist (Phase 4: Unified Watchlist)
+ * This endpoint automatically populates stock details from scan_results table
+ * with source='AUTO_SCAN' and appropriate metadata
+ */
+router.post('/:id/stocks/from-scan/:scanId', (req, res) => {
+  try {
+    const watchlistId = parseInt(req.params.id);
+    const scanResultId = parseInt(req.params.scanId);
+
+    // Validate watchlist exists
+    const watchlist = databaseService.getCustomWatchlistById(watchlistId);
+    if (!watchlist) {
+      return res.status(404).json({
+        success: false,
+        error: 'Watchlist not found',
+      });
+    }
+
+    // Add stock from auto-scan using unified method
+    const stockId = databaseService.addStockFromAutoScan(watchlistId, scanResultId);
+
+    loggerService.success('Stock added from auto-scan to watchlist', {
+      watchlistId,
+      scanResultId,
+      stockId,
+    });
+
+    // Get the newly added stock
+    const stocks = databaseService.getCustomWatchlistStocksFiltered(watchlistId, {});
+    const newStock = stocks.find(s => s.id === stockId);
+
+    res.status(201).json({
+      success: true,
+      message: 'Stock added from auto-scan successfully',
+      stock: newStock,
+    });
+  } catch (error) {
+    loggerService.error('Error adding stock from auto-scan', {
+      error,
+      watchlistId: req.params.id,
+      scanResultId: req.params.scanId,
+    });
+
+    // Handle specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('Scan result not found')) {
+        return res.status(404).json({
+          success: false,
+          error: 'Scan result not found',
+        });
+      }
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add stock from auto-scan',
+    });
+  }
+});
+
+/**
+ * POST /api/watchlist/:id/stocks/from-screener
+ * Add stocks from screener results to watchlist (Phase 4: Future enhancement)
+ * Body: { stocks: [{ symbol, exchange, ...screenerData }] }
+ */
+router.post('/:id/stocks/from-screener', (req, res) => {
+  try {
+    const watchlistId = parseInt(req.params.id);
+    const { stocks } = req.body;
+
+    if (!stocks || !Array.isArray(stocks) || stocks.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'stocks array is required and must not be empty',
+      });
+    }
+
+    const watchlist = databaseService.getCustomWatchlistById(watchlistId);
+    if (!watchlist) {
+      return res.status(404).json({
+        success: false,
+        error: 'Watchlist not found',
+      });
+    }
+
+    const addedStocks: any[] = [];
+    const errors: any[] = [];
+
+    // Add each stock with source='SCREENER'
+    for (const stock of stocks) {
+      try {
+        const stockId = databaseService.addStockToCustomWatchlist({
+          watchlistId,
+          symbol: stock.symbol.toUpperCase().trim(),
+          exchange: stock.exchange.toUpperCase().trim(),
+          companyName: stock.companyName,
+          source: 'SCREENER',
+          sourceMetadata: JSON.stringify({
+            rsi: stock.rsi,
+            volume: stock.volume,
+            marketCap: stock.marketCap,
+            screenerCriteria: stock.criteria,
+          }),
+          setupType: stock.setupType || 'CUSTOM',
+          timeframe: stock.timeframe || 'SWING',
+          entryPrice: stock.currentPrice || stock.entryPrice,
+          stopLoss: stock.stopLoss || stock.currentPrice * 0.95, // 5% default
+          target1: stock.target1 || stock.currentPrice * 1.10, // 10% default
+          target2: stock.target2,
+          target3: stock.target3,
+          notes: stock.notes || `Added from screener: ${stock.criteria || 'custom criteria'}`,
+          status: 'PENDING',
+        });
+
+        addedStocks.push({ symbol: stock.symbol, stockId });
+      } catch (error) {
+        errors.push({
+          symbol: stock.symbol,
+          error: error instanceof Error ? error.message : 'Failed to add stock',
+        });
+      }
+    }
+
+    loggerService.success('Stocks added from screener to watchlist', {
+      watchlistId,
+      successCount: addedStocks.length,
+      errorCount: errors.length,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Added ${addedStocks.length} stocks from screener`,
+      addedStocks,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    loggerService.error('Error adding stocks from screener', {
+      error,
+      watchlistId: req.params.id,
+    });
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add stocks from screener',
     });
   }
 });

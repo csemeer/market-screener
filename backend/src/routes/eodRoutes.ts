@@ -95,26 +95,53 @@ router.get('/scan/sync', async (req: Request, res: Response) => {
 
 /**
  * GET /api/eod/watchlist
- * Get latest watchlist with all stocks
+ * Get latest watchlist with all stocks (Phase 4: Redirect to unified system)
+ * DEPRECATED: Use GET /api/watchlist/:id/stocks?source=AUTO_SCAN instead
  */
 router.get('/watchlist', async (req: Request, res: Response) => {
   try {
-    const result = databaseService.getLatestWatchlist();
+    loggerService.warn('Deprecated endpoint used: GET /api/eod/watchlist. Use unified watchlist API instead.');
 
-    if (!result) {
+    // Phase 4: Get stocks from "Auto-Scan Signals (Legacy)" watchlist
+    const watchlists = databaseService.getWatchlistsWithCounts('default');
+    const autoScanWatchlist = watchlists.find(w => w.name === 'Auto-Scan Signals (Legacy)');
+
+    if (!autoScanWatchlist) {
+      // Fallback to legacy method if migration hasn't run yet
+      const result = databaseService.getLatestWatchlist();
+
+      if (!result) {
+        return res.json({
+          success: true,
+          message: 'No watchlist found',
+          watchlist: null,
+          stocks: [],
+        });
+      }
+
       return res.json({
         success: true,
-        message: 'No watchlist found',
-        watchlist: null,
-        stocks: [],
+        watchlist: result.watchlist,
+        stocks: result.stocks,
+        totalStocks: result.stocks.length,
       });
     }
 
+    // Get stocks with source='AUTO_SCAN' from unified system
+    const stocks = databaseService.getCustomWatchlistStocksFiltered(autoScanWatchlist.id!, {
+      source: 'AUTO_SCAN',
+    });
+
     res.json({
       success: true,
-      watchlist: result.watchlist,
-      stocks: result.stocks,
-      totalStocks: result.stocks.length,
+      watchlist: {
+        id: autoScanWatchlist.id,
+        name: autoScanWatchlist.name,
+        description: autoScanWatchlist.description,
+        date: new Date().toISOString().split('T')[0],
+      },
+      stocks,
+      totalStocks: stocks.length,
     });
   } catch (error) {
     loggerService.error('Error fetching latest watchlist', { error });
