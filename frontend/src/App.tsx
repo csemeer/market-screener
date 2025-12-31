@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon, ListPlus } from 'lucide-react';
+import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon, ListPlus, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
+import SignalsHub from './pages/SignalsHub';
 import AutoScanDashboard from './pages/AutoScanDashboard';
 import EODDashboard from './pages/EODDashboard';
 import Settings from './pages/Settings';
@@ -20,12 +21,9 @@ function App() {
 
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-    { to: '/autoscan', label: 'Auto-Scan', icon: Activity },
-    { to: '/eod', label: 'EOD Trading', icon: Calendar },
+    { to: '/signals', label: 'Signals', icon: Zap },
     { to: '/watchlist', label: 'Watchlist', icon: ListPlus },
     { to: '/screener', label: 'Screener', icon: Search },
-    { to: '/intraday', label: 'Intraday', icon: TrendingUp },
-    { to: '/swing', label: 'Swing', icon: TrendingUp },
     { to: '/risk-calculator', label: 'Risk Calc', icon: Calculator },
     { to: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
@@ -49,7 +47,7 @@ function App() {
                     <span className="hidden sm:inline">AlphaStream</span>
                     <span className="sm:hidden">AS</span>
                   </div>
-                  <div className="text-xs text-cyan-600 font-medium -mt-1">v1.0.0</div>
+                  <div className="text-xs text-cyan-600 font-medium -mt-1">v1.1</div>
                 </div>
               </Link>
 
@@ -103,13 +101,14 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/autoscan" element={<AutoScanDashboard />} />
+            <Route path="/signals" element={<SignalsHub />} />
+            <Route path="/autoscan" element={<SignalsHub />} />
             <Route path="/eod" element={<EODDashboard />} />
             <Route path="/watchlist" element={<CustomWatchlist />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/screener" element={<Screener />} />
-            <Route path="/intraday" element={<IntradayScanner />} />
-            <Route path="/swing" element={<SwingScanner />} />
+            <Route path="/intraday" element={<SignalsHub />} />
+            <Route path="/swing" element={<SignalsHub />} />
             <Route path="/risk-calculator" element={<RiskCalculator />} />
             <Route path="/stock/:exchange/:symbol" element={<StockDetail />} />
           </Routes>
@@ -119,7 +118,7 @@ function App() {
         <footer className="bg-white border-t border-gray-200 mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <p className="text-center text-gray-600 text-sm">
-              AlphaStream v1.0.0 - Stream Alpha. Trade Smarter.
+              AlphaStream v1.1 - Stream Alpha. Trade Smarter.
             </p>
             <p className="text-center text-gray-500 text-xs mt-2">
               Disclaimer: This tool is for educational purposes. Always do your own research before trading.

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import {
   ListPlus,
   Plus,
@@ -151,9 +152,10 @@ export default function CustomWatchlist() {
       setShowCreateWatchlist(false);
       setWatchlistForm({ name: '', description: '', isActive: true });
       fetchWatchlists();
+      toast.success(`✅ Watchlist "${watchlistForm.name}" created successfully!`);
     } catch (error) {
       console.error('Error creating watchlist:', error);
-      alert('Failed to create watchlist. Please try again.');
+      toast.error('❌ Failed to create watchlist. Please try again.');
     }
   };
 
@@ -169,9 +171,10 @@ export default function CustomWatchlist() {
         setStocks([]);
       }
       fetchWatchlists();
+      toast.success('✅ Watchlist deleted successfully');
     } catch (error) {
       console.error('Error deleting watchlist:', error);
-      alert('Failed to delete watchlist.');
+      toast.error('❌ Failed to delete watchlist.');
     }
   };
 
@@ -202,10 +205,11 @@ export default function CustomWatchlist() {
       resetStockForm();
       fetchStocks(selectedWatchlist.id);
       fetchWatchlists(); // Refresh counts
+      toast.success(`✅ ${stockForm.symbol} added to watchlist!`);
     } catch (error: any) {
       console.error('Error adding stock:', error);
       const message = error.response?.data?.error || 'Failed to add stock. Please try again.';
-      alert(message);
+      toast.error(`❌ ${message}`);
     }
   };
 
@@ -237,10 +241,11 @@ export default function CustomWatchlist() {
       setShowAddStock(false);
       resetStockForm();
       fetchStocks(selectedWatchlist.id);
+      toast.success(`✅ ${stockForm.symbol} updated successfully!`);
     } catch (error: any) {
       console.error('Error updating stock:', error);
       const message = error.response?.data?.error || 'Failed to update stock. Please try again.';
-      alert(message);
+      toast.error(`❌ ${message}`);
     }
   };
 
@@ -252,9 +257,10 @@ export default function CustomWatchlist() {
       await axios.delete(`${API_BASE_URL}/api/watchlist/${selectedWatchlist.id}/stocks/${stockId}`);
       fetchStocks(selectedWatchlist.id);
       fetchWatchlists(); // Refresh counts
+      toast.success('✅ Stock removed from watchlist');
     } catch (error) {
       console.error('Error deleting stock:', error);
-      alert('Failed to remove stock.');
+      toast.error('❌ Failed to remove stock.');
     }
   };
 
@@ -304,7 +310,7 @@ export default function CustomWatchlist() {
    */
   const analyzeStock = async () => {
     if (!stockForm.symbol || !stockForm.exchange) {
-      alert('Please enter a symbol and select an exchange first');
+      toast.error('⚠️ Please enter a symbol and select an exchange first');
       return;
     }
 
@@ -335,14 +341,14 @@ export default function CustomWatchlist() {
           notes: `Auto-analyzed at ₹${currentPrice.toFixed(2)} | R:R ${recommendations.riskRewardRatio}:1 | ${data.trendDirection}`,
         });
 
-        alert(`✅ Analysis complete! Entry, stop, and target prices have been auto-populated based on technical analysis.`);
+        toast.success(`✅ Analysis complete! Entry, stop, and target prices have been auto-populated based on technical analysis.`);
       } else {
-        alert(`Failed to analyze ${stockForm.symbol}: ${response.data.error}`);
+        toast.error(`❌ Failed to analyze ${stockForm.symbol}: ${response.data.error}`);
       }
     } catch (error: any) {
       console.error('Error analyzing stock:', error);
       const message = error.response?.data?.error || 'Failed to analyze stock. Please try again.';
-      alert(message);
+      toast.error(`❌ ${message}`);
     } finally {
       setAnalyzing(false);
     }
@@ -368,11 +374,11 @@ export default function CustomWatchlist() {
         });
         setShowStockReport(true);
       } else {
-        alert(`Failed to load analysis: ${response.data.error}`);
+        toast.error(`❌ Failed to load analysis: ${response.data.error}`);
       }
     } catch (error) {
       console.error('Error fetching stock analysis:', error);
-      alert('Failed to load stock analysis');
+      toast.error('❌ Failed to load stock analysis');
     } finally {
       setAnalyzing(false);
     }
