@@ -23,7 +23,9 @@ import {
   Activity,
   BarChart3,
   AlertCircle,
+  Filter, // Phase 4: Source filter icon
 } from 'lucide-react';
+import SourceBadge from '../components/SourceBadge'; // Phase 4: Source badge component
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -35,8 +37,12 @@ interface Watchlist {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Phase 4: Source counts
   stockCount: number;
-  activeStockCount: number;
+  autoScanCount?: number;
+  manualCount?: number;
+  screenerCount?: number;
+  activeStockCount?: number;
 }
 
 interface WatchlistStock {
@@ -45,6 +51,10 @@ interface WatchlistStock {
   symbol: string;
   exchange: string;
   companyName?: string;
+  // Phase 4: Source tracking
+  source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER';
+  sourceId?: number;
+  sourceMetadata?: string; // JSON string
   setupType?: 'BREAKOUT' | 'BREAKDOWN' | 'PULLBACK' | 'REVERSAL' | 'CONSOLIDATION' | 'CUSTOM';
   timeframe?: 'INTRADAY' | 'SWING' | 'POSITIONAL';
   entryPrice: number;
@@ -74,6 +84,9 @@ export default function CustomWatchlist() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showStockReport, setShowStockReport] = useState(false);
   const [stockReportData, setStockReportData] = useState<any>(null);
+
+  // Phase 4: Source filter
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'AUTO_SCAN' | 'MANUAL' | 'SCREENER'>('ALL');
 
   // Form states
   const [watchlistForm, setWatchlistForm] = useState({
@@ -120,9 +133,11 @@ export default function CustomWatchlist() {
 
   useEffect(() => {
     if (selectedWatchlist) {
-      fetchStocks(selectedWatchlist.id);
+      // Phase 4: Pass source filter to fetchStocks
+      const source = sourceFilter === 'ALL' ? undefined : sourceFilter;
+      fetchStocks(selectedWatchlist.id, source);
     }
-  }, [selectedWatchlist]);
+  }, [selectedWatchlist, sourceFilter]); // Phase 4: Added sourceFilter dependency
 
   const fetchWatchlists = async () => {
     try {
@@ -136,9 +151,15 @@ export default function CustomWatchlist() {
     }
   };
 
-  const fetchStocks = async (watchlistId: number) => {
+  const fetchStocks = async (watchlistId: number, source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/watchlist/${watchlistId}/stocks`);
+      // Phase 4: Add source filter query param
+      const params = new URLSearchParams();
+      if (source) {
+        params.append('source', source);
+      }
+      const url = `${API_BASE_URL}/api/watchlist/${watchlistId}/stocks${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await axios.get(url);
       setStocks(response.data);
     } catch (error) {
       console.error('Error fetching stocks:', error);
@@ -525,6 +546,32 @@ export default function CustomWatchlist() {
                   </button>
                 </div>
 
+                {/* Phase 4: Source Filter */}
+                {selectedWatchlist && selectedWatchlist.stockCount > 0 && (
+                  <div className="mb-4 flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <label className="text-sm font-medium text-gray-700">Filter by source:</label>
+                    <select
+                      value={sourceFilter}
+                      onChange={(e) => setSourceFilter(e.target.value as any)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                    >
+                      <option value="ALL">All Sources</option>
+                      <option value="AUTO_SCAN">🤖 Auto-Scan ({selectedWatchlist.autoScanCount || 0})</option>
+                      <option value="MANUAL">✋ Manual ({selectedWatchlist.manualCount || 0})</option>
+                      <option value="SCREENER">🔍 Screener ({selectedWatchlist.screenerCount || 0})</option>
+                    </select>
+                    {sourceFilter !== 'ALL' && (
+                      <button
+                        onClick={() => setSourceFilter('ALL')}
+                        className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                      >
+                        Clear filter
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {stocks.length === 0 ? (
                   <div className="text-center py-12">
                     <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -549,7 +596,7 @@ export default function CustomWatchlist() {
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {getSetupIcon(stock.setupType)}
                               <h3 className="text-lg font-semibold text-gray-900">
                                 {stock.symbol}
@@ -558,6 +605,14 @@ export default function CustomWatchlist() {
                               <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(stock.status)}`}>
                                 {stock.status}
                               </span>
+                              {/* Phase 4: Source badge */}
+                              {stock.source && (
+                                <SourceBadge
+                                  source={stock.source}
+                                  sourceMetadata={stock.sourceMetadata}
+                                  showTooltip={true}
+                                />
+                              )}
                             </div>
                             {stock.companyName && (
                               <p className="text-sm text-gray-600 mt-1">{stock.companyName}</p>
