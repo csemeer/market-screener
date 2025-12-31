@@ -24,6 +24,9 @@ Welcome to **AlphaStream v1.1** - Your comprehensive stock market analysis and t
 
 ### Major Improvements:
 - **✅ Unified Signals Hub** - All scanning features now in one place (Live Scan, Auto Scan, EOD Scan)
+- **✅ Unified Watchlist System (Phase 4)** - Single watchlist with source tracking (🤖 Auto-Scan, ✋ Manual, 🔍 Screener)
+- **✅ Source Badges** - Know where each stock came from with visual indicators and metadata tooltips
+- **✅ Smart Filtering** - Filter watchlist stocks by source type with real-time counts
 - **✅ Toast Notifications** - Real-time feedback for all actions (no more silent errors!)
 - **✅ Simplified Navigation** - Reduced from 9 to 6 main menu items for better UX
 - **✅ Backward Compatibility** - Old URLs still work and redirect to new pages
@@ -31,6 +34,7 @@ Welcome to **AlphaStream v1.1** - Your comprehensive stock market analysis and t
 - **✅ Professional UI/UX** - Market-standard interface design
 
 ### Technical Enhancements:
+- Unified watchlist architecture eliminates dual-system confusion
 - Consolidated 1,500+ lines of duplicate code
 - Improved performance and reliability
 - Better mobile responsiveness
@@ -195,7 +199,17 @@ You'll see helpful notifications for:
 
 ## 📋 Custom Watchlist
 
-Track your favorite stocks with detailed monitoring and price alerts.
+Track your favorite stocks with detailed monitoring, price alerts, and **source tracking** to know where each stock came from.
+
+### 🆕 Unified Watchlist System (Phase 4)
+
+**What's New**: AlphaStream now uses a **unified watchlist system** that combines auto-generated signals and manually added stocks in one place. Each stock is tagged with its source:
+
+- 🤖 **Auto-Scan**: Automatically added from EOD/Live scans
+- ✋ **Manual**: Manually added by you
+- 🔍 **Screener**: Added from custom screener results
+
+**Why It Matters**: No more confusion between "EOD Watchlist" and "Custom Watchlist". Everything is unified with clear origin tracking!
 
 ### Creating a Watchlist
 
@@ -219,19 +233,70 @@ Track your favorite stocks with detailed monitoring and price alerts.
    - **Stop Loss**: Risk management level
    - **Quantity**: Number of shares
 4. Click **Add Stock** → ✅ "RELIANCE added to watchlist!"
+   - ✋ **Source**: Automatically marked as "Manual"
 
-**Method 2: From Signals Hub**
+**Method 2: From Signals Hub (Auto-Scan Source)**
 1. Find a signal in Live/Auto/EOD scan
 2. Click **➕ Add to Watchlist**
 3. Select target watchlist
 4. Prices auto-filled from signal
 5. Click **Add** → ✅ Toast confirmation
+   - 🤖 **Source**: Automatically marked as "Auto-Scan" with metadata (confidence, strategy, R:R)
+
+**Method 3: From Screener (Screener Source)**
+1. Run custom screener
+2. Select stocks from results
+3. Click **Add to Watchlist**
+4. Choose target watchlist
+5. → ✅ "Stocks added successfully!"
+   - 🔍 **Source**: Automatically marked as "Screener" with criteria metadata
+
+### 🎯 Filtering by Source
+
+**New Feature**: Filter stocks by their source type!
+
+1. Select a watchlist with multiple sources
+2. Look for the **Filter by source** dropdown
+3. Choose:
+   - **All Sources** (default)
+   - **🤖 Auto-Scan** - Only auto-generated signals
+   - **✋ Manual** - Only manually added stocks
+   - **🔍 Screener** - Only screener results
+4. Count badges show: "Auto-Scan (15) | Manual (8) | Screener (3)"
+5. Click **Clear filter** to reset
+
+**Use Case**:
+- View only auto-scan signals to focus on algorithmic setups
+- View only manual entries to review your personal picks
+- Mix and match sources in one unified list!
+
+### 🏷️ Source Badges & Metadata
+
+**Visual Indicators**: Each stock shows a colored badge indicating its source:
+
+- 🤖 **Auto-Scan Badge** (Blue)
+  - **Hover to see**: Strategy name, confidence %, risk:reward ratio, scan time
+  - **Example**: "Auto-Scan: Momentum Breakout (85% confidence), R:R 2.5:1"
+
+- ✋ **Manual Badge** (Green)
+  - **Hover to see**: "Manually added by user"
+  - Simple indicator for your personal picks
+
+- 🔍 **Screener Badge** (Purple)
+  - **Hover to see**: Screener criteria, RSI, volume, market cap
+  - **Example**: "Screener: Breakout + High Volume, RSI 68"
+
+**Rich Tooltips**: Hover over any source badge to see detailed metadata in a popup:
+- Color-coded confidence scores (green = high, yellow = medium, red = low)
+- Strategy details and technical parameters
+- Scan timestamp for auto-scan sources
 
 ### Managing Stocks
 
 **Edit Stock**:
 - Click **✏️ Edit** icon on stock row
 - Update prices, quantity, notes
+- Source remains unchanged (preserves origin)
 - Click **Save** → ✅ "Stock updated successfully!"
 
 **Delete Stock**:
@@ -239,13 +304,15 @@ Track your favorite stocks with detailed monitoring and price alerts.
 - Confirm deletion
 - → ✅ "Stock removed from watchlist"
 
-**Price Alerts** (Coming in Phase 4):
-- Set alert when price reaches target/stop
+**Price Alerts**:
+- Auto-configured for auto-scan stocks
+- Manually set for your entries
 - Multi-channel notifications (Telegram, Email, SMS)
 
 ### Watchlist Metrics
 
 Each stock shows:
+- **Source Badge**: 🤖/✋/🔍 with metadata tooltip
 - **Current Price**: Live market price (color-coded)
 - **P&L**: Profit/Loss from entry (₹ and %)
 - **RRR**: Risk-Reward Ratio (Target-Entry / Entry-Stop)

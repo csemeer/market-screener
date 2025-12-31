@@ -1,9 +1,10 @@
 # Unified Watchlist Architecture - AlphaStream v1.1+
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Created**: 2025-12-31
-**Status**: Proposed Architecture (To be implemented in Phase 3+)
-**Related**: See `docs/REFACTORING_PLAN.md` Phase 2-3
+**Last Updated**: 2025-12-31
+**Status**: ✅ IMPLEMENTED (Phase 4A-4D Complete, Phase 4E Testing)
+**Related**: See commits 7393610, 26a9626, fe920d4
 
 ---
 
@@ -471,38 +472,41 @@ class LiveMonitoringService {
 
 ## Implementation Phases
 
-### Phase 3A: Database Migration (Week 1)
-- [ ] Add new columns to `custom_watchlist_stocks`
-- [ ] Create migration script
-- [ ] Migrate existing EOD watchlist data
-- [ ] Add database indexes
-- [ ] Test backward compatibility
+### Phase 4A: Database Migration ✅ COMPLETE (Commit: 7393610)
+- [x] Add new columns to `custom_watchlist_stocks`
+- [x] Create migration script (idempotent, runs on database initialization)
+- [x] Migrate existing EOD watchlist data to "Auto-Scan Signals (Legacy)" watchlist
+- [x] Add database indexes (source, source_id)
+- [x] Test backward compatibility
 
-### Phase 3B: Service Layer (Week 2)
-- [ ] Update `DatabaseService` with unified methods
-- [ ] Update `LiveMonitoringService` to use unified table
-- [ ] Keep deprecated methods for backward compatibility
-- [ ] Add comprehensive logging for migration tracking
+### Phase 4B: Service Layer ✅ COMPLETE (Commit: 7393610)
+- [x] Update `DatabaseService` with unified methods (`getWatchlistsWithCounts`, `getCustomWatchlistStocksFiltered`, `addStockFromAutoScan`)
+- [x] Update `LiveMonitoringService` to use unified table
+- [x] Keep deprecated methods for backward compatibility
+- [x] Add comprehensive logging for migration tracking
 
-### Phase 3C: API Layer (Week 3)
-- [ ] Create unified API endpoints
-- [ ] Redirect old endpoints to new ones
-- [ ] Update API documentation
-- [ ] Add integration tests
+### Phase 4C: API Layer ✅ COMPLETE (Commit: 26a9626)
+- [x] Create unified API endpoints (GET /api/watchlist with source counts, GET /api/watchlist/:id/stocks with filters)
+- [x] Add new endpoints: POST /api/watchlist/:id/stocks/from-scan/:scanId, POST /api/watchlist/:id/stocks/from-screener
+- [x] Redirect old endpoints to new ones (GET /api/eod/watchlist now uses unified system)
+- [x] Update API with query parameter filtering (source, status)
+- [x] Maintain 100% backward compatibility
 
-### Phase 3D: Frontend (Week 4)
-- [ ] Update CustomWatchlist page with source badges
-- [ ] Add source filter dropdown
-- [ ] Update "Add to Watchlist" flows to include source
-- [ ] Add source metadata tooltips
-- [ ] Remove EODDashboard (redirect to /watchlist?source=AUTO_SCAN)
+### Phase 4D: Frontend ✅ COMPLETE (Commit: fe920d4)
+- [x] Create SourceBadge component with icon, color, and tooltip
+- [x] Update CustomWatchlist page with source badges (🤖 Auto-Scan, ✋ Manual, 🔍 Screener)
+- [x] Add source filter dropdown with counts
+- [x] Update fetchStocks to support source filtering
+- [x] Add source metadata tooltips (confidence, strategy, R:R for auto-scan)
+- [x] Enhanced interfaces with source tracking fields
 
-### Phase 3E: Testing & Documentation (Week 5)
-- [ ] End-to-end testing
-- [ ] User acceptance testing
-- [ ] Update user documentation
-- [ ] Create migration guide for users
-- [ ] Monitor error logs after release
+### Phase 4E: Testing & Documentation 🔄 IN PROGRESS
+- [x] Backend build verification (TypeScript compilation clean)
+- [x] Frontend build verification (production build successful)
+- [x] End-to-end architecture review
+- [ ] Update user documentation (USER_GUIDE_V1.1.md)
+- [ ] Final testing and validation
+- [ ] Final commit and push
 
 ---
 
