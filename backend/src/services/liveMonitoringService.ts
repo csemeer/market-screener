@@ -483,6 +483,13 @@ class LiveMonitoringService {
             loggerService.error('Failed to send price alert notification', { error, alertId });
           });
         }
+
+        // Cancel the stock to prevent duplicate alerts
+        if (isCustomWatchlist) {
+          databaseService.updateCustomWatchlistStockStatus(stock.id, 'CANCELLED');
+        } else {
+          databaseService.updateWatchlistStockStatus(stock.id, 'CANCELLED');
+        }
       }
     }
 
