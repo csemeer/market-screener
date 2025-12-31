@@ -156,6 +156,12 @@ export interface CustomWatchlistStock {
   symbol: string;
   exchange: string;
   companyName?: string;
+
+  // Phase 4A: Source tracking (Unified Watchlist)
+  source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER';
+  sourceId?: number;  // Foreign key to scan_results.id if AUTO_SCAN
+  sourceMetadata?: string;  // JSON: { confidence: 85, strategy: "Momentum Breakout", riskReward: 2.5 }
+
   setupType?: 'BREAKOUT' | 'BREAKDOWN' | 'PULLBACK' | 'REVERSAL' | 'CONSOLIDATION' | 'CUSTOM';
   timeframe?: 'INTRADAY' | 'SWING' | 'POSITIONAL';
   entryPrice: number;
@@ -680,7 +686,7 @@ class DatabaseService {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
-      // Check if currency column exists in scan_results table
+      // Migration 1: Check if currency column exists in scan_results table
       const tableInfo = this.db.pragma('table_info(scan_results)') as Array<{ name: string }>;
       const hasCurrencyColumn = tableInfo.some((col) => col.name === 'currency');
 
@@ -690,6 +696,134 @@ class DatabaseService {
           ALTER TABLE scan_results ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR' CHECK(currency IN ('USD', 'INR'))
         `);
         loggerService.info('Migration completed: currency column added');
+      }
+
+      // Migration 2: Phase 4A - Add source tracking to custom_watchlist_stocks (Unified Watchlist)
+      const watchlistStocksInfo = this.db.pragma('table_info(custom_watchlist_stocks)') as Array<{ name: string }>;
+      const hasSourceColumn = watchlistStocksInfo.some((col) => col.name === 'source');
+      const hasSourceIdColumn = watchlistStocksInfo.some((col) => col.name === 'source_id');
+      const hasSourceMetadataColumn = watchlistStocksInfo.some((col) => col.name === 'source_metadata');
+
+      if (!hasSourceColumn) {
+        loggerService.info('Running migration: Phase 4A - Adding source tracking columns to custom_watchlist_stocks');
+
+        // Add source column
+        this.db.exec(`
+          ALTER TABLE custom_watchlist_stocks ADD COLUMN source TEXT NOT NULL DEFAULT 'MANUAL'
+        `);
+        loggerService.info('Migration: Added source column');
+
+        // Add source_id column (foreign key to scan_results)
+        this.db.exec(`
+          ALTER TABLE custom_watchlist_stocks ADD COLUMN source_id INTEGER
+        `);
+        loggerService.info('Migration: Added source_id column');
+
+        // Add source_metadata column (JSON metadata)
+        this.db.exec(`
+          ALTER TABLE custom_watchlist_stocks ADD COLUMN source_metadata TEXT
+        `);
+        loggerService.info('Migration: Added source_metadata column');
+
+        // Create indexes for performance
+        this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_source ON custom_watchlist_stocks(source)
+        `);
+        this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_source_id ON custom_watchlist_stocks(source_id)
+        `);
+        loggerService.info('Migration: Created indexes for source tracking');
+
+        // Create "Auto-Scan Signals (Legacy)" watchlist for EOD migration
+        const legacyWatchlistExists = this.db.prepare(`
+          SELECT id FROM custom_watchlists WHERE name = 'Auto-Scan Signals (Legacy)' LIMIT 1
+        `).get();
+
+        if (!legacyWatchlistExists) {
+          this.db.prepare(`
+            INSERT INTO custom_watchlists (user_id, name, description, is_active)
+            VALUES (?, ?, ?, ?)
+          `).run('default', 'Auto-Scan Signals (Legacy)', 'Automatically generated from EOD scans (migrated)', 1);
+
+          const autoWatchlist = this.db.prepare(`
+            SELECT id FROM custom_watchlists WHERE name = 'Auto-Scan Signals (Legacy)' LIMIT 1
+          `).get() as { id: number } | undefined;
+
+          if (autoWatchlist) {
+            loggerService.info(`Migration: Created Auto-Scan Signals watchlist (ID: ${autoWatchlist.id})`);
+
+            // Migrate existing EOD watchlist stocks to unified system
+            const eodStocks = this.db.prepare(`
+              SELECT ws.*, w.date as watchlist_date
+              FROM watchlist_stocks ws
+              JOIN watchlists w ON ws.watchlist_id = w.id
+              WHERE ws.status IN ('PENDING', 'TRIGGERED', 'ENTERED')
+              ORDER BY ws.created_at DESC
+            `).all() as Array<any>;
+
+            let migratedCount = 0;
+            for (const stock of eodStocks) {
+              try {
+                // Check if stock already exists (avoid duplicates)
+                const exists = this.db.prepare(`
+                  SELECT id FROM custom_watchlist_stocks
+                  WHERE watchlist_id = ? AND symbol = ? AND exchange = ?
+                `).get(autoWatchlist.id, stock.symbol, stock.exchange);
+
+                if (!exists) {
+                  this.db.prepare(`
+                    INSERT INTO custom_watchlist_stocks (
+                      watchlist_id, symbol, exchange, company_name,
+                      source, source_id, source_metadata,
+                      setup_type, timeframe,
+                      entry_price, entry_trigger, stop_loss,
+                      target_1, target_2, target_3,
+                      trailing_stop_percent, position_size_percent,
+                      notes, status, trigger_price, trigger_time, added_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  `).run(
+                    autoWatchlist.id,
+                    stock.symbol,
+                    stock.exchange,
+                    stock.company_name,
+                    'AUTO_SCAN',  // Source
+                    stock.id,     // source_id (link to original watchlist_stocks)
+                    JSON.stringify({
+                      confidence: stock.score || 0,
+                      strategy: stock.setup_type,
+                      riskReward: stock.risk_reward_ratio,
+                      originalWatchlistDate: stock.watchlist_date
+                    }),
+                    stock.setup_type,
+                    stock.timeframe,
+                    stock.entry_price,
+                    stock.entry_trigger,
+                    stock.stop_loss,
+                    stock.target_1,
+                    stock.target_2,
+                    stock.target_3,
+                    stock.trailing_stop_percent,
+                    stock.position_size_percent,
+                    stock.setup_notes,
+                    stock.status,
+                    stock.trigger_price,
+                    stock.triggered_at,
+                    stock.created_at
+                  );
+                  migratedCount++;
+                }
+              } catch (err) {
+                loggerService.warn(`Migration: Failed to migrate stock ${stock.symbol}`, { error: err });
+              }
+            }
+
+            loggerService.info(`Migration: Migrated ${migratedCount} EOD stocks to unified watchlist system`);
+          }
+        } else {
+          loggerService.info('Migration: Auto-Scan Signals watchlist already exists, skipping EOD data migration');
+        }
+
+        loggerService.info('Migration completed: Phase 4A - Unified Watchlist source tracking added');
       }
 
       loggerService.info('Database migrations completed successfully');
@@ -2266,17 +2400,19 @@ class DatabaseService {
   }
 
   /**
-   * Add stock to custom watchlist
+   * Add stock to custom watchlist (Phase 4: with source tracking)
    */
   addStockToCustomWatchlist(stock: Omit<CustomWatchlistStock, 'id' | 'addedAt' | 'updatedAt'>): number {
     if (!this.db) throw new Error('Database not initialized');
 
     const stmt = this.db.prepare(`
       INSERT INTO custom_watchlist_stocks (
-        watchlist_id, symbol, exchange, company_name, setup_type, timeframe,
+        watchlist_id, symbol, exchange, company_name,
+        source, source_id, source_metadata,
+        setup_type, timeframe,
         entry_price, entry_trigger, stop_loss, target_1, target_2, target_3,
         trailing_stop_percent, position_size_percent, notes, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const info = stmt.run(
@@ -2284,6 +2420,9 @@ class DatabaseService {
       stock.symbol,
       stock.exchange,
       stock.companyName || null,
+      stock.source || 'MANUAL',  // Default to MANUAL if not specified
+      stock.sourceId || null,
+      stock.sourceMetadata || null,
       stock.setupType || null,
       stock.timeframe || null,
       stock.entryPrice,
@@ -2400,6 +2539,10 @@ class DatabaseService {
       symbol: stock.symbol,
       exchange: stock.exchange,
       companyName: stock.company_name,
+      // Phase 4A: Source tracking
+      source: stock.source as 'AUTO_SCAN' | 'MANUAL' | 'SCREENER' | undefined,
+      sourceId: stock.source_id,
+      sourceMetadata: stock.source_metadata,
       setupType: stock.setup_type,
       timeframe: stock.timeframe,
       entryPrice: stock.entry_price,
@@ -2417,6 +2560,158 @@ class DatabaseService {
       addedAt: new Date(stock.added_at),
       updatedAt: new Date(stock.updated_at)
     };
+  }
+
+  // ==================== Phase 4B: Unified Watchlist Methods ====================
+
+  /**
+   * Get all watchlists with stock counts (unified system)
+   * Returns watchlists with total count and counts by source
+   */
+  getWatchlistsWithCounts(userId: string = 'default'): Array<CustomWatchlist & {
+    stockCount: number;
+    autoScanCount: number;
+    manualCount: number;
+    screenerCount: number;
+  }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const watchlists = this.db.prepare(`
+      SELECT
+        w.*,
+        COUNT(s.id) as stock_count,
+        SUM(CASE WHEN s.source = 'AUTO_SCAN' THEN 1 ELSE 0 END) as auto_scan_count,
+        SUM(CASE WHEN s.source = 'MANUAL' THEN 1 ELSE 0 END) as manual_count,
+        SUM(CASE WHEN s.source = 'SCREENER' THEN 1 ELSE 0 END) as screener_count
+      FROM custom_watchlists w
+      LEFT JOIN custom_watchlist_stocks s ON w.id = s.watchlist_id
+      WHERE w.user_id = ?
+      GROUP BY w.id
+      ORDER BY w.updated_at DESC
+    `).all(userId) as any[];
+
+    return watchlists.map(wl => ({
+      id: wl.id,
+      userId: wl.user_id,
+      name: wl.name,
+      description: wl.description,
+      isActive: Boolean(wl.is_active),
+      createdAt: new Date(wl.created_at),
+      updatedAt: new Date(wl.updated_at),
+      stockCount: wl.stock_count || 0,
+      autoScanCount: wl.auto_scan_count || 0,
+      manualCount: wl.manual_count || 0,
+      screenerCount: wl.screener_count || 0
+    }));
+  }
+
+  /**
+   * Get custom watchlist stocks with optional source filtering (unified system)
+   */
+  getCustomWatchlistStocksFiltered(
+    watchlistId: number,
+    filters?: {
+      source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER';
+      status?: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED';
+    }
+  ): CustomWatchlistStock[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let query = `
+      SELECT s.*
+      FROM custom_watchlist_stocks s
+      WHERE s.watchlist_id = ?
+    `;
+
+    const params: any[] = [watchlistId];
+
+    if (filters?.source) {
+      query += ` AND s.source = ?`;
+      params.push(filters.source);
+    }
+
+    if (filters?.status) {
+      query += ` AND s.status = ?`;
+      params.push(filters.status);
+    }
+
+    query += ` ORDER BY s.added_at DESC`;
+
+    const stocks = this.db.prepare(query).all(...params) as any[];
+    return stocks.map(stock => this.mapCustomWatchlistStock(stock));
+  }
+
+  /**
+   * Add stock from auto-scan result to watchlist (unified system with source tracking)
+   */
+  addStockFromAutoScan(watchlistId: number, scanResultId: number): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get scan result details
+    const scan = this.db.prepare(`
+      SELECT * FROM scan_results WHERE id = ?
+    `).get(scanResultId) as any;
+
+    if (!scan) {
+      throw new Error(`Scan result not found: ${scanResultId}`);
+    }
+
+    // Check if stock already exists in this watchlist
+    const exists = this.db.prepare(`
+      SELECT id FROM custom_watchlist_stocks
+      WHERE watchlist_id = ? AND symbol = ? AND exchange = ?
+    `).get(watchlistId, scan.symbol, scan.exchange);
+
+    if (exists) {
+      throw new Error(`Stock ${scan.symbol} already exists in this watchlist`);
+    }
+
+    // Add stock with AUTO_SCAN source
+    return this.addStockToCustomWatchlist({
+      watchlistId,
+      symbol: scan.symbol,
+      exchange: scan.exchange,
+      companyName: scan.company_name,
+      source: 'AUTO_SCAN',
+      sourceId: scanResultId,
+      sourceMetadata: JSON.stringify({
+        confidence: scan.confidence_score,
+        strategy: scan.strategy,
+        riskReward: scan.risk_reward_ratio,
+        scanTime: scan.timestamp
+      }),
+      setupType: scan.strategy_type === 'INTRADAY' ? 'BREAKOUT' : 'PULLBACK', // Map strategy to setup type
+      timeframe: scan.strategy_type,
+      entryPrice: scan.entry_price,
+      stopLoss: scan.stop_loss,
+      target1: scan.target,
+      trailingStopPercent: 1.0,
+      positionSizePercent: 1.0,
+      status: 'PENDING'
+    });
+  }
+
+  /**
+   * DEPRECATED: Get legacy EOD watchlist stocks (backward compatibility)
+   * Use getCustomWatchlistStocksFiltered() with source='AUTO_SCAN' instead
+   */
+  getWatchlistStocksLegacy(): any[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    loggerService.warn('Using deprecated getWatchlistStocksLegacy(). Migrate to getCustomWatchlistStocksFiltered()');
+
+    // Return stocks from "Auto-Scan Signals (Legacy)" watchlist
+    const autoWatchlist = this.db.prepare(`
+      SELECT id FROM custom_watchlists
+      WHERE name = 'Auto-Scan Signals (Legacy)'
+      LIMIT 1
+    `).get() as { id: number } | undefined;
+
+    if (!autoWatchlist) {
+      return [];
+    }
+
+    return this.getCustomWatchlistStocksFiltered(autoWatchlist.id, { source: 'AUTO_SCAN' });
   }
 
   /**
