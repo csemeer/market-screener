@@ -12,7 +12,6 @@ import {
   Bell,
   BarChart3,
   Zap,
-  Target,
   ChevronDown,
   ChevronUp,
   XCircle,
