@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { screenerAPI, ScreenerCriteria, indexAPI } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
 import StockDataTable from '../components/StockDataTable';
@@ -48,6 +49,7 @@ export default function Screener() {
       setPresets(res.data.presets);
     } catch (error) {
       console.error('Error loading presets:', error);
+      toast.error('❌ Failed to load screener presets');
     }
   };
 
@@ -70,6 +72,7 @@ export default function Screener() {
       setIndexes(allIndexes);
     } catch (error) {
       console.error('Error loading indexes:', error);
+      toast.error('❌ Failed to load market indexes');
     } finally {
       setIndexesLoading(false);
     }
@@ -85,8 +88,16 @@ export default function Screener() {
       };
       const res = await screenerAPI.runScreener(criteriaWithIndexes);
       setResults(res.data.results);
+
+      // Success notification
+      if (res.data.results.length === 0) {
+        toast('🔍 No stocks match your criteria', { icon: '⚠️' });
+      } else {
+        toast.success(`✅ Found ${res.data.results.length} stocks matching your criteria`);
+      }
     } catch (error) {
       console.error('Error running screener:', error);
+      toast.error('❌ Failed to run screener. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,6 +106,7 @@ export default function Screener() {
   const applyPreset = (preset: any) => {
     setCriteria(preset.criteria);
     setSelectedPreset(preset.id);
+    toast.success(`✅ Applied "${preset.name}" preset`);
     // Clear the preset URL parameter after applying
     if (searchParams.has('preset')) {
       setSearchParams({});

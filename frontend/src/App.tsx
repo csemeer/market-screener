@@ -1,17 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon, ListPlus, Zap } from 'lucide-react';
+import { Search, Calculator, BarChart3, Menu, X, Activity, Settings as SettingsIcon, ListPlus, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import SignalsHub from './pages/SignalsHub';
-import AutoScanDashboard from './pages/AutoScanDashboard';
 import EODDashboard from './pages/EODDashboard';
 import Settings from './pages/Settings';
 import CustomWatchlist from './pages/CustomWatchlist';
 import Screener from './pages/Screener';
-import IntradayScanner from './pages/IntradayScanner';
-import SwingScanner from './pages/SwingScanner';
 import RiskCalculator from './pages/RiskCalculator';
 import StockDetail from './pages/StockDetail';
 import LoggerDrawer from './components/LoggerDrawer';
