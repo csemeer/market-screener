@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('notifications');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Notification settings state
   const [notificationSettings, setNotificationSettings] = useState({
@@ -72,10 +72,9 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       await axios.put(`${API_BASE_URL}/api/settings/notifications`, notificationSettings);
-      setMessage({ type: 'success', text: 'Notification settings saved successfully!' });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success('✅ Notification settings saved successfully!');
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save notification settings' });
+      toast.error('❌ Failed to save notification settings');
     } finally {
       setLoading(false);
     }
@@ -89,10 +88,9 @@ const Settings: React.FC = () => {
         recipient,
         secret: channel === 'webhook' ? notificationSettings.webhookSecret : undefined,
       });
-      setMessage({ type: 'success', text: `Test notification sent to ${channel}!` });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success(`✅ Test notification sent to ${channel}!`);
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to send test notification' });
+      toast.error(error.response?.data?.error || '❌ Failed to send test notification');
     } finally {
       setLoading(false);
     }
@@ -122,13 +120,12 @@ const Settings: React.FC = () => {
           accessToken: newBroker.accessToken,
         },
       });
-      setMessage({ type: 'success', text: 'Broker account added successfully!' });
+      toast.success('✅ Broker account added successfully!');
       setShowAddBroker(false);
       setNewBroker({ broker: 'upstox', accountId: '', apiKey: '', apiSecret: '', accessToken: '' });
       await loadBrokerAccounts();
-      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to add broker account' });
+      toast.error('❌ Failed to add broker account');
     } finally {
       setLoading(false);
     }
@@ -140,11 +137,10 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       await axios.delete(`${API_BASE_URL}/api/settings/brokers/${id}`);
-      setMessage({ type: 'success', text: 'Broker account deleted successfully!' });
+      toast.success('✅ Broker account deleted successfully!');
       await loadBrokerAccounts();
-      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to delete broker account' });
+      toast.error('❌ Failed to delete broker account');
     } finally {
       setLoading(false);
     }
@@ -156,8 +152,9 @@ const Settings: React.FC = () => {
         autoTradeEnabled: !currentState,
       });
       await loadBrokerAccounts();
+      toast.success(`✅ Auto-trade ${!currentState ? 'enabled' : 'disabled'}`);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update broker settings' });
+      toast.error('❌ Failed to update broker settings');
     }
   };
 
@@ -177,10 +174,9 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       await axios.put(`${API_BASE_URL}/api/settings/trading`, tradingParams);
-      setMessage({ type: 'success', text: 'Trading parameters saved successfully!' });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success('✅ Trading parameters saved successfully!');
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save trading parameters' });
+      toast.error('❌ Failed to save trading parameters');
     } finally {
       setLoading(false);
     }
@@ -194,13 +190,6 @@ const Settings: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600 mt-2">Configure notifications, brokers, and trading parameters</p>
         </div>
-
-        {/* Message Banner */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            {message.text}
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm">

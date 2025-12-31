@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { TrendingUp, Search, Calculator, BarChart3, Menu, X, Activity, Calendar, Settings as SettingsIcon, ListPlus } from 'lucide-react';
 import { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import AutoScanDashboard from './pages/AutoScanDashboard';
@@ -128,6 +129,32 @@ function App() {
 
         {/* Logger Drawer - Global monitoring tool */}
         <LoggerDrawer />
+
+        {/* Toast Notifications - Global toast container */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
       </div>
     </Router>
   );

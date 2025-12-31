@@ -20,9 +20,14 @@ import {
   ChevronUp,
   Eye,
   Sparkles,
+  ListPlus,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import axios from 'axios';
 import { dashboardAPI } from '../api/client';
 import StockEvidenceChart from '../components/StockEvidenceChart';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface ScanResult {
   id: number;
@@ -491,6 +496,7 @@ function StockSignalCard({ stock, onClick }: { stock: ScanResult; onClick: () =>
 // Stock Evidence Modal Component
 function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: () => void }) {
   console.log('🎯 StockEvidenceModal mounted for:', stock.symbol);
+  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
 
   let chartData: any = { currency: stock.currency };
   let technicalData: any = {};
@@ -517,6 +523,31 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
     console.error('❌ Error parsing stock data:', error);
     parseError = error instanceof Error ? error.message : 'Unknown error';
   }
+
+  const addToWatchlist = async () => {
+    try {
+      setAddingToWatchlist(true);
+      await axios.post(`${API_BASE_URL}/api/watchlist/custom`, {
+        symbol: stock.symbol,
+        exchange: stock.exchange,
+        company_name: stock.company_name,
+        entry_price: stock.entry_price,
+        target_price: stock.target,
+        stop_loss: stock.stop_loss,
+        setup_type: stock.strategy_type,
+        strategy: stock.strategy,
+        timeframe: stock.strategy_type,
+        notes: `Added from Auto-Scan Dashboard. Confidence: ${stock.confidence_score}/100, R:R ${stock.risk_reward_ratio}:1`,
+      });
+      toast.success(`✅ ${stock.symbol} added to watchlist!`);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
+      toast.error(`❌ ${errorMessage}`);
+      console.error('Failed to add to watchlist:', error);
+    } finally {
+      setAddingToWatchlist(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
@@ -548,6 +579,14 @@ function StockEvidenceModal({ stock, onClose }: { stock: ScanResult; onClose: ()
             <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 truncate max-w-full">
               {stock.strategy}
             </span>
+            <button
+              onClick={addToWatchlist}
+              disabled={addingToWatchlist}
+              className="ml-auto flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium shadow-md"
+            >
+              <ListPlus className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
+            </button>
           </div>
         </div>
 
