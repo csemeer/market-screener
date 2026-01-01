@@ -260,3 +260,180 @@ export const eodAPI = {
   testMonitoring: (symbol: string, exchange: string) =>
     api.post(`/eod/monitoring/test/${symbol}`, { exchange }),
 };
+
+// Custom Watchlist API - Phase 4: Unified Watchlist
+export const watchlistAPI = {
+  // Analyze stock and get intelligent entry/stop/target recommendations
+  analyzeStock: (symbol: string, exchange: string) =>
+    api.get(`/watchlist/analyze/${symbol}/${exchange}`),
+
+  // Watchlist Management
+  getWatchlists: (userId: string = 'default') =>
+    api.get('/watchlist', { params: { userId } }),
+
+  getWatchlistById: (id: number) =>
+    api.get(`/watchlist/${id}`),
+
+  createWatchlist: (data: {
+    userId?: string;
+    name: string;
+    description?: string;
+    isActive?: boolean;
+  }) => api.post('/watchlist', data),
+
+  updateWatchlist: (id: number, data: {
+    name?: string;
+    description?: string;
+    isActive?: boolean;
+  }) => api.put(`/watchlist/${id}`, data),
+
+  deleteWatchlist: (id: number) =>
+    api.delete(`/watchlist/${id}`),
+
+  // Watchlist Stocks Management
+  getWatchlistStocks: (id: number, filters?: {
+    source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER';
+    status?: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED';
+  }) => api.get(`/watchlist/${id}/stocks`, { params: filters }),
+
+  addStockToWatchlist: (id: number, stockData: {
+    symbol: string;
+    exchange: string;
+    companyName?: string;
+    source?: 'MANUAL' | 'SCREENER';
+    sourceId?: number;
+    sourceMetadata?: string;
+    setupType?: 'BREAKOUT' | 'BREAKDOWN' | 'PULLBACK' | 'REVERSAL' | 'CONSOLIDATION' | 'CUSTOM';
+    timeframe?: 'INTRADAY' | 'SWING' | 'POSITIONAL';
+    entryPrice: number;
+    entryTrigger?: number;
+    stopLoss: number;
+    target1: number;
+    target2?: number;
+    target3?: number;
+    trailingStopPercent?: number;
+    positionSizePercent?: number;
+    notes?: string;
+    status?: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED';
+  }) => api.post(`/watchlist/${id}/stocks`, stockData),
+
+  addStockFromScan: (watchlistId: number, scanResultId: number) =>
+    api.post(`/watchlist/${watchlistId}/stocks/from-scan/${scanResultId}`),
+
+  addStocksFromScreener: (watchlistId: number, stocks: any[]) =>
+    api.post(`/watchlist/${watchlistId}/stocks/from-screener`, { stocks }),
+
+  updateWatchlistStock: (watchlistId: number, stockId: number, data: {
+    companyName?: string;
+    setupType?: string;
+    timeframe?: string;
+    entryPrice?: number;
+    entryTrigger?: number;
+    stopLoss?: number;
+    target1?: number;
+    target2?: number;
+    target3?: number;
+    trailingStopPercent?: number;
+    positionSizePercent?: number;
+    notes?: string;
+    status?: string;
+  }) => api.put(`/watchlist/${watchlistId}/stocks/${stockId}`, data),
+
+  deleteWatchlistStock: (watchlistId: number, stockId: number) =>
+    api.delete(`/watchlist/${watchlistId}/stocks/${stockId}`),
+
+  updateStockStatus: (watchlistId: number, stockId: number, data: {
+    status: 'PENDING' | 'TRIGGERED' | 'CANCELLED' | 'EXPIRED';
+    triggerPrice?: number;
+    triggerTime?: string;
+  }) => api.patch(`/watchlist/${watchlistId}/stocks/${stockId}/status`, data),
+
+  // Bulk Operations
+  getActiveStocks: (userId: string = 'default') =>
+    api.get('/watchlist/active/stocks', { params: { userId } }),
+};
+
+// Settings API - Notifications, Brokers, Trading Parameters
+export const settingsAPI = {
+  // Notification Settings
+  getNotificationSettings: (userId: string = 'default') =>
+    api.get('/settings/notifications', { params: { userId } }),
+
+  updateNotificationSettings: (settings: {
+    userId?: string;
+    emailEnabled?: boolean;
+    emailAddress?: string;
+    smsEnabled?: boolean;
+    smsPhone?: string;
+    whatsappEnabled?: boolean;
+    whatsappPhone?: string;
+    telegramEnabled?: boolean;
+    telegramChatId?: string;
+    webhookEnabled?: boolean;
+    webhookUrl?: string;
+  }) => api.put('/settings/notifications', settings),
+
+  testNotificationChannel: (channel: 'email' | 'sms' | 'whatsapp' | 'telegram' | 'webhook', userId: string = 'default') =>
+    api.post('/settings/notifications/test', { channel, userId }),
+
+  getNotificationStatus: () =>
+    api.get('/settings/notifications/status'),
+
+  // Notification Credentials (Service API Keys)
+  getNotificationCredentials: (service: string) =>
+    api.get('/settings/notifications/credentials', { params: { service } }),
+
+  setNotificationCredentials: (credentials: {
+    service: 'sendgrid' | 'smtp' | 'twilio' | 'telegram';
+    credentials: {
+      apiKey?: string;
+      from?: string;
+      accountSid?: string;
+      authToken?: string;
+      botToken?: string;
+      [key: string]: any;
+    };
+  }) => api.post('/settings/notifications/credentials', credentials),
+
+  // Broker Accounts
+  getBrokerAccounts: (userId: string = 'default') =>
+    api.get('/settings/brokers', { params: { userId } }),
+
+  addBrokerAccount: (data: {
+    userId?: string;
+    broker: 'upstox' | 'zerodha' | 'ibkr';
+    accountId: string;
+    credentials: {
+      apiKey?: string;
+      apiSecret?: string;
+      accessToken?: string;
+      [key: string]: any;
+    };
+  }) => api.post('/settings/brokers', data),
+
+  updateBrokerAccount: (id: number, data: {
+    accountId?: string;
+    credentials?: any;
+    isActive?: boolean;
+  }) => api.put(`/settings/brokers/${id}`, data),
+
+  deleteBrokerAccount: (id: number) =>
+    api.delete(`/settings/brokers/${id}`),
+
+  testBrokerConnection: (id: number) =>
+    api.post(`/settings/brokers/${id}/test`),
+
+  // Trading Parameters
+  getTradingParameters: (userId: string = 'default') =>
+    api.get('/settings/trading-params', { params: { userId } }),
+
+  updateTradingParameters: (params: {
+    userId?: string;
+    maxPositions?: number;
+    maxRiskPerTrade?: number;
+    maxPortfolioHeat?: number;
+    defaultPositionSize?: number;
+    autoExecuteSignals?: boolean;
+    brokerAccountId?: number;
+  }) => api.put('/settings/trading-params', params),
+};

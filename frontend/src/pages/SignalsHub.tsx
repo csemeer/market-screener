@@ -19,11 +19,8 @@ import {
   Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
-import { screenerAPI, dashboardAPI } from '../api/client';
+import { screenerAPI, dashboardAPI, watchlistAPI } from '../api/client';
 import StockEvidenceChart from '../components/StockEvidenceChart';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 type TabType = 'live-scan' | 'auto-scan' | 'screener';
 type ScanType = 'intraday' | 'swing';
@@ -672,12 +669,12 @@ function StockEvidenceModal({ stock, onClose }: { stock: AutoScanResult; onClose
       setAddingToWatchlist(true);
 
       // Step 1: Get or create "Auto-Scan Signals" watchlist
-      const watchlistsRes = await axios.get(`${API_BASE_URL}/api/watchlist`);
+      const watchlistsRes = await watchlistAPI.getWatchlists();
       let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Auto-Scan Signals (Legacy)');
 
       // If no auto-scan watchlist exists, create one
       if (!watchlist) {
-        const createRes = await axios.post(`${API_BASE_URL}/api/watchlist`, {
+        const createRes = await watchlistAPI.createWatchlist({
           name: 'Auto-Scan Signals (Legacy)',
           description: 'Automatically generated from Signals Hub',
         });
@@ -685,7 +682,7 @@ function StockEvidenceModal({ stock, onClose }: { stock: AutoScanResult; onClose
       }
 
       // Step 2: Add stock to the watchlist using the new unified endpoint
-      await axios.post(`${API_BASE_URL}/api/watchlist/${watchlist.id}/stocks/from-scan/${stock.id}`, {});
+      await watchlistAPI.addStockFromScan(watchlist.id, stock.id);
 
       toast.success(`✅ ${stock.symbol} added to watchlist!`);
     } catch (error: any) {

@@ -3,7 +3,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
   ListPlus,
@@ -26,8 +25,7 @@ import {
   Filter, // Phase 4: Source filter icon
 } from 'lucide-react';
 import SourceBadge from '../components/SourceBadge'; // Phase 4: Source badge component
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { watchlistAPI } from '../api/client'; // Use centralized API client
 
 interface Watchlist {
   id: number;
@@ -142,10 +140,11 @@ export default function CustomWatchlist() {
   const fetchWatchlists = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/watchlist`);
+      const response = await watchlistAPI.getWatchlists();
       setWatchlists(response.data);
     } catch (error) {
       console.error('Error fetching watchlists:', error);
+      toast.error('Failed to fetch watchlists');
     } finally {
       setLoading(false);
     }
@@ -153,23 +152,19 @@ export default function CustomWatchlist() {
 
   const fetchStocks = async (watchlistId: number, source?: 'AUTO_SCAN' | 'MANUAL' | 'SCREENER') => {
     try {
-      // Phase 4: Add source filter query param
-      const params = new URLSearchParams();
-      if (source) {
-        params.append('source', source);
-      }
-      const url = `${API_BASE_URL}/api/watchlist/${watchlistId}/stocks${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await axios.get(url);
+      // Phase 4: Add source filter
+      const response = await watchlistAPI.getWatchlistStocks(watchlistId, source ? { source } : undefined);
       setStocks(response.data);
     } catch (error) {
       console.error('Error fetching stocks:', error);
+      toast.error('Failed to fetch stocks');
     }
   };
 
   const createWatchlist = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE_URL}/api/watchlist`, watchlistForm);
+      await watchlistAPI.createWatchlist(watchlistForm);
       setShowCreateWatchlist(false);
       setWatchlistForm({ name: '', description: '', isActive: true });
       fetchWatchlists();
@@ -186,7 +181,7 @@ export default function CustomWatchlist() {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/watchlist/${id}`);
+      await watchlistAPI.deleteWatchlist(id);
       if (selectedWatchlist?.id === id) {
         setSelectedWatchlist(null);
         setStocks([]);
@@ -221,7 +216,7 @@ export default function CustomWatchlist() {
         notes: stockForm.notes || undefined,
       };
 
-      await axios.post(`${API_BASE_URL}/api/watchlist/${selectedWatchlist.id}/stocks`, stockData);
+      await watchlistAPI.addStockToWatchlist(selectedWatchlist.id, stockData);
       setShowAddStock(false);
       resetStockForm();
       fetchStocks(selectedWatchlist.id);
@@ -254,10 +249,7 @@ export default function CustomWatchlist() {
         notes: stockForm.notes || undefined,
       };
 
-      await axios.put(
-        `${API_BASE_URL}/api/watchlist/${selectedWatchlist.id}/stocks/${editingStock.id}`,
-        stockData
-      );
+      await watchlistAPI.updateWatchlistStock(selectedWatchlist.id, editingStock.id, stockData);
       setEditingStock(null);
       setShowAddStock(false);
       resetStockForm();
@@ -275,7 +267,7 @@ export default function CustomWatchlist() {
     if (!confirm('Remove this stock from watchlist?')) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/watchlist/${selectedWatchlist.id}/stocks/${stockId}`);
+      await watchlistAPI.deleteWatchlistStock(selectedWatchlist.id, stockId);
       fetchStocks(selectedWatchlist.id);
       fetchWatchlists(); // Refresh counts
       toast.success('✅ Stock removed from watchlist');
@@ -337,8 +329,9 @@ export default function CustomWatchlist() {
 
     try {
       setAnalyzing(true);
-      const response = await axios.get(
-        `${API_BASE_URL}/api/watchlist/analyze/${stockForm.symbol.toUpperCase()}/${stockForm.exchange}`
+      const response = await watchlistAPI.analyzeStock(
+        stockForm.symbol.toUpperCase(),
+        stockForm.exchange
       );
 
       if (response.data.success) {
@@ -381,9 +374,7 @@ export default function CustomWatchlist() {
   const showStockAnalysis = async (stock: WatchlistStock) => {
     try {
       setAnalyzing(true);
-      const response = await axios.get(
-        `${API_BASE_URL}/api/watchlist/analyze/${stock.symbol}/${stock.exchange}`
-      );
+      const response = await watchlistAPI.analyzeStock(stock.symbol, stock.exchange);
 
       if (response.data.success) {
         setStockReportData({
