@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "cleanup-duplicates": "node scripts/cleanup-duplicates.js"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
