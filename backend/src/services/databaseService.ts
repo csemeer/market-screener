@@ -856,14 +856,23 @@ class DatabaseService {
         const duplicateIds = duplicateIdsQuery.all().map((row: any) => row.id);
 
         if (duplicateIds.length > 0) {
-          // Step 2: Update foreign key references in custom_watchlist_stocks first
           const placeholders = duplicateIds.map(() => '?').join(',');
-          const updateStmt = this.db.prepare(`
+
+          // Step 2a: Clear foreign key references in custom_watchlist_stocks
+          const updateWatchlistStmt = this.db.prepare(`
             UPDATE custom_watchlist_stocks
             SET source_id = NULL, source_metadata = NULL
             WHERE source_id IN (${placeholders})
           `);
-          updateStmt.run(...duplicateIds);
+          updateWatchlistStmt.run(...duplicateIds);
+
+          // Step 2b: Clear foreign key references in alerts table
+          const updateAlertsStmt = this.db.prepare(`
+            UPDATE alerts
+            SET scan_result_id = NULL
+            WHERE scan_result_id IN (${placeholders})
+          `);
+          updateAlertsStmt.run(...duplicateIds);
 
           // Step 3: Now safe to delete duplicates
           const deleteStmt = this.db.prepare(`

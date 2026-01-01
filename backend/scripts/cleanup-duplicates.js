@@ -58,18 +58,33 @@ if (duplicateIds.length === 0) {
 
 console.log(`Found ${duplicateIds.length} duplicate entries to remove\n`);
 
-// Step 2: Update foreign key references in custom_watchlist_stocks
-// Set source_id to NULL for watchlist entries pointing to duplicates we're about to delete
+// Step 2: Update ALL foreign key references
+console.log('Step 1: Clearing foreign key references...');
+
+// 2a. Clear references in custom_watchlist_stocks
 const updateWatchlistStmt = db.prepare(`
   UPDATE custom_watchlist_stocks
   SET source_id = NULL, source_metadata = NULL
   WHERE source_id IN (${duplicateIds.map(() => '?').join(',')})
 `);
 
-const updateResult = updateWatchlistStmt.run(...duplicateIds);
-console.log(`Updated ${updateResult.changes} watchlist entries (cleared source_id references)`);
+const watchlistResult = updateWatchlistStmt.run(...duplicateIds);
+console.log(`  - Updated ${watchlistResult.changes} watchlist entries`);
+
+// 2b. Clear references in alerts table
+const updateAlertsStmt = db.prepare(`
+  UPDATE alerts
+  SET scan_result_id = NULL
+  WHERE scan_result_id IN (${duplicateIds.map(() => '?').join(',')})
+`);
+
+const alertsResult = updateAlertsStmt.run(...duplicateIds);
+console.log(`  - Updated ${alertsResult.changes} alert entries`);
+
+console.log(`  ✅ Total references cleared: ${watchlistResult.changes + alertsResult.changes}\n`);
 
 // Step 3: Now safe to delete duplicates
+console.log('Step 2: Deleting duplicate scan results...');
 const deleteStmt = db.prepare(`
   DELETE FROM scan_results
   WHERE id IN (${duplicateIds.map(() => '?').join(',')})
