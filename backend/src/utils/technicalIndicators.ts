@@ -505,6 +505,360 @@ export class TechnicalAnalysis {
   }
 
   /**
+   * Detect breakout with momentum - Identifies stocks that broke out recently but still have steam left
+   * Returns breakout information or null if no valid breakout detected
+   */
+  static detectBreakoutWithMomentum(data: OHLCV[], lookbackPeriod: number = 60): {
+    breakoutDetected: boolean;
+    breakoutDate: Date | null;
+    breakoutPrice: number | null;
+    daysAgoBreakout: number | null;
+    resistanceLevel: number | null;
+    breakoutVolumeRatio: number | null;
+    isPriceHoldingAbove: boolean;
+    distanceFromBreakout: number;
+  } | null {
+    if (data.length < lookbackPeriod + 10) return null;
+
+    const recentData = data.slice(-lookbackPeriod);
+    const volumes = recentData.map(d => d.volume);
+    const avgVolume = this.calculateSMA(volumes, 20) || 0;
+
+    // Step 1: Find swing highs in the lookback period (resistance levels)
+    const swingHighs: { price: number; index: number }[] = [];
+
+    for (let i = 5; i < recentData.length - 5; i++) {
+      const current = recentData[i];
+      const isSwingHigh =
+        current.high > recentData[i - 1].high &&
+        current.high > recentData[i - 2].high &&
+        current.high > recentData[i + 1].high &&
+        current.high > recentData[i + 2].high;
+
+      if (isSwingHigh) {
+        swingHighs.push({ price: current.high, index: i });
+      }
+    }
+
+    if (swingHighs.length === 0) return null;
+
+    // Find the most significant resistance level (highest swing high in first 80% of lookback)
+    const resistanceZone = swingHighs
+      .filter(sh => sh.index < recentData.length * 0.8)
+      .sort((a, b) => b.price - a.price)[0];
+
+    if (!resistanceZone) return null;
+
+    const resistanceLevel = resistanceZone.price;
+
+    // Step 2: Detect breakout in last 1-5 days
+    let breakoutIndex = -1;
+    let breakoutCandle: OHLCV | null = null;
+
+    for (let i = recentData.length - 1; i >= Math.max(0, recentData.length - 6); i--) {
+      const candle = recentData[i];
+      const prevCandle = i > 0 ? recentData[i - 1] : null;
+
+      // Breakout condition: close above resistance with volume confirmation
+      if (prevCandle &&
+          prevCandle.close < resistanceLevel &&
+          candle.close > resistanceLevel &&
+          candle.volume > avgVolume * 1.5) { // 1.5x volume minimum
+        breakoutIndex = i;
+        breakoutCandle = candle;
+        break;
+      }
+    }
+
+    if (breakoutIndex === -1 || !breakoutCandle) {
+      return {
+        breakoutDetected: false,
+        breakoutDate: null,
+        breakoutPrice: null,
+        daysAgoBreakout: null,
+        resistanceLevel,
+        breakoutVolumeRatio: null,
+        isPriceHoldingAbove: false,
+        distanceFromBreakout: 0
+      };
+    }
+
+    // Calculate breakout metrics
+    const daysAgoBreakout = recentData.length - 1 - breakoutIndex;
+    const currentPrice = recentData[recentData.length - 1].close;
+    const breakoutVolumeRatio = breakoutCandle.volume / avgVolume;
+    const isPriceHoldingAbove = currentPrice > resistanceLevel * 0.98; // Allow 2% wiggle room
+    const distanceFromBreakout = ((currentPrice - breakoutCandle.close) / breakoutCandle.close) * 100;
+
+    return {
+      breakoutDetected: true,
+      breakoutDate: breakoutCandle.timestamp,
+      breakoutPrice: breakoutCandle.close,
+      daysAgoBreakout,
+      resistanceLevel,
+      breakoutVolumeRatio: Math.round(breakoutVolumeRatio * 100) / 100,
+      isPriceHoldingAbove,
+      distanceFromBreakout: Math.round(distanceFromBreakout * 100) / 100
+    };
+  }
+
+  /**
+   * Validate post-breakout momentum - Checks if momentum is still intact after breakout
+   */
+  static validatePostBreakoutMomentum(
+    data: OHLCV[],
+    indicators: TechnicalIndicators,
+    breakoutInfo: any
+  ): {
+    isValid: boolean;
+    momentumScore: number;
+    rsiHealthy: boolean;
+    macdRising: boolean;
+    adxStrong: boolean;
+    volumeSustained: boolean;
+    higherHighsLows: boolean;
+    reasons: string[];
+  } {
+    const reasons: string[] = [];
+    let score = 0;
+
+    // Check RSI (healthy range: 55-75)
+    const rsiHealthy = indicators.rsi !== undefined &&
+                       indicators.rsi >= 55 &&
+                       indicators.rsi <= 75;
+    if (rsiHealthy) {
+      score += 25;
+      reasons.push(`RSI ${indicators.rsi?.toFixed(1)} (healthy momentum)`);
+    } else if (indicators.rsi && indicators.rsi > 75) {
+      reasons.push(`RSI ${indicators.rsi.toFixed(1)} (overbought warning)`);
+    }
+
+    // Check MACD (should be positive and rising)
+    const macdRising = indicators.macd !== undefined &&
+                       indicators.macd.histogram > 0 &&
+                       indicators.macd.macd > indicators.macd.signal;
+    if (macdRising) {
+      score += 25;
+      reasons.push('MACD bullish and rising');
+    }
+
+    // Check ADX (strong trend > 25)
+    const adxStrong = indicators.adx !== undefined && indicators.adx > 25;
+    if (adxStrong) {
+      score += 20;
+      reasons.push(`ADX ${indicators.adx?.toFixed(1)} (strong trend)`);
+    }
+
+    // Check volume sustainability (last 5 days avg vs 20-day avg)
+    const recentVolumes = data.slice(-5).map(d => d.volume);
+    const avgRecentVolume = recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length;
+    const avg20DayVolume = indicators.volumeProfile?.avgVolume || 0;
+    const volumeSustained = avgRecentVolume > avg20DayVolume;
+    if (volumeSustained) {
+      score += 15;
+      reasons.push('Volume sustained above average');
+    }
+
+    // Check for higher highs and higher lows pattern (last 3 candles)
+    const last3 = data.slice(-3);
+    const higherHighsLows =
+      last3.length === 3 &&
+      last3[1].high >= last3[0].high &&
+      last3[2].high >= last3[1].high &&
+      last3[1].low >= last3[0].low &&
+      last3[2].low >= last3[1].low;
+    if (higherHighsLows) {
+      score += 15;
+      reasons.push('Higher highs & higher lows');
+    }
+
+    const isValid = score >= 70 && rsiHealthy && volumeSustained;
+
+    return {
+      isValid,
+      momentumScore: score,
+      rsiHealthy,
+      macdRising,
+      adxStrong,
+      volumeSustained,
+      higherHighsLows,
+      reasons
+    };
+  }
+
+  /**
+   * Identify optimal entry zones post-breakout
+   * Finds pullbacks, consolidations, and support levels
+   */
+  static identifyEntryZone(
+    data: OHLCV[],
+    indicators: TechnicalIndicators,
+    breakoutInfo: any
+  ): {
+    hasEntryZone: boolean;
+    zoneType: 'PULLBACK' | 'CONSOLIDATION' | 'SUPPORT_RETEST' | 'CONTINUATION';
+    entryPrice: number;
+    qualityScore: number;
+    description: string;
+  } {
+    const currentPrice = data[data.length - 1].close;
+    const breakoutPrice = breakoutInfo.breakoutPrice || currentPrice;
+    const last5 = data.slice(-5);
+    const last3 = data.slice(-3);
+
+    // Calculate price range metrics
+    const highestRecent = Math.max(...last5.map(d => d.high));
+    const lowestRecent = Math.min(...last5.map(d => d.low));
+    const priceRange = highestRecent - lowestRecent;
+    const retracePercent = ((highestRecent - currentPrice) / highestRecent) * 100;
+
+    // Type 1: PULLBACK (30-50% retracement to breakout level)
+    const pullbackDistance = ((currentPrice - breakoutPrice) / breakoutPrice) * 100;
+    if (pullbackDistance >= -5 && pullbackDistance <= 10 && retracePercent > 2) {
+      return {
+        hasEntryZone: true,
+        zoneType: 'PULLBACK',
+        entryPrice: Math.round(currentPrice * 100) / 100,
+        qualityScore: 85,
+        description: `Healthy pullback to breakout zone (${pullbackDistance.toFixed(1)}% from breakout)`
+      };
+    }
+
+    // Type 2: CONSOLIDATION (3+ days sideways within 5% range above breakout)
+    const isConsolidating = priceRange / currentPrice < 0.05 && last5.length >= 3;
+    if (isConsolidating && currentPrice > breakoutPrice * 1.02) {
+      return {
+        hasEntryZone: true,
+        zoneType: 'CONSOLIDATION',
+        entryPrice: Math.round(currentPrice * 100) / 100,
+        qualityScore: 80,
+        description: 'Consolidating above breakout (building energy)'
+      };
+    }
+
+    // Type 3: SUPPORT_RETEST (touched breakout level and bounced)
+    const touchedBreakout = lowestRecent <= breakoutPrice * 1.02 && currentPrice > breakoutPrice;
+    const bounced = currentPrice > lowestRecent * 1.01;
+    if (touchedBreakout && bounced) {
+      return {
+        hasEntryZone: true,
+        zoneType: 'SUPPORT_RETEST',
+        entryPrice: Math.round(currentPrice * 100) / 100,
+        qualityScore: 90,
+        description: 'Successfully retested breakout as support'
+      };
+    }
+
+    // Type 4: CONTINUATION (small pullback with bullish pattern)
+    const hasBullishPattern = last3.some(candle => {
+      const patterns = this.detectCandlestickPatterns(data);
+      return patterns.includes('HAMMER') ||
+             patterns.includes('BULLISH_ENGULFING') ||
+             patterns.includes('PIERCING_PATTERN');
+    });
+
+    if (hasBullishPattern && currentPrice > breakoutPrice * 1.01) {
+      return {
+        hasEntryZone: true,
+        zoneType: 'CONTINUATION',
+        entryPrice: Math.round(currentPrice * 100) / 100,
+        qualityScore: 75,
+        description: 'Bullish continuation pattern after breakout'
+      };
+    }
+
+    // No clear entry zone identified
+    return {
+      hasEntryZone: false,
+      zoneType: 'CONTINUATION',
+      entryPrice: Math.round(currentPrice * 100) / 100,
+      qualityScore: 50,
+      description: 'No optimal entry zone identified'
+    };
+  }
+
+  /**
+   * Calculate breakout distance and check for over-extension
+   * Determines if stock has run too far from breakout
+   */
+  static calculateBreakoutExtension(
+    currentPrice: number,
+    breakoutPrice: number,
+    atr: number
+  ): {
+    isOverExtended: boolean;
+    extensionPercent: number;
+    atrMultiple: number;
+    maxHealthyExtension: number;
+  } {
+    const extensionPercent = ((currentPrice - breakoutPrice) / breakoutPrice) * 100;
+    const atrMultiple = (currentPrice - breakoutPrice) / atr;
+
+    // Conservative approach: max 15% extension or 5 ATR
+    const maxHealthyExtension = Math.min(15, atr * 5);
+    const isOverExtended = extensionPercent > 15 || atrMultiple > 5;
+
+    return {
+      isOverExtended,
+      extensionPercent: Math.round(extensionPercent * 100) / 100,
+      atrMultiple: Math.round(atrMultiple * 100) / 100,
+      maxHealthyExtension: Math.round(maxHealthyExtension * 100) / 100
+    };
+  }
+
+  /**
+   * Analyze Bollinger Band expansion after breakout
+   * Expansion indicates continuation, squeeze indicates consolidation
+   */
+  static analyzeBollingerExpansion(
+    data: OHLCV[],
+    bollingerBands: any
+  ): {
+    isExpanding: boolean;
+    expansionRate: number;
+    bandWidth: number;
+    isSqueezing: boolean;
+  } {
+    if (!bollingerBands || data.length < 25) {
+      return {
+        isExpanding: false,
+        expansionRate: 0,
+        bandWidth: 0,
+        isSqueezing: false
+      };
+    }
+
+    const currentBB = bollingerBands;
+    const bandWidth = ((currentBB.upper - currentBB.lower) / currentBB.middle) * 100;
+
+    // Calculate previous BB for comparison
+    const prevData = data.slice(-25, -5);
+    const prevBB = this.calculateBollingerBands(prevData);
+
+    if (!prevBB) {
+      return {
+        isExpanding: false,
+        expansionRate: 0,
+        bandWidth: Math.round(bandWidth * 100) / 100,
+        isSqueezing: bandWidth < 5
+      };
+    }
+
+    const prevBandWidth = ((prevBB.upper - prevBB.lower) / prevBB.middle) * 100;
+    const expansionRate = ((bandWidth - prevBandWidth) / prevBandWidth) * 100;
+
+    const isExpanding = expansionRate > 5; // BB expanding by more than 5%
+    const isSqueezing = bandWidth < 5; // Tight squeeze
+
+    return {
+      isExpanding,
+      expansionRate: Math.round(expansionRate * 100) / 100,
+      bandWidth: Math.round(bandWidth * 100) / 100,
+      isSqueezing
+    };
+  }
+
+  /**
    * Detect candlestick patterns - Enhanced with more patterns
    */
   static detectCandlestickPatterns(data: OHLCV[]): string[] {

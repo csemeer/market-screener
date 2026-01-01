@@ -142,6 +142,46 @@ export interface SwingTradeSignal {
   description: string;
 }
 
+export interface BreakoutMomentumSignal {
+  symbol: string;
+  exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ';
+  type: 'BREAKOUT_WITH_MOMENTUM';
+  signal: 'BUY';
+  qualityScore: number;
+
+  // Breakout details
+  breakoutDate: Date;
+  breakoutPrice: number;
+  daysAgoBreakout: number;
+  breakoutVolumeRatio: number;
+
+  // Entry details
+  entryZoneType: 'PULLBACK' | 'CONSOLIDATION' | 'SUPPORT_RETEST' | 'CONTINUATION';
+  entryPrice: number;
+  stopLoss: number;
+  target1: number;
+  target2: number;
+  riskRewardRatio: number;
+
+  // Momentum details
+  momentumScore: number;
+  rsi?: number;
+  macd?: {
+    macd: number;
+    signal: number;
+    histogram: number;
+  };
+  adx?: number;
+
+  // Additional info
+  currentPrice: number;
+  distanceFromBreakout: number;
+  volumeSustained: boolean;
+  description: string;
+  timeframe: string;
+  timestamp: Date;
+}
+
 export interface RiskManagement {
   accountSize: number;
   riskPercentage: number;

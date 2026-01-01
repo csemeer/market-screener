@@ -11,7 +11,8 @@ import {
   StockData,
   OHLCV,
   EnhancedScreenerResult,
-  ScreenerCriteriaWithFundamentals
+  ScreenerCriteriaWithFundamentals,
+  BreakoutMomentumSignal
 } from '../types';
 
 class ScreenerService {
@@ -865,6 +866,203 @@ class ScreenerService {
         error: error instanceof Error ? error.message : 'Failed to analyze stock',
       };
     }
+  }
+
+  /**
+   * Scan for Breakout with Momentum opportunities
+   * Specialized scanner for post-breakout entries with sustained momentum
+   */
+  async scanBreakoutWithMomentum(
+    markets: ('NSE' | 'BSE' | 'NYSE' | 'NASDAQ')[]
+  ): Promise<BreakoutMomentumSignal[]> {
+    const signals: BreakoutMomentumSignal[] = [];
+
+    for (const exchange of markets) {
+      const symbols = marketDataService.getStocksByExchange(exchange);
+      const limitedSymbols = symbols.slice(0, 50); // Analyze 50 stocks per market
+
+      for (const symbol of limitedSymbols) {
+        try {
+          // Get 90 days of daily data (for breakout detection)
+          const dailyData = await marketDataService.getHistoricalData(
+            symbol,
+            exchange,
+            '1d',
+            '3mo'
+          );
+
+          if (dailyData.length < 70) continue; // Need sufficient history
+
+          // Calculate all indicators
+          const indicators = TechnicalAnalysis.calculateAllIndicators(dailyData);
+
+          // Step 1: Detect breakout
+          const breakoutInfo = TechnicalAnalysis.detectBreakoutWithMomentum(dailyData);
+          if (!breakoutInfo?.breakoutDetected) continue;
+          if (!breakoutInfo.daysAgoBreakout || breakoutInfo.daysAgoBreakout < 1 || breakoutInfo.daysAgoBreakout > 5) continue;
+
+          // Step 2: Validate momentum
+          const momentumValidation = TechnicalAnalysis.validatePostBreakoutMomentum(
+            dailyData,
+            indicators,
+            breakoutInfo
+          );
+          if (!momentumValidation.isValid) continue;
+          if (momentumValidation.momentumScore < 70) continue;
+
+          // Step 3: Check for over-extension
+          const current = dailyData[dailyData.length - 1];
+          const atr = indicators.atr || (current.high - current.low);
+
+          const extension = TechnicalAnalysis.calculateBreakoutExtension(
+            current.close,
+            breakoutInfo.breakoutPrice || current.close,
+            atr
+          );
+          if (extension.isOverExtended) continue;
+
+          // Step 4: Identify entry zone
+          const entryZone = TechnicalAnalysis.identifyEntryZone(
+            dailyData,
+            indicators,
+            breakoutInfo
+          );
+          if (!entryZone.hasEntryZone) continue;
+
+          // Step 5: Bollinger Band analysis
+          const bbAnalysis = TechnicalAnalysis.analyzeBollingerExpansion(
+            dailyData,
+            indicators.bollingerBands
+          );
+
+          // Step 6: Calculate quality score
+          const qualityScore = this.calculateBreakoutMomentumQuality({
+            breakoutInfo,
+            momentumValidation,
+            entryZone,
+            extension,
+            bbAnalysis,
+            indicators
+          });
+
+          if (qualityScore < 75) continue; // High quality only
+
+          // Step 7: Calculate risk/reward
+          const entryPrice = entryZone.entryPrice;
+          const stopLoss = (breakoutInfo.breakoutPrice || current.close) * 0.97; // 3% below breakout
+          const target1 = entryPrice + (atr * 4); // 4 ATR target
+          const target2 = entryPrice + (atr * 6); // 6 ATR target
+          const riskRewardRatio = (target1 - entryPrice) / (entryPrice - stopLoss);
+
+          if (riskRewardRatio < 2.5) continue; // Minimum 2.5:1 R:R
+
+          // Create signal
+          signals.push({
+            symbol,
+            exchange,
+            type: 'BREAKOUT_WITH_MOMENTUM',
+            signal: 'BUY',
+            qualityScore,
+
+            // Breakout details
+            breakoutDate: breakoutInfo.breakoutDate || new Date(),
+            breakoutPrice: breakoutInfo.breakoutPrice || current.close,
+            daysAgoBreakout: breakoutInfo.daysAgoBreakout,
+            breakoutVolumeRatio: breakoutInfo.breakoutVolumeRatio || 0,
+
+            // Entry details
+            entryZoneType: entryZone.zoneType,
+            entryPrice,
+            stopLoss,
+            target1,
+            target2,
+            riskRewardRatio,
+
+            // Momentum details
+            momentumScore: momentumValidation.momentumScore,
+            rsi: indicators.rsi,
+            macd: indicators.macd,
+            adx: indicators.adx,
+
+            // Additional info
+            currentPrice: current.close,
+            distanceFromBreakout: extension.extensionPercent,
+            volumeSustained: momentumValidation.volumeSustained,
+
+            description: this.buildBreakoutDescription({
+              symbol,
+              breakoutInfo,
+              entryZone,
+              momentumValidation,
+              qualityScore
+            }),
+
+            timeframe: '1D',
+            timestamp: new Date()
+          });
+
+        } catch (error) {
+          console.error(`Error analyzing ${symbol}:`, error);
+        }
+      }
+    }
+
+    // Sort by quality score (highest first)
+    return signals.sort((a, b) => b.qualityScore - a.qualityScore);
+  }
+
+  /**
+   * Calculate comprehensive quality score for breakout momentum setup
+   */
+  private calculateBreakoutMomentumQuality(params: {
+    breakoutInfo: any;
+    momentumValidation: any;
+    entryZone: any;
+    extension: any;
+    bbAnalysis: any;
+    indicators: any;
+  }): number {
+    let score = 0;
+
+    // Breakout strength (25 points)
+    const breakoutScore = Math.min(25,
+      (params.breakoutInfo.breakoutVolumeRatio / 2) * 12.5 + // Up to 12.5 for volume
+      (params.breakoutInfo.isPriceHoldingAbove ? 12.5 : 0) // 12.5 for holding
+    );
+    score += breakoutScore;
+
+    // Momentum quality (25 points)
+    score += (params.momentumValidation.momentumScore / 100) * 25;
+
+    // Entry zone quality (20 points)
+    score += (params.entryZone.qualityScore / 100) * 20;
+
+    // Volume sustainability (15 points)
+    if (params.momentumValidation.volumeSustained) score += 15;
+    else score += 5;
+
+    // Risk/reward consideration (15 points)
+    if (!params.extension.isOverExtended) {
+      score += 15;
+    } else {
+      score += 15 * (1 - (params.extension.extensionPercent / 20));
+    }
+
+    // Bollinger Band expansion bonus (up to 5 points)
+    if (params.bbAnalysis.isExpanding) score += 5;
+
+    return Math.min(100, Math.max(0, score));
+  }
+
+  /**
+   * Build descriptive signal message for breakout
+   */
+  private buildBreakoutDescription(params: any): string {
+    const { symbol, breakoutInfo, entryZone, momentumValidation, qualityScore } = params;
+
+    return `${symbol} broke out ${breakoutInfo.daysAgoBreakout} days ago at ${breakoutInfo.breakoutPrice?.toFixed(2)} with ${breakoutInfo.breakoutVolumeRatio?.toFixed(1)}x volume. ` +
+      `Currently in ${entryZone.zoneType} pattern with ${momentumValidation.momentumScore}/100 momentum. ` +
+      `${momentumValidation.reasons.join(', ')}. Quality: ${qualityScore}/100`;
   }
 
   /**

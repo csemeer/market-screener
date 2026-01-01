@@ -195,6 +195,42 @@ export const SWING_STRATEGIES = {
     targetPercent: 14.0,
     enabled: true,
   },
+
+  BREAKOUT_WITH_MOMENTUM: {
+    name: 'Breakout with Momentum',
+    description: 'Post-breakout entries with sustained momentum and optimal entry zones',
+    type: 'SWING' as const,
+    scanInterval: 30, // Run every 30 minutes
+    markets: ['NSE', 'BSE', 'NYSE', 'NASDAQ'],
+    criteria: {
+      // Breakout criteria
+      recentBreakout: true, // 1-5 days ago
+      breakoutVolumeMin: 2.0, // 2x average volume on breakout
+      priceHoldingAboveBreakout: true,
+      maxDistanceFromBreakout: 15, // Not more than 15% extended
+
+      // Momentum criteria
+      rsiMin: 55,
+      rsiMax: 75,
+      macdBullish: true,
+      macdRising: true,
+      adxMin: 25,
+      volumeSustained: true, // Last 5 days avg > 20-day avg
+      higherHighsLows: true,
+
+      // Entry zone criteria
+      hasEntryZone: true,
+      entryZoneTypes: ['PULLBACK', 'CONSOLIDATION', 'SUPPORT_RETEST'],
+
+      // Risk management
+      bollingerBandExpansion: true, // BB expanding (continuation signal)
+      supportAtBreakout: true, // Prior resistance acting as support
+    },
+    minConfidenceScore: 75, // High quality setups only
+    stopLossPercent: 5.0, // Below breakout level
+    targetPercent: 15.0, // 3:1 risk-reward minimum
+    enabled: true,
+  },
 };
 
 class AutoScanService {
@@ -380,11 +416,84 @@ class AutoScanService {
         nextScanTime: new Date(Date.now() + config.scanInterval * 60 * 1000),
       });
 
+      const markets = JSON.parse(config.markets);
+
+      // Check if this is the Breakout with Momentum strategy - use specialized scanner
+      if (strategyKey === 'SWING_BREAKOUT_WITH_MOMENTUM') {
+        const breakoutResults = await screenerService.scanBreakoutWithMomentum(markets);
+
+        // Store results similar to existing logic
+        for (const result of breakoutResults) {
+          if (result.qualityScore < config.minConfidenceScore) continue;
+
+          const scanResult: ScanResult = {
+            scanId,
+            timestamp: new Date(),
+            strategy: strategy.name,
+            strategyType: strategy.type,
+            symbol: result.symbol,
+            exchange: result.exchange,
+            companyName: result.symbol, // TODO: Look up company name
+            currency: getCurrencyForExchange(result.exchange as Exchange),
+            currentPrice: result.currentPrice,
+            entryPrice: result.entryPrice,
+            stopLoss: result.stopLoss,
+            target: result.target1,
+            riskRewardRatio: result.riskRewardRatio,
+            confidenceScore: result.qualityScore,
+            signals: JSON.stringify([
+              `Breakout ${result.daysAgoBreakout} days ago`,
+              `${result.entryZoneType} entry zone`,
+              `Momentum score: ${result.momentumScore}/100`,
+              `Volume: ${result.breakoutVolumeRatio.toFixed(1)}x on breakout`,
+              result.volumeSustained ? 'Sustained volume' : 'Volume declining'
+            ]),
+            technicalData: JSON.stringify({
+              rsi: result.rsi,
+              macd: result.macd,
+              adx: result.adx,
+              breakoutPrice: result.breakoutPrice,
+              breakoutDate: result.breakoutDate,
+              distanceFromBreakout: result.distanceFromBreakout
+            }),
+            fundamentalData: '{}',
+            evidenceChartData: JSON.stringify(await this.buildBreakoutChartData(result)),
+            status: 'ACTIVE',
+          };
+
+          const resultId = databaseService.insertScanResult(scanResult);
+
+          // Create high-priority alert for premium breakouts
+          if (result.qualityScore >= 85) {
+            databaseService.insertAlert({
+              timestamp: new Date(),
+              symbol: result.symbol,
+              exchange: result.exchange,
+              strategy: strategy.name,
+              alertType: 'NEW_SIGNAL',
+              message: `🔥 Premium breakout: ${result.symbol} - Quality: ${result.qualityScore}/100`,
+              priority: 'HIGH',
+              read: false,
+              scanResultId: resultId,
+            });
+          }
+        }
+
+        loggerService.info(`${strategyKey} scan completed`, {
+          scanId,
+          totalResults: breakoutResults.length,
+          filteredResults: breakoutResults.filter(r => r.qualityScore >= config.minConfidenceScore).length,
+          duration: Date.now() - startTime,
+        });
+
+        return; // Exit early for breakout scanner
+      }
+
+      // For all other strategies, use the standard screener
       // Build screener criteria from strategy
       const screenerCriteria = this.buildScreenerCriteria(strategy);
 
       // Run the screener
-      const markets = JSON.parse(config.markets);
       const results = await screenerService.runScreener({
         markets,
         ...screenerCriteria,
@@ -575,6 +684,70 @@ class AutoScanService {
         volumeAnalysis: result.indicators?.volumeProfile,
       },
     };
+  }
+
+  /**
+   * Build evidence chart data specifically for breakout signals
+   */
+  private async buildBreakoutChartData(signal: any): Promise<any> {
+    try {
+      // Get historical data for charting
+      const historicalData = await marketDataService.getHistoricalData(
+        signal.symbol,
+        signal.exchange,
+        '1d',
+        '6mo'
+      );
+
+      return {
+        symbol: signal.symbol,
+        currentPrice: signal.currentPrice,
+        historicalPrices: historicalData.slice(-180).map(d => ({
+          date: d.timestamp,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+          volume: d.volume
+        })),
+        indicators: {
+          ema9: signal.rsi, // Will be calculated from full data
+          rsi: signal.rsi,
+          macd: signal.macd,
+          adx: signal.adx,
+        },
+        levels: {
+          entry: signal.entryPrice,
+          stopLoss: signal.stopLoss,
+          target1: signal.target1,
+          target2: signal.target2,
+          breakoutLevel: signal.breakoutPrice
+        },
+        breakoutInfo: {
+          date: signal.breakoutDate,
+          price: signal.breakoutPrice,
+          daysAgo: signal.daysAgoBreakout,
+          volumeRatio: signal.breakoutVolumeRatio
+        },
+        analysis: {
+          qualityScore: signal.qualityScore,
+          momentumScore: signal.momentumScore,
+          entryZoneType: signal.entryZoneType,
+          distanceFromBreakout: signal.distanceFromBreakout
+        }
+      };
+    } catch (error) {
+      loggerService.error(`Error building breakout chart data for ${signal.symbol}`, { error });
+      return {
+        symbol: signal.symbol,
+        currentPrice: signal.currentPrice,
+        historicalPrices: [],
+        indicators: {},
+        levels: {},
+        breakoutInfo: {},
+        analysis: {}
+      };
+    }
   }
 
   /**

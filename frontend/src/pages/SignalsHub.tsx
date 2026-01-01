@@ -531,24 +531,55 @@ function StrategyGroup({
 
 // Auto Scan Card Component
 function AutoScanCard({ stock, onClick }: { stock: AutoScanResult; onClick: () => void }) {
+  // Parse technical data to check for breakout-specific information
+  const technicalData = stock.technical_data ?
+    (typeof stock.technical_data === 'string' ? JSON.parse(stock.technical_data) : stock.technical_data) :
+    {};
+  const isBreakoutStrategy = stock.strategy.includes('Breakout with Momentum');
+
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+      className={`bg-white border rounded-lg p-3 hover:shadow-md transition-all cursor-pointer ${
+        isBreakoutStrategy ? 'border-purple-300 hover:border-purple-400 bg-gradient-to-br from-white to-purple-50' : 'border-gray-200 hover:border-blue-300'
+      }`}
     >
       <div className="flex justify-between items-start mb-2">
-        <div>
-          <h4 className="font-bold text-gray-900">{stock.symbol}</h4>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="font-bold text-gray-900">{stock.symbol}</h4>
+            {isBreakoutStrategy && (
+              <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                BREAKOUT
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-600">{stock.exchange}</p>
         </div>
         <span className={`px-2 py-1 rounded text-xs font-bold ${
-          stock.confidence_score >= 80 ? 'bg-green-100 text-green-800' :
-          stock.confidence_score >= 70 ? 'bg-blue-100 text-blue-800' :
+          stock.confidence_score >= 85 ? 'bg-green-100 text-green-800' :
+          stock.confidence_score >= 75 ? 'bg-blue-100 text-blue-800' :
           'bg-yellow-100 text-yellow-800'
         }`}>
           {stock.confidence_score}
         </span>
       </div>
+
+      {/* Breakout-specific information */}
+      {isBreakoutStrategy && technicalData.breakoutPrice && (
+        <div className="mb-2 pb-2 border-b border-purple-200">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-medium">
+              Breakout: {getCurrencySymbol(stock.currency)}{technicalData.breakoutPrice.toFixed(2)}
+            </span>
+            {technicalData.distanceFromBreakout !== undefined && (
+              <span className="text-purple-600 font-medium">
+                +{technicalData.distanceFromBreakout.toFixed(1)}%
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
