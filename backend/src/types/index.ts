@@ -120,26 +120,36 @@ export interface ScreenerResult extends StockData {
 export interface IntradaySignal {
   type: 'MOMENTUM' | 'BREAKOUT' | 'GAP' | 'REVERSAL';
   symbol: string;
+  exchange: string;
+  company_name?: string;
+  current_price: number;
   signal: 'BUY' | 'SELL';
   strength: number;
-  entry: number;
+  entryPrice: number; // Changed from 'entry' to match frontend
   stopLoss: number;
   target: number;
+  riskReward: number;
   timeframe: string;
   description: string;
+  indicators: any;
 }
 
 export interface SwingTradeSignal {
   type: 'TREND_FOLLOWING' | 'SUPPORT_RESISTANCE' | 'PATTERN_BREAKOUT';
   symbol: string;
+  exchange: string;
+  company_name?: string;
+  current_price: number;
   signal: 'BUY' | 'SELL';
   strength: number;
-  entry: number;
+  entryPrice: number; // Changed from 'entry' to match frontend
   stopLoss: number;
   target: number;
+  riskReward: number;
   timeframe: string;
   trend: 'UPTREND' | 'DOWNTREND' | 'SIDEWAYS';
   description: string;
+  indicators: any;
 }
 
 export interface BreakoutMomentumSignal {

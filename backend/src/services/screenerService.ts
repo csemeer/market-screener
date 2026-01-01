@@ -224,17 +224,29 @@ class ScreenerService {
           const data5m = await marketDataService.getHistoricalData(symbol, exchange, '5m', '1d');
           const data15m = await marketDataService.getHistoricalData(symbol, exchange, '15m', '5d');
 
-          // Momentum scanner
+          // Get current quote and indicators for transformation
+          const quote = await marketDataService.getQuote(symbol, exchange);
+          if (!quote) continue;
+
+          const indicators = data5m.length > 0 ? TechnicalAnalysis.calculateAllIndicators(data5m) : {};
+
+          // Momentum scanner (returns old format, we'll transform it)
           const momentumSignal = this.detectMomentum(symbol, data5m);
-          if (momentumSignal) signals.push(momentumSignal);
+          if (momentumSignal) {
+            signals.push(this.transformIntradaySignal(momentumSignal, exchange, quote, indicators));
+          }
 
           // Breakout scanner
           const breakoutSignal = this.detectBreakout(symbol, data15m);
-          if (breakoutSignal) signals.push(breakoutSignal);
+          if (breakoutSignal) {
+            signals.push(this.transformIntradaySignal(breakoutSignal, exchange, quote, indicators));
+          }
 
           // Gap scanner
           const gapSignal = this.detectGap(symbol, data5m);
-          if (gapSignal) signals.push(gapSignal);
+          if (gapSignal) {
+            signals.push(this.transformIntradaySignal(gapSignal, exchange, quote, indicators));
+          }
 
         } catch (error) {
           console.error(`Error scanning intraday for ${symbol}:`, error);
@@ -243,6 +255,25 @@ class ScreenerService {
     }
 
     return signals.sort((a, b) => b.strength - a.strength);
+  }
+
+  /**
+   * Transform old IntradaySignal format to new format with all required fields
+   */
+  private transformIntradaySignal(oldSignal: any, exchange: string, quote: any, indicators: any): IntradaySignal {
+    const risk = Math.abs((oldSignal.entry || oldSignal.entryPrice) - oldSignal.stopLoss);
+    const reward = Math.abs(oldSignal.target - (oldSignal.entry || oldSignal.entryPrice));
+    const riskReward = risk > 0 ? reward / risk : 1;
+
+    return {
+      ...oldSignal,
+      exchange,
+      company_name: oldSignal.symbol, // TODO: Look up actual company name
+      current_price: quote?.price || oldSignal.entry || oldSignal.entryPrice,
+      entryPrice: oldSignal.entry || oldSignal.entryPrice,
+      riskReward,
+      indicators,
+    };
   }
 
   /**
@@ -261,17 +292,27 @@ class ScreenerService {
           const dailyData = await marketDataService.getHistoricalData(symbol, exchange, '1d', '1y');
           const indicators = TechnicalAnalysis.calculateAllIndicators(dailyData);
 
-          // Trend following signals
+          // Get current quote for price
+          const quote = await marketDataService.getQuote(symbol, exchange);
+          if (!quote) continue;
+
+          // Trend following signals (returns old format, we'll transform it)
           const trendSignal = this.detectTrend(symbol, dailyData, indicators);
-          if (trendSignal) signals.push(trendSignal);
+          if (trendSignal) {
+            signals.push(this.transformSwingSignal(trendSignal, exchange, quote, indicators));
+          }
 
           // Support/Resistance signals
           const srSignal = this.detectSupportResistance(symbol, dailyData, indicators);
-          if (srSignal) signals.push(srSignal);
+          if (srSignal) {
+            signals.push(this.transformSwingSignal(srSignal, exchange, quote, indicators));
+          }
 
           // Pattern breakout signals
           const patternSignal = this.detectPatternBreakout(symbol, dailyData, indicators);
-          if (patternSignal) signals.push(patternSignal);
+          if (patternSignal) {
+            signals.push(this.transformSwingSignal(patternSignal, exchange, quote, indicators));
+          }
 
         } catch (error) {
           console.error(`Error scanning swing for ${symbol}:`, error);
@@ -280,6 +321,25 @@ class ScreenerService {
     }
 
     return signals.sort((a, b) => b.strength - a.strength);
+  }
+
+  /**
+   * Transform old SwingTradeSignal format to new format with all required fields
+   */
+  private transformSwingSignal(oldSignal: any, exchange: string, quote: any, indicators: any): SwingTradeSignal {
+    const risk = Math.abs((oldSignal.entry || oldSignal.entryPrice) - oldSignal.stopLoss);
+    const reward = Math.abs(oldSignal.target - (oldSignal.entry || oldSignal.entryPrice));
+    const riskReward = risk > 0 ? reward / risk : 1;
+
+    return {
+      ...oldSignal,
+      exchange,
+      company_name: oldSignal.symbol, // TODO: Look up actual company name
+      current_price: quote?.price || oldSignal.entry || oldSignal.entryPrice,
+      entryPrice: oldSignal.entry || oldSignal.entryPrice,
+      riskReward,
+      indicators,
+    };
   }
 
   /**
