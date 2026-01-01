@@ -14,13 +14,12 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
-  XCircle,
-  ListPlus,
   Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { screenerAPI, dashboardAPI, watchlistAPI } from '../api/client';
-import StockEvidenceChart from '../components/StockEvidenceChart';
+import { screenerAPI, dashboardAPI } from '../api/client';
+import UnifiedStockModal from '../components/UnifiedStockModal';
+import { transformAutoScanToUnified, transformLiveScanToUnified } from '../utils/stockDataHelpers';
 
 type TabType = 'live-scan' | 'auto-scan' | 'screener';
 type ScanType = 'intraday' | 'swing';
@@ -74,13 +73,13 @@ export default function SignalsHub() {
   const [liveScanSignals, setLiveScanSignals] = useState<LiveScanSignal[]>([]);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['NSE', 'NYSE']);
   const [signalFilter, setSignalFilter] = useState<string>('all');
-  const [selectedLiveSignal, setSelectedLiveSignal] = useState<LiveScanSignal | null>(null);
+  const [selectedLiveSignal, setSelectedLiveSignal] = useState<any>(null); // Will be transformed to UnifiedStockData
 
   // Auto Scan State
   const [autoScanLoading, setAutoScanLoading] = useState(false);
   const [autoScanResults, setAutoScanResults] = useState<Record<string, AutoScanResult[]>>({});
   const [expandedStrategies, setExpandedStrategies] = useState<Set<string>>(new Set());
-  const [selectedStock, setSelectedStock] = useState<AutoScanResult | null>(null);
+  const [selectedStock, setSelectedStock] = useState<any>(null); // Will be transformed to UnifiedStockData
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [selectedType, setSelectedType] = useState<'ALL' | 'INTRADAY' | 'SWING'>('ALL');
 
@@ -465,19 +464,20 @@ export default function SignalsHub() {
         </div>
       </div>
 
-      {/* Auto Scan Stock Evidence Modal */}
+      {/* Unified Stock Modal - Used for both Auto Scan and Live Scan */}
       {selectedStock && (
-        <StockEvidenceModal
-          stock={selectedStock}
+        <UnifiedStockModal
+          stock={transformAutoScanToUnified(selectedStock)}
           onClose={() => setSelectedStock(null)}
+          onRefresh={() => loadAutoScan()}
         />
       )}
 
-      {/* Live Scan Signal Modal */}
       {selectedLiveSignal && (
-        <LiveSignalModal
-          signal={selectedLiveSignal}
+        <UnifiedStockModal
+          stock={transformLiveScanToUnified(selectedLiveSignal)}
           onClose={() => setSelectedLiveSignal(null)}
+          onRefresh={() => loadLiveScan()}
         />
       )}
     </div>
@@ -661,339 +661,3 @@ function LiveSignalCard({ signal, onClick }: { signal: LiveScanSignal; onClick: 
   );
 }
 
-// Live Scan Signal Modal Component
-function LiveSignalModal({ signal, onClose }: { signal: LiveScanSignal; onClose: () => void }) {
-  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
-  const [stockAnalysis, setStockAnalysis] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadStockAnalysis();
-  }, [signal]);
-
-  const loadStockAnalysis = async () => {
-    try {
-      setLoading(true);
-      const res = await watchlistAPI.analyzeStock(signal.symbol, signal.exchange);
-      setStockAnalysis(res.data);
-    } catch (error) {
-      console.error('Error loading stock analysis:', error);
-      toast.error('Failed to load stock analysis');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addToWatchlist = async () => {
-    try {
-      setAddingToWatchlist(true);
-
-      const watchlistsRes = await watchlistAPI.getWatchlists();
-      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Live Scan Signals');
-
-      if (!watchlist) {
-        const createRes = await watchlistAPI.createWatchlist({
-          name: 'Live Scan Signals',
-          description: 'Stocks from Live Scan',
-        });
-        watchlist = createRes.data.watchlist;
-      }
-
-      await watchlistAPI.addStockToWatchlist(watchlist.id, {
-        symbol: signal.symbol,
-        exchange: signal.exchange,
-        entryPrice: signal.entryPrice,
-        stopLoss: signal.stopLoss,
-        target1: signal.target,
-        source: 'MANUAL',
-        notes: `${signal.type} signal - Strength: ${signal.strength}`,
-      });
-
-      toast.success(`✅ ${signal.symbol} added to watchlist!`);
-    } catch (error: any) {
-      console.error('Error adding to watchlist:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
-      toast.error(`❌ ${errorMessage}`);
-    } finally {
-      setAddingToWatchlist(false);
-    }
-  };
-
-  const getCurrency = () => {
-    return ['NYSE', 'NASDAQ'].includes(signal.exchange) ? 'USD' : 'INR';
-  };
-
-  const getCurrencySymbol = () => {
-    return getCurrency() === 'USD' ? '$' : '₹';
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white sm:rounded-lg shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[90vh] overflow-y-auto">
-        {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 z-10 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{signal.symbol}</h2>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{signal.company_name || signal.exchange}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
-            >
-              <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-4">
-            <span className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold ${
-              signal.signal === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {signal.signal}
-            </span>
-            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold bg-purple-100 text-purple-800">
-              Strength: {signal.strength}
-            </span>
-            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 truncate max-w-full">
-              {signal.type}
-            </span>
-            <button
-              onClick={addToWatchlist}
-              disabled={addingToWatchlist}
-              className="ml-auto flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium shadow-md"
-            >
-              <ListPlus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Content */}
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-            </div>
-          ) : (
-            <>
-              {/* Price Levels */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
-                  <p className="text-xs sm:text-sm text-blue-700 font-medium mb-1">Entry Price</p>
-                  <p className="text-xl sm:text-2xl font-bold text-blue-900">{getCurrencySymbol()}{signal.entryPrice.toFixed(2)}</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
-                  <p className="text-xs sm:text-sm text-green-700 font-medium mb-1">Target</p>
-                  <p className="text-xl sm:text-2xl font-bold text-green-900">{getCurrencySymbol()}{signal.target.toFixed(2)}</p>
-                  <p className="text-xs text-green-600 mt-1">
-                    +{(((signal.target - signal.entryPrice) / signal.entryPrice) * 100).toFixed(2)}%
-                  </p>
-                </div>
-                <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
-                  <p className="text-xs sm:text-sm text-red-700 font-medium mb-1">Stop Loss</p>
-                  <p className="text-xl sm:text-2xl font-bold text-red-900">{getCurrencySymbol()}{signal.stopLoss.toFixed(2)}</p>
-                  <p className="text-xs text-red-600 mt-1">
-                    {(((signal.stopLoss - signal.entryPrice) / signal.entryPrice) * 100).toFixed(2)}%
-                  </p>
-                </div>
-              </div>
-
-              {/* Evidence Chart */}
-              {stockAnalysis?.chartData && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Technical Evidence Chart
-                  </h3>
-                  <StockEvidenceChart data={{ ...stockAnalysis.chartData, currency: getCurrency() }} />
-                </div>
-              )}
-
-              {/* Technical Indicators */}
-              {stockAnalysis?.indicators && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Indicators</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {stockAnalysis.indicators.rsi && (
-                      <div className="bg-gray-50 rounded p-2">
-                        <p className="text-xs text-gray-600">RSI</p>
-                        <p className="text-lg font-bold text-gray-900">{stockAnalysis.indicators.rsi.toFixed(1)}</p>
-                      </div>
-                    )}
-                    {stockAnalysis.indicators.adx && (
-                      <div className="bg-gray-50 rounded p-2">
-                        <p className="text-xs text-gray-600">ADX</p>
-                        <p className="text-lg font-bold text-gray-900">{stockAnalysis.indicators.adx.toFixed(1)}</p>
-                      </div>
-                    )}
-                    {stockAnalysis.confluenceScore && (
-                      <div className="bg-gray-50 rounded p-2">
-                        <p className="text-xs text-gray-600">Confluence</p>
-                        <p className="text-lg font-bold text-purple-600">{stockAnalysis.confluenceScore.toFixed(0)}%</p>
-                      </div>
-                    )}
-                    <div className="bg-gray-50 rounded p-2">
-                      <p className="text-xs text-gray-600">R:R Ratio</p>
-                      <p className="text-lg font-bold text-gray-900">{signal.riskReward.toFixed(1)}:1</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Signals */}
-              {stockAnalysis?.signals && stockAnalysis.signals.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Signals</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {stockAnalysis.signals.map((sig: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        {sig}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Stock Evidence Modal Component (reused from AutoScanDashboard)
-function StockEvidenceModal({ stock, onClose }: { stock: AutoScanResult; onClose: () => void }) {
-  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
-
-  let chartData: any = { currency: stock.currency };
-  let signals: string[] = [];
-
-  try {
-    const parsedChartData = JSON.parse(stock.evidence_chart_data || '{}');
-    chartData = { ...parsedChartData, currency: stock.currency };
-    signals = JSON.parse(stock.signals || '[]');
-  } catch (error) {
-    console.error('Error parsing stock data:', error);
-  }
-
-  const addToWatchlist = async () => {
-    try {
-      setAddingToWatchlist(true);
-
-      // Step 1: Get or create "Auto-Scan Signals" watchlist
-      const watchlistsRes = await watchlistAPI.getWatchlists();
-      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Auto-Scan Signals (Legacy)');
-
-      // If no auto-scan watchlist exists, create one
-      if (!watchlist) {
-        const createRes = await watchlistAPI.createWatchlist({
-          name: 'Auto-Scan Signals (Legacy)',
-          description: 'Automatically generated from Signals Hub',
-        });
-        watchlist = createRes.data.watchlist;
-      }
-
-      // Step 2: Add stock to the watchlist using the new unified endpoint
-      await watchlistAPI.addStockFromScan(watchlist.id, stock.id);
-
-      toast.success(`✅ ${stock.symbol} added to watchlist!`);
-    } catch (error: any) {
-      console.error('Error adding to watchlist:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
-      toast.error(`❌ ${errorMessage}`);
-    } finally {
-      setAddingToWatchlist(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white sm:rounded-lg shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[90vh] overflow-y-auto">
-        {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 z-10 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stock.symbol}</h2>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{stock.company_name || stock.exchange}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
-            >
-              <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-4">
-            <span className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold ${
-              stock.confidence_score >= 80 ? 'bg-green-100 text-green-800' :
-              stock.confidence_score >= 70 ? 'bg-blue-100 text-blue-800' :
-              'bg-yellow-100 text-yellow-800'
-            }`}>
-              Confidence: {stock.confidence_score}
-            </span>
-            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 truncate max-w-full">
-              {stock.strategy}
-            </span>
-            <button
-              onClick={addToWatchlist}
-              disabled={addingToWatchlist}
-              className="ml-auto flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium shadow-md"
-            >
-              <ListPlus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Content */}
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Price Levels */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
-              <p className="text-xs sm:text-sm text-blue-700 font-medium mb-1">Entry Price</p>
-              <p className="text-xl sm:text-2xl font-bold text-blue-900">{getCurrencySymbol(stock.currency)}{stock.entry_price.toFixed(2)}</p>
-            </div>
-            <div className="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
-              <p className="text-xs sm:text-sm text-green-700 font-medium mb-1">Target</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-900">{getCurrencySymbol(stock.currency)}{stock.target.toFixed(2)}</p>
-              <p className="text-xs text-green-600 mt-1">
-                +{(((stock.target - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
-              </p>
-            </div>
-            <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
-              <p className="text-xs sm:text-sm text-red-700 font-medium mb-1">Stop Loss</p>
-              <p className="text-xl sm:text-2xl font-bold text-red-900">{getCurrencySymbol(stock.currency)}{stock.stop_loss.toFixed(2)}</p>
-              <p className="text-xs text-red-600 mt-1">
-                {(((stock.stop_loss - stock.entry_price) / stock.entry_price) * 100).toFixed(2)}%
-              </p>
-            </div>
-          </div>
-
-          {/* Evidence Chart */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Technical Evidence Chart
-            </h3>
-            <StockEvidenceChart data={chartData} />
-          </div>
-
-          {/* Signals */}
-          {signals.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Signals</h3>
-              <div className="flex flex-wrap gap-2">
-                {signals.map((signal, index) => (
-                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    {signal}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
