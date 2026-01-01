@@ -345,7 +345,7 @@ class ScreenerService {
   /**
    * Detect momentum for intraday trading - Enhanced with confluence
    */
-  private detectMomentum(symbol: string, data: OHLCV[]): IntradaySignal | null {
+  private detectMomentum(symbol: string, data: OHLCV[]): Omit<IntradaySignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     if (data.length < 20) return null;
 
     const indicators = TechnicalAnalysis.calculateAllIndicators(data);
@@ -385,7 +385,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: Math.min(99, strength),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.close - (atr * 1.5),
         target: current.close + (atr * 3),
         timeframe: '5m',
@@ -405,7 +405,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: Math.min(99, strength),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.close + (atr * 1.5),
         target: current.close - (atr * 3),
         timeframe: '5m',
@@ -419,7 +419,7 @@ class ScreenerService {
   /**
    * Detect breakout for intraday trading
    */
-  private detectBreakout(symbol: string, data: OHLCV[]): IntradaySignal | null {
+  private detectBreakout(symbol: string, data: OHLCV[]): Omit<IntradaySignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     if (data.length < 20) return null;
 
     const current = data[data.length - 1];
@@ -440,7 +440,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: Math.min(90, 65 + (indicators.volumeProfile.volumeRatio * 10)),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: high20 - (range * 0.2),
         target: current.close + (range * 0.8),
         timeframe: '15m',
@@ -456,7 +456,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: Math.min(90, 65 + (indicators.volumeProfile.volumeRatio * 10)),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: low20 + (range * 0.2),
         target: current.close - (range * 0.8),
         timeframe: '15m',
@@ -470,7 +470,7 @@ class ScreenerService {
   /**
    * Detect gap opportunities
    */
-  private detectGap(symbol: string, data: OHLCV[]): IntradaySignal | null {
+  private detectGap(symbol: string, data: OHLCV[]): Omit<IntradaySignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     if (data.length < 2) return null;
 
     const current = data[data.length - 1];
@@ -485,7 +485,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: 75,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.open,
         target: current.close + (current.close - current.open) * 2,
         timeframe: '5m',
@@ -499,7 +499,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: 75,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.open,
         target: current.close - (current.open - current.close) * 2,
         timeframe: '5m',
@@ -513,7 +513,7 @@ class ScreenerService {
   /**
    * Detect trend for swing trading
    */
-  private detectTrend(symbol: string, data: OHLCV[], indicators: any): SwingTradeSignal | null {
+  private detectTrend(symbol: string, data: OHLCV[], indicators: any): Omit<SwingTradeSignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     if (!indicators.ema || !indicators.sma || !indicators.adx) return null;
 
     const current = data[data.length - 1];
@@ -528,7 +528,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: Math.min(95, 70 + indicators.adx),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: ema50 || current.close * 0.95,
         target: current.close * 1.15,
         timeframe: '1D',
@@ -545,7 +545,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: Math.min(95, 70 + indicators.adx),
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: ema50 || current.close * 1.05,
         target: current.close * 0.85,
         timeframe: '1D',
@@ -560,7 +560,7 @@ class ScreenerService {
   /**
    * Detect support/resistance levels
    */
-  private detectSupportResistance(symbol: string, data: OHLCV[], indicators: any): SwingTradeSignal | null {
+  private detectSupportResistance(symbol: string, data: OHLCV[], indicators: any): Omit<SwingTradeSignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     if (!indicators.rsi || !indicators.bollingerBands) return null;
 
     const current = data[data.length - 1];
@@ -573,7 +573,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: 80,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: lower * 0.97,
         target: middle,
         timeframe: '1D',
@@ -589,7 +589,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: 80,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: upper * 1.03,
         target: middle,
         timeframe: '1D',
@@ -604,7 +604,7 @@ class ScreenerService {
   /**
    * Detect pattern breakouts
    */
-  private detectPatternBreakout(symbol: string, data: OHLCV[], indicators: any): SwingTradeSignal | null {
+  private detectPatternBreakout(symbol: string, data: OHLCV[], indicators: any): Omit<SwingTradeSignal, 'exchange' | 'current_price' | 'riskReward' | 'indicators'> | null {
     const patterns = TechnicalAnalysis.detectCandlestickPatterns(data);
 
     if (patterns.includes('BULLISH_ENGULFING') || patterns.includes('MORNING_STAR') || patterns.includes('HAMMER')) {
@@ -616,7 +616,7 @@ class ScreenerService {
         symbol,
         signal: 'BUY',
         strength: 75,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.close - (atr * 2),
         target: current.close + (atr * 3),
         timeframe: '1D',
@@ -634,7 +634,7 @@ class ScreenerService {
         symbol,
         signal: 'SELL',
         strength: 75,
-        entry: current.close,
+        entryPrice: current.close,
         stopLoss: current.close + (atr * 2),
         target: current.close - (atr * 3),
         timeframe: '1D',
