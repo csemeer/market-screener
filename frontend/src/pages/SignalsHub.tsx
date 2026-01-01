@@ -74,6 +74,7 @@ export default function SignalsHub() {
   const [liveScanSignals, setLiveScanSignals] = useState<LiveScanSignal[]>([]);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['NSE', 'NYSE']);
   const [signalFilter, setSignalFilter] = useState<string>('all');
+  const [selectedLiveSignal, setSelectedLiveSignal] = useState<LiveScanSignal | null>(null);
 
   // Auto Scan State
   const [autoScanLoading, setAutoScanLoading] = useState(false);
@@ -454,7 +455,7 @@ export default function SignalsHub() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredLiveScanSignals.map((signal, index) => (
-                      <LiveSignalCard key={index} signal={signal} />
+                      <LiveSignalCard key={index} signal={signal} onClick={() => setSelectedLiveSignal(signal)} />
                     ))}
                   </div>
                 </div>
@@ -464,11 +465,19 @@ export default function SignalsHub() {
         </div>
       </div>
 
-      {/* Stock Evidence Modal */}
+      {/* Auto Scan Stock Evidence Modal */}
       {selectedStock && (
         <StockEvidenceModal
           stock={selectedStock}
           onClose={() => setSelectedStock(null)}
+        />
+      )}
+
+      {/* Live Scan Signal Modal */}
+      {selectedLiveSignal && (
+        <LiveSignalModal
+          signal={selectedLiveSignal}
+          onClose={() => setSelectedLiveSignal(null)}
         />
       )}
     </div>
@@ -604,50 +613,15 @@ function AutoScanCard({ stock, onClick }: { stock: AutoScanResult; onClick: () =
 }
 
 // Live Signal Card Component
-function LiveSignalCard({ signal }: { signal: LiveScanSignal }) {
-  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
+function LiveSignalCard({ signal, onClick }: { signal: LiveScanSignal; onClick: () => void }) {
   const profitPct = ((signal.target - signal.entryPrice) / signal.entryPrice * 100).toFixed(2);
   const lossPct = ((signal.stopLoss - signal.entryPrice) / signal.entryPrice * 100).toFixed(2);
 
-  const addToWatchlist = async () => {
-    try {
-      setAddingToWatchlist(true);
-
-      // Get or create "Live Scan Signals" watchlist
-      const watchlistsRes = await watchlistAPI.getWatchlists();
-      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Live Scan Signals');
-
-      if (!watchlist) {
-        const createRes = await watchlistAPI.createWatchlist({
-          name: 'Live Scan Signals',
-          description: 'Stocks from Live Scan',
-        });
-        watchlist = createRes.data.watchlist;
-      }
-
-      // Add stock directly to watchlist with signal data
-      await watchlistAPI.addStockToWatchlist(watchlist.id, {
-        symbol: signal.symbol,
-        exchange: signal.exchange,
-        entry_price: signal.entryPrice,
-        stop_loss: signal.stopLoss,
-        target: signal.target,
-        source: 'MANUAL',
-        notes: `${signal.type} signal - Strength: ${signal.strength}`,
-      });
-
-      toast.success(`✅ ${signal.symbol} added to watchlist!`);
-    } catch (error: any) {
-      console.error('Error adding to watchlist:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
-      toast.error(`❌ ${errorMessage}`);
-    } finally {
-      setAddingToWatchlist(false);
-    }
-  };
-
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+    >
       <div className="flex justify-between items-start mb-3">
         <div>
           <h4 className="font-bold text-lg text-gray-900">{signal.symbol}</h4>
@@ -681,14 +655,207 @@ function LiveSignalCard({ signal }: { signal: LiveScanSignal }) {
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">R:R {signal.riskReward.toFixed(1)}:1</span>
-        <button
-          onClick={addToWatchlist}
-          disabled={addingToWatchlist}
-          className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <ListPlus className="h-3 w-3" />
-          <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
-        </button>
+        <Eye className="h-4 w-4 text-gray-400" />
+      </div>
+    </div>
+  );
+}
+
+// Live Scan Signal Modal Component
+function LiveSignalModal({ signal, onClose }: { signal: LiveScanSignal; onClose: () => void }) {
+  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
+  const [stockAnalysis, setStockAnalysis] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStockAnalysis();
+  }, [signal]);
+
+  const loadStockAnalysis = async () => {
+    try {
+      setLoading(true);
+      const res = await watchlistAPI.analyzeStock(signal.symbol, signal.exchange);
+      setStockAnalysis(res.data);
+    } catch (error) {
+      console.error('Error loading stock analysis:', error);
+      toast.error('Failed to load stock analysis');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addToWatchlist = async () => {
+    try {
+      setAddingToWatchlist(true);
+
+      const watchlistsRes = await watchlistAPI.getWatchlists();
+      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Live Scan Signals');
+
+      if (!watchlist) {
+        const createRes = await watchlistAPI.createWatchlist({
+          name: 'Live Scan Signals',
+          description: 'Stocks from Live Scan',
+        });
+        watchlist = createRes.data.watchlist;
+      }
+
+      await watchlistAPI.addStockToWatchlist(watchlist.id, {
+        symbol: signal.symbol,
+        exchange: signal.exchange,
+        entry_price: signal.entryPrice,
+        stop_loss: signal.stopLoss,
+        target: signal.target,
+        source: 'MANUAL',
+        notes: `${signal.type} signal - Strength: ${signal.strength}`,
+      });
+
+      toast.success(`✅ ${signal.symbol} added to watchlist!`);
+    } catch (error: any) {
+      console.error('Error adding to watchlist:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
+      toast.error(`❌ ${errorMessage}`);
+    } finally {
+      setAddingToWatchlist(false);
+    }
+  };
+
+  const getCurrency = () => {
+    return ['NYSE', 'NASDAQ'].includes(signal.exchange) ? 'USD' : 'INR';
+  };
+
+  const getCurrencySymbol = () => {
+    return getCurrency() === 'USD' ? '$' : '₹';
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white sm:rounded-lg shadow-2xl w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 z-10 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{signal.symbol}</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">{signal.company_name || signal.exchange}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
+            >
+              <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-4">
+            <span className={`px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold ${
+              signal.signal === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {signal.signal}
+            </span>
+            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold bg-purple-100 text-purple-800">
+              Strength: {signal.strength}
+            </span>
+            <span className="px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 truncate max-w-full">
+              {signal.type}
+            </span>
+            <button
+              onClick={addToWatchlist}
+              disabled={addingToWatchlist}
+              className="ml-auto flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium shadow-md"
+            >
+              <ListPlus className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Price Levels */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+                  <p className="text-xs sm:text-sm text-blue-700 font-medium mb-1">Entry Price</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-900">{getCurrencySymbol()}{signal.entryPrice.toFixed(2)}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
+                  <p className="text-xs sm:text-sm text-green-700 font-medium mb-1">Target</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-900">{getCurrencySymbol()}{signal.target.toFixed(2)}</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    +{(((signal.target - signal.entryPrice) / signal.entryPrice) * 100).toFixed(2)}%
+                  </p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
+                  <p className="text-xs sm:text-sm text-red-700 font-medium mb-1">Stop Loss</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-900">{getCurrencySymbol()}{signal.stopLoss.toFixed(2)}</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    {(((signal.stopLoss - signal.entryPrice) / signal.entryPrice) * 100).toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Evidence Chart */}
+              {stockAnalysis?.chartData && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Technical Evidence Chart
+                  </h3>
+                  <StockEvidenceChart data={{ ...stockAnalysis.chartData, currency: getCurrency() }} />
+                </div>
+              )}
+
+              {/* Technical Indicators */}
+              {stockAnalysis?.indicators && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Indicators</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {stockAnalysis.indicators.rsi && (
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-xs text-gray-600">RSI</p>
+                        <p className="text-lg font-bold text-gray-900">{stockAnalysis.indicators.rsi.toFixed(1)}</p>
+                      </div>
+                    )}
+                    {stockAnalysis.indicators.adx && (
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-xs text-gray-600">ADX</p>
+                        <p className="text-lg font-bold text-gray-900">{stockAnalysis.indicators.adx.toFixed(1)}</p>
+                      </div>
+                    )}
+                    {stockAnalysis.confluenceScore && (
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-xs text-gray-600">Confluence</p>
+                        <p className="text-lg font-bold text-purple-600">{stockAnalysis.confluenceScore.toFixed(0)}%</p>
+                      </div>
+                    )}
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-xs text-gray-600">R:R Ratio</p>
+                      <p className="text-lg font-bold text-gray-900">{signal.riskReward.toFixed(1)}:1</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Signals */}
+              {stockAnalysis?.signals && stockAnalysis.signals.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Signals</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {stockAnalysis.signals.map((sig: string, index: number) => (
+                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {sig}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
