@@ -25,7 +25,9 @@ router.get('/scan-results', async (req: Request, res: Response) => {
     for (const [strategy, stocks] of results.entries()) {
       if (strategyType) {
         // Check if strategy matches the requested type
-        const matchesType = stocks.length > 0 && stocks[0].strategyType === strategyType;
+        // Handle both camelCase (TypeScript) and snake_case (database) field names
+        const matchesType = stocks.length > 0 &&
+          ((stocks[0] as any).strategy_type === strategyType || stocks[0].strategyType === strategyType);
         if (matchesType) {
           filteredResults[strategy] = stocks;
         }

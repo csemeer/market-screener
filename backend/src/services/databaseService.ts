@@ -826,6 +826,37 @@ class DatabaseService {
         loggerService.info('Migration completed: Phase 4A - Unified Watchlist source tracking added');
       }
 
+      // Migration 3: Fix duplicate scan results (keep only most recent for each symbol+strategy combo)
+      const duplicateCountQuery = this.db.prepare(`
+        SELECT COUNT(*) as total FROM (
+          SELECT symbol, strategy
+          FROM scan_results
+          WHERE status = 'ACTIVE'
+          GROUP BY symbol, strategy
+          HAVING COUNT(*) > 1
+        )
+      `);
+      const duplicateCheck = duplicateCountQuery.get() as any;
+
+      if (duplicateCheck && duplicateCheck.total > 0) {
+        loggerService.info('Running migration: Removing duplicate scan results');
+
+        // Keep only the most recent scan result for each symbol+strategy combination
+        this.db.exec(`
+          DELETE FROM scan_results
+          WHERE id NOT IN (
+            SELECT MAX(id)
+            FROM scan_results
+            WHERE status = 'ACTIVE'
+            GROUP BY symbol, strategy
+          )
+          AND status = 'ACTIVE'
+        `);
+
+        const deletedResult = this.db.prepare('SELECT changes() as changes').get() as any;
+        loggerService.info(`Migration completed: Removed ${deletedResult?.changes || 0} duplicate scan results`);
+      }
+
       loggerService.info('Database migrations completed successfully');
     } catch (error) {
       loggerService.error('Failed to run database migrations', { error });
@@ -835,9 +866,42 @@ class DatabaseService {
 
   /**
    * Insert a new scan result
+   * Prevents duplicates by checking if the same symbol+strategy was scanned recently (within 1 hour)
    */
   insertScanResult(result: ScanResult): number {
     if (!this.db) throw new Error('Database not initialized');
+
+    // Check for recent duplicates (within 1 hour for same symbol+strategy)
+    const existingCheck = this.db.prepare(`
+      SELECT id FROM scan_results
+      WHERE symbol = ? AND strategy = ? AND status = 'ACTIVE'
+      AND timestamp > datetime('now', '-1 hour')
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `);
+
+    const existing = existingCheck.get(result.symbol, result.strategy) as any;
+
+    if (existing) {
+      // Update existing result instead of inserting duplicate
+      const updateStmt = this.db.prepare(`
+        UPDATE scan_results
+        SET current_price = ?, confidence_score = ?, signals = ?,
+            technical_data = ?, evidence_chart_data = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+
+      updateStmt.run(
+        result.currentPrice,
+        result.confidenceScore,
+        result.signals,
+        result.technicalData,
+        result.evidenceChartData,
+        existing.id
+      );
+
+      return existing.id;
+    }
 
     const stmt = this.db.prepare(`
       INSERT INTO scan_results (
