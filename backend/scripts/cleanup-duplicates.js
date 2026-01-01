@@ -36,9 +36,9 @@ duplicates.forEach(dup => {
 
 console.log('\n🗑️  Removing duplicates (keeping most recent)...\n');
 
-// Remove duplicates - keep only the most recent (highest ID)
-const deleteStmt = db.prepare(`
-  DELETE FROM scan_results
+// Step 1: Get IDs of duplicates to delete
+const duplicateIdsQuery = db.prepare(`
+  SELECT id FROM scan_results
   WHERE id NOT IN (
     SELECT MAX(id)
     FROM scan_results
@@ -48,7 +48,34 @@ const deleteStmt = db.prepare(`
   AND status = 'ACTIVE'
 `);
 
-const result = deleteStmt.run();
+const duplicateIds = duplicateIdsQuery.all().map(row => row.id);
+
+if (duplicateIds.length === 0) {
+  console.log('✅ No duplicates to remove');
+  db.close();
+  process.exit(0);
+}
+
+console.log(`Found ${duplicateIds.length} duplicate entries to remove\n`);
+
+// Step 2: Update foreign key references in custom_watchlist_stocks
+// Set source_id to NULL for watchlist entries pointing to duplicates we're about to delete
+const updateWatchlistStmt = db.prepare(`
+  UPDATE custom_watchlist_stocks
+  SET source_id = NULL, source_metadata = NULL
+  WHERE source_id IN (${duplicateIds.map(() => '?').join(',')})
+`);
+
+const updateResult = updateWatchlistStmt.run(...duplicateIds);
+console.log(`Updated ${updateResult.changes} watchlist entries (cleared source_id references)`);
+
+// Step 3: Now safe to delete duplicates
+const deleteStmt = db.prepare(`
+  DELETE FROM scan_results
+  WHERE id IN (${duplicateIds.map(() => '?').join(',')})
+`);
+
+const result = deleteStmt.run(...duplicateIds);
 const deletedCount = result.changes;
 
 console.log(`✅ Removed ${deletedCount} duplicate entries\n`);

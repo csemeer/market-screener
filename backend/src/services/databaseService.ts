@@ -841,9 +841,9 @@ class DatabaseService {
       if (duplicateCheck && duplicateCheck.total > 0) {
         loggerService.info('Running migration: Removing duplicate scan results');
 
-        // Keep only the most recent scan result for each symbol+strategy combination
-        this.db.exec(`
-          DELETE FROM scan_results
+        // Step 1: Get IDs of duplicates to delete
+        const duplicateIdsQuery = this.db.prepare(`
+          SELECT id FROM scan_results
           WHERE id NOT IN (
             SELECT MAX(id)
             FROM scan_results
@@ -853,8 +853,26 @@ class DatabaseService {
           AND status = 'ACTIVE'
         `);
 
-        const deletedResult = this.db.prepare('SELECT changes() as changes').get() as any;
-        loggerService.info(`Migration completed: Removed ${deletedResult?.changes || 0} duplicate scan results`);
+        const duplicateIds = duplicateIdsQuery.all().map((row: any) => row.id);
+
+        if (duplicateIds.length > 0) {
+          // Step 2: Update foreign key references in custom_watchlist_stocks first
+          const placeholders = duplicateIds.map(() => '?').join(',');
+          const updateStmt = this.db.prepare(`
+            UPDATE custom_watchlist_stocks
+            SET source_id = NULL, source_metadata = NULL
+            WHERE source_id IN (${placeholders})
+          `);
+          updateStmt.run(...duplicateIds);
+
+          // Step 3: Now safe to delete duplicates
+          const deleteStmt = this.db.prepare(`
+            DELETE FROM scan_results WHERE id IN (${placeholders})
+          `);
+          const deleteResult = deleteStmt.run(...duplicateIds);
+
+          loggerService.info(`Migration completed: Removed ${deleteResult.changes} duplicate scan results`);
+        }
       }
 
       loggerService.info('Database migrations completed successfully');
