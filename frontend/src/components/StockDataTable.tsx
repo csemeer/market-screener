@@ -1,16 +1,17 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, BarChart2, ListPlus } from 'lucide-react';
 
 interface StockDataTableProps {
   data: any[];
   onExport?: () => void;
+  onAddToWatchlist?: (stock: any) => void;
 }
 
 type SortField = 'symbol' | 'price' | 'changePercent' | 'score' | 'combinedScore' | 'confluenceScore' | 'fundamentalScore';
 type SortDirection = 'asc' | 'desc' | null;
 
-export default function StockDataTable({ data, onExport }: StockDataTableProps) {
+export default function StockDataTable({ data, onExport, onAddToWatchlist }: StockDataTableProps) {
   const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('combinedScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -319,13 +320,24 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
                     </div>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
-                      className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-medium"
-                    >
-                      <BarChart2 className="w-3.5 h-3.5 mr-1" />
-                      View Analysis
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
+                        className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-medium"
+                      >
+                        <BarChart2 className="w-3.5 h-3.5 mr-1" />
+                        View
+                      </button>
+                      {onAddToWatchlist && (
+                        <button
+                          onClick={() => onAddToWatchlist(stock)}
+                          className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                        >
+                          <ListPlus className="w-3.5 h-3.5 mr-1" />
+                          Add
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -480,14 +492,25 @@ export default function StockDataTable({ data, onExport }: StockDataTableProps) 
               )}
             </div>
 
-            {/* View Analysis Button */}
-            <button
-              onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
-              className="w-full mt-3 flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
-            >
-              <BarChart2 className="w-4 h-4 mr-2" />
-              View Complete Analysis
-            </button>
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
+                className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+              >
+                <BarChart2 className="w-4 h-4 mr-2" />
+                View Complete Analysis
+              </button>
+              {onAddToWatchlist && (
+                <button
+                  onClick={() => onAddToWatchlist(stock)}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <ListPlus className="w-4 h-4 mr-2" />
+                  Add to Watchlist
+                </button>
+              )}
+            </div>
           </div>
         ))}
 

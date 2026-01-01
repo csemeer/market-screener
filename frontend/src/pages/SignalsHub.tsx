@@ -605,8 +605,46 @@ function AutoScanCard({ stock, onClick }: { stock: AutoScanResult; onClick: () =
 
 // Live Signal Card Component
 function LiveSignalCard({ signal }: { signal: LiveScanSignal }) {
+  const [addingToWatchlist, setAddingToWatchlist] = useState(false);
   const profitPct = ((signal.target - signal.entryPrice) / signal.entryPrice * 100).toFixed(2);
   const lossPct = ((signal.stopLoss - signal.entryPrice) / signal.entryPrice * 100).toFixed(2);
+
+  const addToWatchlist = async () => {
+    try {
+      setAddingToWatchlist(true);
+
+      // Get or create "Live Scan Signals" watchlist
+      const watchlistsRes = await watchlistAPI.getWatchlists();
+      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Live Scan Signals');
+
+      if (!watchlist) {
+        const createRes = await watchlistAPI.createWatchlist({
+          name: 'Live Scan Signals',
+          description: 'Stocks from Live Scan',
+        });
+        watchlist = createRes.data.watchlist;
+      }
+
+      // Add stock directly to watchlist with signal data
+      await watchlistAPI.addStockToWatchlist(watchlist.id, {
+        symbol: signal.symbol,
+        exchange: signal.exchange,
+        entry_price: signal.entryPrice,
+        stop_loss: signal.stopLoss,
+        target: signal.target,
+        source: 'MANUAL',
+        notes: `${signal.type} signal - Strength: ${signal.strength}`,
+      });
+
+      toast.success(`✅ ${signal.symbol} added to watchlist!`);
+    } catch (error: any) {
+      console.error('Error adding to watchlist:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
+      toast.error(`❌ ${errorMessage}`);
+    } finally {
+      setAddingToWatchlist(false);
+    }
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -643,7 +681,14 @@ function LiveSignalCard({ signal }: { signal: LiveScanSignal }) {
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">R:R {signal.riskReward.toFixed(1)}:1</span>
-        <span className="text-xs text-gray-500">${signal.current_price.toFixed(2)}</span>
+        <button
+          onClick={addToWatchlist}
+          disabled={addingToWatchlist}
+          className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <ListPlus className="h-3 w-3" />
+          <span>{addingToWatchlist ? 'Adding...' : 'Add to Watchlist'}</span>
+        </button>
       </div>
     </div>
   );

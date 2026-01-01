@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree, ListPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { screenerAPI, ScreenerCriteria, indexAPI } from '../api/client';
+import { screenerAPI, ScreenerCriteria, indexAPI, watchlistAPI } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
 import StockDataTable from '../components/StockDataTable';
 import { useSearchParams } from 'react-router-dom';
@@ -110,6 +110,39 @@ export default function Screener() {
     // Clear the preset URL parameter after applying
     if (searchParams.has('preset')) {
       setSearchParams({});
+    }
+  };
+
+  const addStockToWatchlist = async (stock: any) => {
+    try {
+      // Get or create "Screener Results" watchlist
+      const watchlistsRes = await watchlistAPI.getWatchlists();
+      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Screener Results');
+
+      if (!watchlist) {
+        const createRes = await watchlistAPI.createWatchlist({
+          name: 'Screener Results',
+          description: 'Stocks from Custom Screener',
+        });
+        watchlist = createRes.data.watchlist;
+      }
+
+      // Add stock to watchlist
+      await watchlistAPI.addStockToWatchlist(watchlist.id, {
+        symbol: stock.symbol,
+        exchange: stock.exchange,
+        entry_price: stock.price,
+        stop_loss: stock.riskReward?.stopLoss || stock.price * 0.95,
+        target: stock.riskReward?.target || stock.price * 1.10,
+        source: 'SCREENER',
+        notes: `Score: ${(stock.combinedScore || stock.score)}/100${stock.recommendation ? ` | ${stock.recommendation}` : ''}`,
+      });
+
+      toast.success(`✅ ${stock.symbol} added to watchlist!`);
+    } catch (error: any) {
+      console.error('Error adding to watchlist:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
+      toast.error(`❌ ${errorMessage}`);
     }
   };
 
@@ -552,7 +585,7 @@ export default function Screener() {
               </div>
             </div>
           ) : viewMode === 'table' ? (
-            <StockDataTable data={results} />
+            <StockDataTable data={results} onAddToWatchlist={addStockToWatchlist} />
           ) : (
             <div className="card">
               <div className="space-y-4">
@@ -705,7 +738,7 @@ export default function Screener() {
 
                     {/* Signals */}
                     {stock.signals && stock.signals.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mb-3">
                         {stock.signals.slice(0, 3).map((signal: string, i: number) => (
                           <span key={i} className="badge badge-success text-xs">
                             {signal}
@@ -713,6 +746,17 @@ export default function Screener() {
                         ))}
                       </div>
                     )}
+
+                    {/* Add to Watchlist Button */}
+                    <div className="pt-3 border-t border-gray-200">
+                      <button
+                        onClick={() => addStockToWatchlist(stock)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <ListPlus className="h-4 w-4" />
+                        <span>Add to Watchlist</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
