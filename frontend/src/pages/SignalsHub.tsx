@@ -639,20 +639,26 @@ function StockEvidenceModal({ stock, onClose }: { stock: AutoScanResult; onClose
   const addToWatchlist = async () => {
     try {
       setAddingToWatchlist(true);
-      await axios.post(`${API_BASE_URL}/api/watchlist/custom`, {
-        symbol: stock.symbol,
-        exchange: stock.exchange,
-        company_name: stock.company_name,
-        entry_price: stock.entry_price,
-        target_price: stock.target,
-        stop_loss: stock.stop_loss,
-        setup_type: stock.strategy_type,
-        strategy: stock.strategy,
-        timeframe: stock.strategy_type,
-        notes: `Added from Signals Hub. Confidence: ${stock.confidence_score}/100, R:R ${stock.risk_reward_ratio}:1`,
-      });
+
+      // Step 1: Get or create "Auto-Scan Signals" watchlist
+      const watchlistsRes = await axios.get(`${API_BASE_URL}/api/watchlist`);
+      let watchlist = watchlistsRes.data.find((w: any) => w.name === 'Auto-Scan Signals (Legacy)');
+
+      // If no auto-scan watchlist exists, create one
+      if (!watchlist) {
+        const createRes = await axios.post(`${API_BASE_URL}/api/watchlist`, {
+          name: 'Auto-Scan Signals (Legacy)',
+          description: 'Automatically generated from Signals Hub',
+        });
+        watchlist = createRes.data.watchlist;
+      }
+
+      // Step 2: Add stock to the watchlist using the new unified endpoint
+      await axios.post(`${API_BASE_URL}/api/watchlist/${watchlist.id}/stocks/from-scan/${stock.id}`, {});
+
       toast.success(`✅ ${stock.symbol} added to watchlist!`);
     } catch (error: any) {
+      console.error('Error adding to watchlist:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to add to watchlist';
       toast.error(`❌ ${errorMessage}`);
     } finally {
