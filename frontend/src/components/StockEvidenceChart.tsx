@@ -27,7 +27,7 @@ interface ChartData {
     macd?: any;
     bollingerBands?: any;
   };
-  levels: {
+  levels?: {
     entry: number;
     stopLoss: number;
     target: number;
@@ -145,47 +145,50 @@ export default function StockEvidenceChart({ data }: Props) {
     // Add entry/target/stop lines
     const lastTime = candleData[candleData.length - 1].time;
 
-    // Entry level
-    const entryLine = chart.addSeries(LineSeries, {
-      color: '#2196F3',
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      title: 'Entry',
-      priceLineVisible: true,
-      lastValueVisible: true,
-    });
-    entryLine.setData([
-      { time: candleData[0].time as Time, value: data.levels.entry },
-      { time: lastTime as Time, value: data.levels.entry },
-    ]);
+    // Add price levels if available
+    if (data.levels) {
+      // Entry level
+      const entryLine = chart.addSeries(LineSeries, {
+        color: '#2196F3',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        title: 'Entry',
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      entryLine.setData([
+        { time: candleData[0].time as Time, value: data.levels.entry },
+        { time: lastTime as Time, value: data.levels.entry },
+      ]);
 
-    // Target level
-    const targetLine = chart.addSeries(LineSeries, {
-      color: '#4CAF50',
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      title: 'Target',
-      priceLineVisible: true,
-      lastValueVisible: true,
-    });
-    targetLine.setData([
-      { time: candleData[0].time as Time, value: data.levels.target },
-      { time: lastTime as Time, value: data.levels.target },
-    ]);
+      // Target level
+      const targetLine = chart.addSeries(LineSeries, {
+        color: '#4CAF50',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        title: 'Target',
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      targetLine.setData([
+        { time: candleData[0].time as Time, value: data.levels.target },
+        { time: lastTime as Time, value: data.levels.target },
+      ]);
 
-    // Stop Loss level
-    const stopLine = chart.addSeries(LineSeries, {
-      color: '#F44336',
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      title: 'Stop Loss',
-      priceLineVisible: true,
-      lastValueVisible: true,
-    });
-    stopLine.setData([
-      { time: candleData[0].time as Time, value: data.levels.stopLoss },
-      { time: lastTime as Time, value: data.levels.stopLoss },
-    ]);
+      // Stop Loss level
+      const stopLine = chart.addSeries(LineSeries, {
+        color: '#F44336',
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        title: 'Stop Loss',
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      stopLine.setData([
+        { time: candleData[0].time as Time, value: data.levels.stopLoss },
+        { time: lastTime as Time, value: data.levels.stopLoss },
+      ]);
+    }
 
     // Fit content
     chart.timeScale().fitContent();
@@ -224,18 +227,22 @@ export default function StockEvidenceChart({ data }: Props) {
 
       {/* Chart Legend */}
       <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-blue-600"></div>
-          <span className="text-gray-700">Entry: {getCurrencySymbol(data.currency)}{data.levels.entry.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-green-600"></div>
-          <span className="text-gray-700">Target: {getCurrencySymbol(data.currency)}{data.levels.target.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-red-600"></div>
-          <span className="text-gray-700">Stop Loss: {getCurrencySymbol(data.currency)}{data.levels.stopLoss.toFixed(2)}</span>
-        </div>
+        {data.levels && (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-blue-600"></div>
+              <span className="text-gray-700">Entry: {getCurrencySymbol(data.currency)}{data.levels.entry.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-green-600"></div>
+              <span className="text-gray-700">Target: {getCurrencySymbol(data.currency)}{data.levels.target.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-red-600"></div>
+              <span className="text-gray-700">Stop Loss: {getCurrencySymbol(data.currency)}{data.levels.stopLoss.toFixed(2)}</span>
+            </div>
+          </>
+        )}
         {data.indicators.ema20 && (
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 bg-blue-500"></div>

@@ -702,9 +702,9 @@ function LiveSignalModal({ signal, onClose }: { signal: LiveScanSignal; onClose:
       await watchlistAPI.addStockToWatchlist(watchlist.id, {
         symbol: signal.symbol,
         exchange: signal.exchange,
-        entry_price: signal.entryPrice,
-        stop_loss: signal.stopLoss,
-        target: signal.target,
+        entryPrice: signal.entryPrice,
+        stopLoss: signal.stopLoss,
+        target1: signal.target,
         source: 'MANUAL',
         notes: `${signal.type} signal - Strength: ${signal.strength}`,
       });

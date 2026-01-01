@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, BarChart2, ListPlus } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ListPlus } from 'lucide-react';
 
 interface StockDataTableProps {
   data: any[];
@@ -13,7 +12,6 @@ type SortField = 'symbol' | 'price' | 'changePercent' | 'score' | 'combinedScore
 type SortDirection = 'asc' | 'desc' | null;
 
 export default function StockDataTable({ data, onExport, onAddToWatchlist, onStockClick }: StockDataTableProps) {
-  const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('combinedScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);

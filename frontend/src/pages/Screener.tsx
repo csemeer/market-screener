@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree, ListPlus, XCircle, Eye, BarChart3, RefreshCw } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, LayoutGrid, Table, ListTree, ListPlus, XCircle, Eye, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { screenerAPI, ScreenerCriteria, indexAPI, watchlistAPI } from '../api/client';
 import CSVUploadDownload from '../components/CSVUploadDownload';
@@ -133,9 +133,9 @@ export default function Screener() {
       await watchlistAPI.addStockToWatchlist(watchlist.id, {
         symbol: stock.symbol,
         exchange: stock.exchange,
-        entry_price: stock.price,
-        stop_loss: stock.riskReward?.stopLoss || stock.price * 0.95,
-        target: stock.riskReward?.target || stock.price * 1.10,
+        entryPrice: stock.price,
+        stopLoss: stock.riskReward?.stopLoss || stock.price * 0.95,
+        target1: stock.riskReward?.target || stock.price * 1.10,
         source: 'SCREENER',
         notes: `Score: ${(stock.combinedScore || stock.score)}/100${stock.recommendation ? ` | ${stock.recommendation}` : ''}`,
       });
