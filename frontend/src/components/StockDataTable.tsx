@@ -6,12 +6,13 @@ interface StockDataTableProps {
   data: any[];
   onExport?: () => void;
   onAddToWatchlist?: (stock: any) => void;
+  onStockClick?: (stock: any) => void;
 }
 
 type SortField = 'symbol' | 'price' | 'changePercent' | 'score' | 'combinedScore' | 'confluenceScore' | 'fundamentalScore';
 type SortDirection = 'asc' | 'desc' | null;
 
-export default function StockDataTable({ data, onExport, onAddToWatchlist }: StockDataTableProps) {
+export default function StockDataTable({ data, onExport, onAddToWatchlist, onStockClick }: StockDataTableProps) {
   const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('combinedScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -236,7 +237,11 @@ export default function StockDataTable({ data, onExport, onAddToWatchlist }: Sto
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedData.map((stock, idx) => (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={idx}
+                  onClick={() => onStockClick?.(stock)}
+                  className="hover:bg-blue-50 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-4">
                     <div>
                       <div className="font-bold text-gray-900">{stock.symbol}</div>
@@ -320,24 +325,18 @@ export default function StockDataTable({ data, onExport, onAddToWatchlist }: Sto
                     </div>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
+                    {onAddToWatchlist && (
                       <button
-                        onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
-                        className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToWatchlist(stock);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
                       >
-                        <BarChart2 className="w-3.5 h-3.5 mr-1" />
-                        View
+                        <ListPlus className="w-3.5 h-3.5 mr-1" />
+                        Add
                       </button>
-                      {onAddToWatchlist && (
-                        <button
-                          onClick={() => onAddToWatchlist(stock)}
-                          className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
-                        >
-                          <ListPlus className="w-3.5 h-3.5 mr-1" />
-                          Add
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -403,7 +402,11 @@ export default function StockDataTable({ data, onExport, onAddToWatchlist }: Sto
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {paginatedData.map((stock, idx) => (
-          <div key={idx} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+          <div
+            key={idx}
+            onClick={() => onStockClick?.(stock)}
+            className="bg-white border border-gray-200 rounded-lg p-4 space-y-3 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+          >
             {/* Header */}
             <div className="flex items-start justify-between">
               <div>
@@ -493,24 +496,18 @@ export default function StockDataTable({ data, onExport, onAddToWatchlist }: Sto
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-2">
+            {onAddToWatchlist && (
               <button
-                onClick={() => navigate(`/stock/${stock.exchange}/${stock.symbol}`)}
-                className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToWatchlist(stock);
+                }}
+                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
-                <BarChart2 className="w-4 h-4 mr-2" />
-                View Complete Analysis
+                <ListPlus className="w-4 h-4 mr-2" />
+                Add to Watchlist
               </button>
-              {onAddToWatchlist && (
-                <button
-                  onClick={() => onAddToWatchlist(stock)}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  <ListPlus className="w-4 h-4 mr-2" />
-                  Add to Watchlist
-                </button>
-              )}
-            </div>
+            )}
           </div>
         ))}
 
