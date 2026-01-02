@@ -5,7 +5,8 @@
 
 import { EventEmitter } from 'events';
 import { databaseService } from './databaseService';
-import { BrokerService, createBroker, Position } from './brokerService';
+import { BrokerService, Position } from './brokerService';
+import { createBroker, getBrokerConfigFromDatabase } from './brokerFactory';
 import { loggerService } from './loggerService';
 import {
   ScalperConfig,
@@ -186,13 +187,40 @@ class ScalperManagementService extends EventEmitter {
     }
 
     try {
-      // Create broker connection (paper trading for now)
-      const broker = createBroker('paper');
-      await broker.connect({
-        broker: config.broker,
-        apiKey: '',
-        apiSecret: '',
-      });
+      // Create broker connection from database or paper trading
+      let broker: BrokerService;
+      let brokerConfig: any;
+
+      if (config.accountId && config.broker !== 'paper') {
+        // Load real broker from database (Zerodha/Upstox/IBKR)
+        loggerService.info(`Loading broker account from database`, {
+          scalperId: id,
+          broker: config.broker,
+          accountId: config.accountId,
+        });
+
+        broker = createBroker({
+          broker: config.broker as 'zerodha' | 'upstox' | 'ibkr',
+          accountId: config.accountId,
+        });
+
+        brokerConfig = getBrokerConfigFromDatabase(
+          config.broker as 'zerodha' | 'upstox' | 'ibkr',
+          parseInt(config.accountId)
+        );
+
+        await broker.connect(brokerConfig);
+        loggerService.success(`Connected to ${config.broker} broker`, { scalperId: id });
+      } else {
+        // Paper trading mode
+        loggerService.info(`Starting in paper trading mode`, { scalperId: id });
+        broker = createBroker({ broker: 'paper' });
+        await broker.connect({
+          broker: config.broker,
+          apiKey: '',
+          apiSecret: '',
+        });
+      }
 
       // Load stocks for this scalper
       const stocks = this.getScalpingStocks(id);

@@ -12,6 +12,7 @@ import settingsRoutes from './routes/settingsRoutes';
 import watchlistRoutes from './routes/watchlistRoutes';
 import autoScanRoutes from './routes/autoScanRoutes';
 import scalperRoutes from './routes/scalperRoutes';
+import authRoutes from './routes/authRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
@@ -45,6 +46,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/auto-scan', autoScanRoutes);
 app.use('/api/scalper', scalperRoutes);
+app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

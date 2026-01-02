@@ -1,14 +1,30 @@
-import { useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, X, AlertCircle } from 'lucide-react';
 import { scalperAPI } from '../../api/client';
+import axios from 'axios';
 
 interface ScalperCreateFormProps {
   onSuccess: (scalperId: number) => void;
   onCancel: () => void;
 }
 
+interface BrokerAccount {
+  id: number;
+  name: string;
+  broker: 'zerodha' | 'upstox' | 'ibkr';
+  status: 'connected' | 'disconnected' | 'expired';
+  credentials: {
+    apiKey?: string;
+    apiSecret?: string;
+    accessToken?: string;
+  };
+}
+
 export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreateFormProps) {
   const [loading, setLoading] = useState(false);
+  const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<BrokerAccount | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     broker: 'zerodha' as 'zerodha' | 'upstox' | 'ibkr',
@@ -37,6 +53,42 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
     avoidFirstMinutes: 15,
     avoidLastMinutes: 15,
   });
+
+  // Load broker accounts when broker changes
+  useEffect(() => {
+    const loadBrokerAccounts = async () => {
+      try {
+        setLoadingAccounts(true);
+        const response = await axios.get('http://localhost:3001/api/settings/brokers');
+
+        // Filter accounts by selected broker
+        const accounts = response.data.accounts || [];
+        const filteredAccounts = accounts.filter(
+          (acc: BrokerAccount) => acc.broker === formData.broker
+        );
+
+        setBrokerAccounts(filteredAccounts);
+
+        // Reset selected account when broker changes
+        setSelectedAccount(null);
+        setFormData((prev) => ({ ...prev, accountId: '' }));
+      } catch (error) {
+        console.error('Error loading broker accounts:', error);
+        setBrokerAccounts([]);
+      } finally {
+        setLoadingAccounts(false);
+      }
+    };
+
+    loadBrokerAccounts();
+  }, [formData.broker]);
+
+  const handleAccountSelect = (accountId: string) => {
+    setFormData({ ...formData, accountId });
+
+    const account = brokerAccounts.find((acc) => acc.id.toString() === accountId);
+    setSelectedAccount(account || null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,16 +208,49 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account ID <span className="text-red-500">*</span>
+                Broker Account <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.accountId}
-                onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                placeholder="Your broker account ID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
+              {loadingAccounts ? (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                  Loading accounts...
+                </div>
+              ) : brokerAccounts.length > 0 ? (
+                <select
+                  value={formData.accountId}
+                  onChange={(e) => handleAccountSelect(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select a broker account</option>
+                  {brokerAccounts.map((account) => (
+                    <option key={account.id} value={account.id.toString()}>
+                      {account.name} ({account.status})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-yellow-50 text-yellow-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">
+                    No {formData.broker} accounts found. Please add one in Settings.
+                  </span>
+                </div>
+              )}
+
+              {/* Show selected account details */}
+              {selectedAccount && (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <p className="font-medium text-blue-900">{selectedAccount.name}</p>
+                  <p className="text-blue-700">
+                    Status: <span className="font-medium">{selectedAccount.status}</span>
+                  </p>
+                  {selectedAccount.credentials.apiKey && (
+                    <p className="text-blue-700 text-xs mt-1">
+                      API Key: {selectedAccount.credentials.apiKey.substring(0, 8)}...
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

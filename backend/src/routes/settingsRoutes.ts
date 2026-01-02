@@ -160,20 +160,29 @@ router.get('/brokers', (req, res) => {
     const userId = (req.query.userId as string) || 'default';
     const accounts = databaseService.getBrokerAccounts(userId);
 
-    // Remove sensitive credentials from response
-    const sanitized = accounts.map(acc => ({
-      id: acc.id,
-      userId: acc.userId,
-      broker: acc.broker,
-      accountId: acc.accountId,
-      isActive: acc.isActive,
-      autoTradeEnabled: acc.autoTradeEnabled,
-      createdAt: acc.createdAt,
-      updatedAt: acc.updatedAt,
-      hasCredentials: !!acc.credentials,
-    }));
+    // Return accounts with sanitized credentials (partial info only)
+    const sanitized = accounts.map(acc => {
+      const credentials = acc.credentials ? JSON.parse(acc.credentials) : {};
 
-    res.json(sanitized);
+      return {
+        id: acc.id,
+        name: acc.name || `${acc.broker} Account`,
+        userId: acc.userId,
+        broker: acc.broker,
+        accountId: acc.accountId,
+        status: acc.status || 'disconnected',
+        isActive: acc.isActive,
+        autoTradeEnabled: acc.autoTradeEnabled,
+        createdAt: acc.createdAt,
+        updatedAt: acc.updatedAt,
+        credentials: {
+          apiKey: credentials.apiKey || null,
+          // Don't send apiSecret or accessToken
+        },
+      };
+    });
+
+    res.json({ success: true, accounts: sanitized });
   } catch (error) {
     loggerService.error('Error fetching broker accounts', { error });
     res.status(500).json({
@@ -285,31 +294,36 @@ router.delete('/brokers/:id', (req, res) => {
 });
 
 /**
- * POST /api/settings/brokers/:id/test
+ * GET /api/settings/brokers/:id/test
  * Test broker connection
  */
-router.post('/brokers/:id/test', async (req, res) => {
+router.get('/brokers/:id/test', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const account = databaseService.getBrokerAccountById(id);
 
     if (!account) {
       return res.status(404).json({
+        success: false,
         error: 'Broker account not found',
       });
     }
 
-    // TODO: Implement broker API testing based on broker type
+    // Use broker factory to test connection
+    const { testBrokerConnection } = await import('../services/brokerFactory');
+
     loggerService.info('Testing broker connection', { id, broker: account.broker });
 
-    res.json({
-      success: true,
-      message: 'Broker connection test not yet implemented',
-      broker: account.broker,
-    });
+    const result = await testBrokerConnection(
+      account.broker as 'zerodha' | 'upstox' | 'ibkr' | 'paper',
+      id.toString()
+    );
+
+    res.json(result);
   } catch (error) {
     loggerService.error('Error testing broker connection', { error });
     res.status(500).json({
+      success: false,
       error: error instanceof Error ? error.message : 'Failed to test broker connection',
     });
   }

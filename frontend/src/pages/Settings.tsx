@@ -100,7 +100,7 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/settings/brokers`);
-      setBrokerAccounts(response.data);
+      setBrokerAccounts(response.data.accounts || response.data);
     } catch (error) {
       console.error('Failed to load broker accounts', error);
     } finally {
@@ -157,6 +157,71 @@ const Settings: React.FC = () => {
       toast.error('❌ Failed to update broker settings');
     }
   };
+
+  const connectBrokerOAuth = async (broker: 'zerodha' | 'upstox') => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/auth/${broker}/login`);
+
+      if (response.data.success && response.data.authUrl) {
+        // Open OAuth authorization URL in new window
+        window.open(response.data.authUrl, '_blank', 'width=600,height=700');
+        toast.success(`✅ Opening ${broker} login page...`);
+      } else {
+        toast.error(response.data.error || 'Failed to initiate login');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '❌ Failed to connect to broker');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testBrokerConnection = async (broker: 'zerodha' | 'upstox' | 'ibkr', accountId: string) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/settings/brokers/${accountId}/test`);
+
+      if (response.data.success) {
+        toast.success(`✅ ${response.data.message}`);
+      } else {
+        toast.error(`❌ ${response.data.error || 'Connection failed'}`);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '❌ Failed to test connection');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check for OAuth success/error messages in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const error = urlParams.get('error');
+
+    if (success === 'zerodha_connected') {
+      toast.success('✅ Zerodha connected successfully!');
+      loadBrokerAccounts();
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (success === 'upstox_connected') {
+      toast.success('✅ Upstox connected successfully!');
+      loadBrokerAccounts();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error) {
+      const errorMessages: { [key: string]: string } = {
+        'zerodha_auth_failed': 'Zerodha authentication failed',
+        'upstox_auth_failed': 'Upstox authentication failed',
+        'no_zerodha_account': 'No Zerodha account found. Please add one first.',
+        'no_upstox_account': 'No Upstox account found. Please add one first.',
+        'zerodha_token_failed': 'Failed to get Zerodha access token',
+        'upstox_token_failed': 'Failed to get Upstox access token',
+      };
+      toast.error(`❌ ${errorMessages[error] || error}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const loadTradingParams = async () => {
     try {
@@ -522,31 +587,77 @@ const Settings: React.FC = () => {
                   ) : (
                     brokerAccounts.map(account => (
                       <div key={account.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-gray-900 capitalize">{account.broker}</h3>
-                            <p className="text-sm text-gray-500">Account: {account.accountId}</p>
-                            <p className="text-xs text-gray-400 mt-1">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium text-gray-900 capitalize">{account.broker}</h3>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                account.status === 'connected' ? 'bg-green-100 text-green-800' :
+                                account.status === 'expired' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {account.status || 'disconnected'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500">{account.name || `Account: ${account.accountId}`}</p>
+                            {account.credentials?.apiKey && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                API Key: {account.credentials.apiKey.substring(0, 8)}...
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400">
                               Added: {new Date(account.createdAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <label className="flex items-center space-x-2">
-                              <span className="text-sm text-gray-700">Auto-trade:</span>
-                              <input
-                                type="checkbox"
-                                checked={account.autoTradeEnabled}
-                                onChange={() => toggleBrokerAutoTrade(account.id, account.autoTradeEnabled)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </label>
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => deleteBrokerAccount(account.id)}
-                              className="text-red-600 hover:text-red-800 text-sm"
+                              className="text-red-600 hover:text-red-800 text-sm px-2 py-1"
                             >
                               Delete
                             </button>
                           </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                          {(account.broker === 'zerodha' || account.broker === 'upstox') && (
+                            <>
+                              {account.status !== 'connected' ? (
+                                <button
+                                  onClick={() => connectBrokerOAuth(account.broker as 'zerodha' | 'upstox')}
+                                  disabled={loading}
+                                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                                >
+                                  🔗 Connect
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => testBrokerConnection(account.broker, account.id.toString())}
+                                  disabled={loading}
+                                  className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                                >
+                                  ✓ Test Connection
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {account.broker === 'ibkr' && (
+                            <span className="text-xs text-gray-500 italic">
+                              IBKR: Manual TWS/Gateway connection required
+                            </span>
+                          )}
+
+                          <label className="flex items-center gap-2 ml-auto">
+                            <span className="text-sm text-gray-700">Auto-trade:</span>
+                            <input
+                              type="checkbox"
+                              checked={account.autoTradeEnabled}
+                              onChange={() => toggleBrokerAutoTrade(account.id, account.autoTradeEnabled)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </label>
                         </div>
                       </div>
                     ))
