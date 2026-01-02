@@ -437,3 +437,77 @@ export const settingsAPI = {
     brokerAccountId?: number;
   }) => api.put('/settings/trading-params', params),
 };
+
+// Auto-Scalper API - Auto-trading with real-time execution
+export const scalperAPI = {
+  // Configuration Management
+  getAllConfigs: () =>
+    api.get('/scalper/configs'),
+
+  getConfig: (id: number) =>
+    api.get(`/scalper/${id}`),
+
+  createConfig: (config: {
+    name: string;
+    broker: 'zerodha' | 'upstox' | 'ibkr';
+    accountId: string;
+    autoTrade?: boolean;
+    stockSelection?: {
+      method: 'MANUAL' | 'AUTO_SCREENER';
+      symbols?: string[];
+      maxStocks?: number;
+    };
+    strategy?: {
+      name: string;
+      timeframe?: '1m' | '3m' | '5m';
+      indicators?: any;
+      entryConditions?: any;
+      exitConditions?: any;
+    };
+    riskManagement?: {
+      maxPositionSize?: number;
+      maxPositionsOpen?: number;
+      maxDailyLoss?: number;
+      maxDailyTrades?: number;
+    };
+    tradingHours?: {
+      startTime?: string;
+      endTime?: string;
+      avoidFirstMinutes?: number;
+      avoidLastMinutes?: number;
+    };
+  }) => api.post('/scalper/create', config),
+
+  deleteConfig: (id: number) =>
+    api.delete(`/scalper/${id}`),
+
+  // Control Operations
+  startScalper: (id: number) =>
+    api.post(`/scalper/${id}/start`),
+
+  stopScalper: (id: number) =>
+    api.post(`/scalper/${id}/stop`),
+
+  emergencyStopAll: () =>
+    api.post('/scalper/emergency-stop'),
+
+  // Monitoring
+  getStatus: (id: number) =>
+    api.get(`/scalper/${id}/status`),
+
+  getPositions: (id: number) =>
+    api.get(`/scalper/${id}/positions`),
+
+  getTrades: (id: number, status?: 'OPEN' | 'CLOSED') =>
+    api.get(`/scalper/${id}/trades`, { params: { status } }),
+
+  // Stock Management
+  addStock: (id: number, data: { symbol: string; exchange: string }) =>
+    api.post(`/scalper/${id}/add-stock`, data),
+
+  removeStock: (id: number, stockId: number) =>
+    api.delete(`/scalper/${id}/stocks/${stockId}`),
+
+  getStocks: (id: number) =>
+    api.get(`/scalper/${id}/stocks`),
+};
