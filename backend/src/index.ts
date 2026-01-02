@@ -11,12 +11,14 @@ import eodRoutes from './routes/eodRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import watchlistRoutes from './routes/watchlistRoutes';
 import autoScanRoutes from './routes/autoScanRoutes';
+import scalperRoutes from './routes/scalperRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
 import { notificationService } from './services/notificationService';
 import { autoScanService } from './services/autoScanService';
 import { liveMonitoringService } from './services/liveMonitoringService';
+import { scalperService } from './services/scalperService';
 import { loggingMiddleware, errorLoggingMiddleware } from './middleware/loggingMiddleware';
 
 dotenv.config();
@@ -42,6 +44,7 @@ app.use('/api/eod', eodRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/auto-scan', autoScanRoutes);
+app.use('/api/scalper', scalperRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -112,6 +115,20 @@ app.listen(PORT, async () => {
       stack: errorStack
     });
     console.error('❌ Live Monitoring Service Error Details:', error);
+  }
+
+  // Initialize Scalper Service (auto-scalping system)
+  try {
+    await scalperService.initialize();
+    loggerService.success('Scalper Service initialized successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    loggerService.error('Failed to initialize Scalper Service', {
+      error: errorMessage,
+      stack: errorStack
+    });
+    console.error('❌ Scalper Service Error Details:', error);
   }
 
   loggerService.success('All services initialized successfully');
