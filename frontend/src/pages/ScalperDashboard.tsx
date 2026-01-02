@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, AlertTriangle, Settings, BarChart3, TrendingUp, DollarSign, Activity } from 'lucide-react';
+import { Play, Square, AlertTriangle, Settings, BarChart3, TrendingUp, DollarSign, Activity, Plus } from 'lucide-react';
 import { scalperAPI } from '../api/client';
 import ScalperConfig from '../components/scalper/ScalperConfig';
+import ScalperCreateForm from '../components/scalper/ScalperCreateForm';
 import ScalperPositions from '../components/scalper/ScalperPositions';
 import ScalperChart from '../components/scalper/ScalperChart';
 import ScalperTrades from '../components/scalper/ScalperTrades';
@@ -34,6 +35,7 @@ export default function ScalperDashboard() {
   const [scalperStatus, setScalperStatus] = useState<ScalperStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'config' | 'positions' | 'chart' | 'trades'>('overview');
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     loadScalpers();
@@ -111,6 +113,25 @@ export default function ScalperDashboard() {
     }
   };
 
+  const handleCreateScalper = () => {
+    setIsCreating(true);
+    setActiveTab('config');
+  };
+
+  const handleCreateSuccess = (scalperId: number) => {
+    setIsCreating(false);
+    loadScalpers();
+    setSelectedScalper(scalperId);
+    setActiveTab('overview');
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreating(false);
+    if (scalpers.length > 0) {
+      setActiveTab('overview');
+    }
+  };
+
   const currentScalper = scalpers.find(s => s.id === selectedScalper);
 
   if (loading) {
@@ -147,14 +168,26 @@ export default function ScalperDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         {/* Scalper Selector */}
         <div className="lg:col-span-1 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Active Scalpers</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Active Scalpers</h2>
+            {scalpers.length > 0 && (
+              <button
+                onClick={handleCreateScalper}
+                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Create New Scalper"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           {scalpers.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No scalpers configured</p>
               <button
-                onClick={() => setActiveTab('config')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={handleCreateScalper}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
               >
+                <Plus className="w-4 h-4" />
                 Create Scalper
               </button>
             </div>
@@ -163,9 +196,12 @@ export default function ScalperDashboard() {
               {scalpers.map((scalper) => (
                 <button
                   key={scalper.id}
-                  onClick={() => setSelectedScalper(scalper.id)}
+                  onClick={() => {
+                    setSelectedScalper(scalper.id);
+                    setIsCreating(false);
+                  }}
                   className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
-                    selectedScalper === scalper.id
+                    selectedScalper === scalper.id && !isCreating
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -339,8 +375,19 @@ export default function ScalperDashboard() {
             </div>
           )}
 
-          {activeTab === 'config' && selectedScalper && (
-            <ScalperConfig scalperId={selectedScalper} onUpdate={loadScalpers} />
+          {activeTab === 'config' && (
+            isCreating ? (
+              <ScalperCreateForm
+                onSuccess={handleCreateSuccess}
+                onCancel={handleCreateCancel}
+              />
+            ) : selectedScalper ? (
+              <ScalperConfig scalperId={selectedScalper} onUpdate={loadScalpers} />
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                Select a scalper or create a new one
+              </div>
+            )
           )}
 
           {activeTab === 'positions' && selectedScalper && (
