@@ -217,7 +217,7 @@ export default function ScalperDashboard() {
         </div>
 
         {/* Stats Cards */}
-        {scalperStatus && (
+        {scalperStatus && scalperStatus.dailyStats && (
           <>
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-2">
@@ -237,13 +237,13 @@ export default function ScalperDashboard() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-600">Daily P&L</span>
-                <DollarSign className={`w-5 h-5 ${scalperStatus.dailyStats.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                <DollarSign className={`w-5 h-5 ${(scalperStatus.dailyStats?.pnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`} />
               </div>
-              <div className={`text-2xl font-bold ${scalperStatus.dailyStats.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ₹{scalperStatus.dailyStats.pnl.toFixed(2)}
+              <div className={`text-2xl font-bold ${(scalperStatus.dailyStats?.pnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ₹{(scalperStatus.dailyStats?.pnl ?? 0).toFixed(2)}
               </div>
               <div className="text-sm text-gray-500 mt-1">
-                {scalperStatus.dailyStats.wins}W / {scalperStatus.dailyStats.losses}L
+                {scalperStatus.dailyStats?.wins ?? 0}W / {scalperStatus.dailyStats?.losses ?? 0}L
               </div>
             </div>
 
@@ -253,10 +253,10 @@ export default function ScalperDashboard() {
                 <TrendingUp className="w-5 h-5 text-blue-600" />
               </div>
               <div className="text-2xl font-bold text-gray-900">
-                {scalperStatus.openTrades}
+                {scalperStatus.openTrades ?? 0}
               </div>
               <div className="text-sm text-gray-500 mt-1">
-                {scalperStatus.stocks} stocks tracked
+                {scalperStatus.stocks ?? 0} stocks tracked
               </div>
             </div>
           </>
@@ -345,27 +345,27 @@ export default function ScalperDashboard() {
                 </div>
               </div>
 
-              {scalperStatus && (
+              {scalperStatus && scalperStatus.dailyStats && (
                 <div className="mt-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Today's Performance</h3>
                   <div className="grid grid-cols-4 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-sm text-gray-600">Total Trades</div>
-                      <div className="text-2xl font-bold text-gray-900">{scalperStatus.dailyStats.trades}</div>
+                      <div className="text-2xl font-bold text-gray-900">{scalperStatus.dailyStats?.trades ?? 0}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-sm text-gray-600">Wins</div>
-                      <div className="text-2xl font-bold text-green-600">{scalperStatus.dailyStats.wins}</div>
+                      <div className="text-2xl font-bold text-green-600">{scalperStatus.dailyStats?.wins ?? 0}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-sm text-gray-600">Losses</div>
-                      <div className="text-2xl font-bold text-red-600">{scalperStatus.dailyStats.losses}</div>
+                      <div className="text-2xl font-bold text-red-600">{scalperStatus.dailyStats?.losses ?? 0}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-sm text-gray-600">Win Rate</div>
                       <div className="text-2xl font-bold text-blue-600">
-                        {scalperStatus.dailyStats.trades > 0
-                          ? ((scalperStatus.dailyStats.wins / scalperStatus.dailyStats.trades) * 100).toFixed(1)
+                        {(scalperStatus.dailyStats?.trades ?? 0) > 0
+                          ? (((scalperStatus.dailyStats?.wins ?? 0) / (scalperStatus.dailyStats?.trades ?? 1)) * 100).toFixed(1)
                           : '0'}%
                       </div>
                     </div>

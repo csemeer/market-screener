@@ -304,7 +304,18 @@ class ScalperManagementService extends EventEmitter {
   getScalperStatus(id: number): any {
     const scalper = this.scalpers.get(id);
     if (!scalper) {
-      return { running: false };
+      return {
+        running: false,
+        startTime: null,
+        stocks: 0,
+        openTrades: 0,
+        dailyStats: {
+          trades: 0,
+          pnl: 0,
+          wins: 0,
+          losses: 0,
+        },
+      };
     }
 
     return {
