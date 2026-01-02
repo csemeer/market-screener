@@ -20,7 +20,6 @@ export class IBKRBroker extends BrokerService {
   private host: string = 'localhost';
   private port: number = 7497; // Paper trading port by default
   private clientId: number = 1;
-  private connected: boolean = false;
 
   constructor() {
     super('ibkr');
@@ -173,7 +172,7 @@ export class IBKRBroker extends BrokerService {
   async getLTP(symbol: string, exchange: string): Promise<number> {
     loggerService.warn('IBKR getLTP not implemented - returning mock price');
     // TODO: Implement market data subscription
-    return 100 + Math.random() * 1000;
+    return Number((100 + Math.random() * 1000).toFixed(2));
   }
 
   /**

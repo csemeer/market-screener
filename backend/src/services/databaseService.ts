@@ -97,6 +97,8 @@ export interface BrokerAccount {
   userId: string;
   broker: 'upstox' | 'zerodha' | 'ibkr';
   accountId: string;
+  name?: string; // Optional friendly name
+  status?: 'connected' | 'disconnected' | 'expired'; // Connection status
   credentials: string; // Encrypted JSON
   isActive: boolean;
   autoTradeEnabled: boolean;
@@ -555,6 +557,8 @@ class DatabaseService {
         user_id TEXT NOT NULL DEFAULT 'default',
         broker TEXT NOT NULL CHECK(broker IN ('upstox', 'zerodha', 'ibkr')),
         account_id TEXT NOT NULL,
+        name TEXT,
+        status TEXT CHECK(status IN ('connected', 'disconnected', 'expired')) DEFAULT 'disconnected',
         credentials TEXT NOT NULL,
         is_active BOOLEAN NOT NULL DEFAULT 1,
         auto_trade_enabled BOOLEAN NOT NULL DEFAULT 0,
@@ -563,6 +567,18 @@ class DatabaseService {
         UNIQUE(user_id, broker, account_id)
       )
     `);
+
+    // Migration: Add name and status columns if they don't exist
+    try {
+      this.db.exec(`ALTER TABLE broker_accounts ADD COLUMN name TEXT`);
+    } catch (e) {
+      // Column already exists
+    }
+    try {
+      this.db.exec(`ALTER TABLE broker_accounts ADD COLUMN status TEXT CHECK(status IN ('connected', 'disconnected', 'expired')) DEFAULT 'disconnected'`);
+    } catch (e) {
+      // Column already exists
+    }
 
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_broker_accounts_user_id ON broker_accounts(user_id);
@@ -2204,6 +2220,8 @@ class DatabaseService {
       userId: acc.user_id,
       broker: acc.broker,
       accountId: acc.account_id,
+      name: acc.name,
+      status: acc.status || 'disconnected',
       credentials: acc.credentials,
       isActive: Boolean(acc.is_active),
       autoTradeEnabled: Boolean(acc.auto_trade_enabled),
@@ -2245,14 +2263,16 @@ class DatabaseService {
 
     const stmt = this.db.prepare(`
       INSERT INTO broker_accounts (
-        user_id, broker, account_id, credentials, is_active, auto_trade_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        user_id, broker, account_id, name, status, credentials, is_active, auto_trade_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const info = stmt.run(
       account.userId,
       account.broker,
       account.accountId,
+      account.name || null,
+      account.status || 'disconnected',
       account.credentials,
       account.isActive ? 1 : 0,
       account.autoTradeEnabled ? 1 : 0
@@ -2270,6 +2290,14 @@ class DatabaseService {
     const updateFields: string[] = [];
     const values: any[] = [];
 
+    if (updates.name !== undefined) {
+      updateFields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.status !== undefined) {
+      updateFields.push('status = ?');
+      values.push(updates.status);
+    }
     if (updates.credentials !== undefined) {
       updateFields.push('credentials = ?');
       values.push(updates.credentials);
@@ -2289,6 +2317,21 @@ class DatabaseService {
     this.db.prepare(`
       UPDATE broker_accounts SET ${updateFields.join(', ')} WHERE id = ?
     `).run(...values);
+  }
+
+  /**
+   * Update broker credentials (helper method for OAuth)
+   */
+  updateBrokerCredentials(id: number, credentials: any): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const credentialsJson = typeof credentials === 'string' ? credentials : JSON.stringify(credentials);
+
+    this.db.prepare(`
+      UPDATE broker_accounts
+      SET credentials = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(credentialsJson, id);
   }
 
   /**

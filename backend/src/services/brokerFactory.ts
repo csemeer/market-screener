@@ -48,14 +48,19 @@ export function createBroker(
       throw new Error(`Broker mismatch: Expected ${config.broker}, got ${account.broker}`);
     }
 
+    // Parse credentials from JSON string
+    const credentials = typeof account.credentials === 'string'
+      ? JSON.parse(account.credentials)
+      : account.credentials;
+
     // Merge database credentials with config
     config = {
       ...config,
-      apiKey: account.credentials.apiKey,
-      apiSecret: account.credentials.apiSecret,
-      accessToken: account.credentials.accessToken,
-      requestToken: account.credentials.requestToken,
-      code: account.credentials.code,
+      apiKey: credentials.apiKey,
+      apiSecret: credentials.apiSecret,
+      accessToken: credentials.accessToken,
+      requestToken: credentials.requestToken,
+      code: credentials.code,
     };
 
     loggerService.info('Loaded broker credentials from database', {
@@ -151,14 +156,19 @@ export function getBrokerConfigFromDatabase(
     throw new Error(`Broker mismatch: Expected ${broker}, got ${account.broker}`);
   }
 
+  // Parse credentials from JSON string
+  const credentials = typeof account.credentials === 'string'
+    ? JSON.parse(account.credentials)
+    : account.credentials;
+
   return {
     broker,
     accountId: accountId.toString(),
-    apiKey: account.credentials.apiKey,
-    apiSecret: account.credentials.apiSecret,
-    accessToken: account.credentials.accessToken,
-    requestToken: account.credentials.requestToken,
-    code: account.credentials.code,
+    apiKey: credentials.apiKey,
+    apiSecret: credentials.apiSecret,
+    accessToken: credentials.accessToken,
+    requestToken: credentials.requestToken,
+    code: credentials.code,
   };
 }
 

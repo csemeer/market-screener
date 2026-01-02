@@ -33,9 +33,9 @@ router.get('/zerodha/callback', async (req, res) => {
 
     // Get the broker account from database (should have API key/secret)
     // For now, we'll look for the most recent Zerodha account
-    const accounts = databaseService.getAllBrokerAccounts();
+    const accounts = databaseService.getBrokerAccounts();
     const zerodhaBrokerAccount = accounts.find(
-      (acc: any) => acc.broker === 'zerodha' && acc.credentials?.apiKey
+      (acc: any) => acc.broker === 'zerodha'
     );
 
     if (!zerodhaBrokerAccount) {
@@ -43,7 +43,11 @@ router.get('/zerodha/callback', async (req, res) => {
       return res.redirect('http://localhost:5173/settings?error=no_zerodha_account');
     }
 
-    const { apiKey, apiSecret } = zerodhaBrokerAccount.credentials;
+    const credentials = typeof zerodhaBrokerAccount.credentials === 'string'
+      ? JSON.parse(zerodhaBrokerAccount.credentials)
+      : zerodhaBrokerAccount.credentials;
+
+    const { apiKey, apiSecret } = credentials;
 
     // Generate checksum for access token request
     const checksum = crypto
@@ -70,16 +74,18 @@ router.get('/zerodha/callback', async (req, res) => {
     const { access_token } = tokenResponse.data.data;
 
     // Update broker account with access token
-    databaseService.updateBrokerCredentials(zerodhaBrokerAccount.id, {
-      ...zerodhaBrokerAccount.credentials,
+    const updatedCredentials = {
+      ...credentials,
       accessToken: access_token,
       requestToken: request_token as string,
-    });
+    };
+
+    databaseService.updateBrokerCredentials(zerodhaBrokerAccount.id as number, updatedCredentials);
 
     // Update broker account status to connected
-    databaseService.db
-      .prepare('UPDATE broker_accounts SET status = ? WHERE id = ?')
-      .run('connected', zerodhaBrokerAccount.id);
+    databaseService.updateBrokerAccount(zerodhaBrokerAccount.id as number, {
+      status: 'connected',
+    });
 
     loggerService.success('Zerodha authentication successful', {
       accountId: zerodhaBrokerAccount.id,
@@ -115,9 +121,9 @@ router.get('/upstox/callback', async (req, res) => {
     }
 
     // Get the broker account from database
-    const accounts = databaseService.getAllBrokerAccounts();
+    const accounts = databaseService.getBrokerAccounts();
     const upstoxAccount = accounts.find(
-      (acc: any) => acc.broker === 'upstox' && acc.credentials?.apiKey
+      (acc: any) => acc.broker === 'upstox'
     );
 
     if (!upstoxAccount) {
@@ -125,7 +131,11 @@ router.get('/upstox/callback', async (req, res) => {
       return res.redirect('http://localhost:5173/settings?error=no_upstox_account');
     }
 
-    const { apiKey, apiSecret } = upstoxAccount.credentials;
+    const credentials = typeof upstoxAccount.credentials === 'string'
+      ? JSON.parse(upstoxAccount.credentials)
+      : upstoxAccount.credentials;
+
+    const { apiKey, apiSecret } = credentials;
     const redirectUri = 'http://localhost:3001/api/auth/upstox/callback';
 
     // Exchange authorization code for access token
@@ -149,16 +159,18 @@ router.get('/upstox/callback', async (req, res) => {
     const { access_token } = tokenResponse.data;
 
     // Update broker account with access token
-    databaseService.updateBrokerCredentials(upstoxAccount.id, {
-      ...upstoxAccount.credentials,
+    const updatedCredentials = {
+      ...credentials,
       accessToken: access_token,
       code: code as string,
-    });
+    };
+
+    databaseService.updateBrokerCredentials(upstoxAccount.id as number, updatedCredentials);
 
     // Update broker account status to connected
-    databaseService.db
-      .prepare('UPDATE broker_accounts SET status = ? WHERE id = ?')
-      .run('connected', upstoxAccount.id);
+    databaseService.updateBrokerAccount(upstoxAccount.id as number, {
+      status: 'connected',
+    });
 
     loggerService.success('Upstox authentication successful', {
       accountId: upstoxAccount.id,
@@ -179,9 +191,9 @@ router.get('/upstox/callback', async (req, res) => {
  */
 router.get('/zerodha/login', async (req, res) => {
   try {
-    const accounts = databaseService.getAllBrokerAccounts();
+    const accounts = databaseService.getBrokerAccounts();
     const zerodhaBrokerAccount = accounts.find(
-      (acc: any) => acc.broker === 'zerodha' && acc.credentials?.apiKey
+      (acc: any) => acc.broker === 'zerodha'
     );
 
     if (!zerodhaBrokerAccount) {
@@ -191,7 +203,11 @@ router.get('/zerodha/login', async (req, res) => {
       });
     }
 
-    const { apiKey } = zerodhaBrokerAccount.credentials;
+    const credentials = typeof zerodhaBrokerAccount.credentials === 'string'
+      ? JSON.parse(zerodhaBrokerAccount.credentials)
+      : zerodhaBrokerAccount.credentials;
+
+    const { apiKey } = credentials;
     const redirectUri = 'http://localhost:3001/api/auth/zerodha/callback';
 
     // Zerodha authorization URL
@@ -216,9 +232,9 @@ router.get('/zerodha/login', async (req, res) => {
  */
 router.get('/upstox/login', async (req, res) => {
   try {
-    const accounts = databaseService.getAllBrokerAccounts();
+    const accounts = databaseService.getBrokerAccounts();
     const upstoxAccount = accounts.find(
-      (acc: any) => acc.broker === 'upstox' && acc.credentials?.apiKey
+      (acc: any) => acc.broker === 'upstox'
     );
 
     if (!upstoxAccount) {
@@ -228,7 +244,11 @@ router.get('/upstox/login', async (req, res) => {
       });
     }
 
-    const { apiKey } = upstoxAccount.credentials;
+    const credentials = typeof upstoxAccount.credentials === 'string'
+      ? JSON.parse(upstoxAccount.credentials)
+      : upstoxAccount.credentials;
+
+    const { apiKey } = credentials;
     const redirectUri = 'http://localhost:3001/api/auth/upstox/callback';
 
     // Upstox authorization URL

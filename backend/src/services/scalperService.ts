@@ -191,7 +191,16 @@ class ScalperManagementService extends EventEmitter {
       let broker: BrokerService;
       let brokerConfig: any;
 
-      if (config.accountId && config.broker !== 'paper') {
+      if (config.accountId && config.accountId !== '' && config.broker !== 'zerodha' && config.broker !== 'upstox' && config.broker !== 'ibkr') {
+        // This should not happen, but fall back to paper trading
+        loggerService.warn(`Invalid broker configuration, using paper trading`, { scalperId: id, broker: config.broker });
+        broker = createBroker({ broker: 'paper' });
+        await broker.connect({
+          broker: config.broker,
+          apiKey: '',
+          apiSecret: '',
+        });
+      } else if (config.accountId && config.accountId !== '') {
         // Load real broker from database (Zerodha/Upstox/IBKR)
         loggerService.info(`Loading broker account from database`, {
           scalperId: id,
