@@ -363,6 +363,92 @@ class ScalperManagementService extends EventEmitter {
   }
 
   /**
+   * Get all stocks for a scalper (public method)
+   */
+  getScalperStocks(scalperId: number): ScalpingStock[] {
+    return this.getScalpingStocks(scalperId);
+  }
+
+  /**
+   * Remove a stock from scalper watchlist
+   */
+  removeStockFromScalper(scalperId: number, stockId: number): boolean {
+    const db = (databaseService as any).db;
+
+    const result = db
+      .prepare('UPDATE scalping_stocks SET active = 0 WHERE id = ? AND scalper_id = ?')
+      .run(stockId, scalperId);
+
+    if (result.changes === 0) {
+      throw new Error('Stock not found or already removed');
+    }
+
+    // If scalper is running, unsubscribe from ticks
+    const scalper = this.scalpers.get(scalperId);
+    if (scalper) {
+      const stock = db.prepare('SELECT * FROM scalping_stocks WHERE id = ?').get(stockId) as any;
+      if (stock) {
+        scalper.broker.unsubscribeFromTicks([{ symbol: stock.symbol, exchange: stock.exchange }]);
+        // Remove from stocks array
+        scalper.stocks = scalper.stocks.filter(s => s.id !== stockId);
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Get trade history for a scalper
+   */
+  getScalperTrades(scalperId: number, status?: 'OPEN' | 'CLOSED'): ScalpTrade[] {
+    const db = (databaseService as any).db;
+
+    let query = 'SELECT * FROM scalp_trades WHERE scalper_id = ?';
+    const params: any[] = [scalperId];
+
+    if (status) {
+      if (status === 'OPEN') {
+        query += ' AND status = ?';
+        params.push('OPEN');
+      } else if (status === 'CLOSED') {
+        query += ' AND status = ?';
+        params.push('CLOSED');
+      }
+    }
+
+    query += ' ORDER BY entry_time DESC LIMIT 100';
+
+    const rows = db.prepare(query).all(...params);
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      scalperId: row.scalper_id,
+      symbol: row.symbol,
+      exchange: row.exchange,
+      side: row.side,
+      quantity: row.quantity,
+      entryPrice: row.entry_price,
+      entryTime: new Date(row.entry_time),
+      entryOrderId: row.entry_order_id,
+      exitPrice: row.exit_price,
+      exitTime: row.exit_time ? new Date(row.exit_time) : undefined,
+      exitOrderId: row.exit_order_id,
+      stopLoss: row.stop_loss,
+      target: row.target,
+      status: row.status,
+      closeReason: row.close_reason,
+      grossPnL: row.gross_pnl,
+      netPnL: row.net_pnl,
+      pnlPercent: row.pnl_percent,
+      brokerage: row.brokerage,
+      entrySignals: row.entry_signals,
+      indicatorsData: row.indicators_data,
+      chartData: row.chart_data,
+      executionMode: row.execution_mode,
+    }));
+  }
+
+  /**
    * Get stocks for a scalper
    */
   private getScalpingStocks(scalperId: number): ScalpingStock[] {

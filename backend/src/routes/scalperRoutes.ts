@@ -225,4 +225,75 @@ router.get('/:id/status', (req, res) => {
   }
 });
 
+/**
+ * GET /api/scalper/:id/trades
+ * Get trade history for a scalper
+ */
+router.get('/:id/trades', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const status = req.query.status as 'OPEN' | 'CLOSED' | undefined;
+    const trades = scalperService.getScalperTrades(id, status);
+
+    res.json({
+      success: true,
+      trades,
+      total: trades.length,
+    });
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch trades',
+    });
+  }
+});
+
+/**
+ * GET /api/scalper/:id/stocks
+ * Get stocks for a scalper
+ */
+router.get('/:id/stocks', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const stocks = scalperService.getScalperStocks(id);
+
+    res.json({
+      success: true,
+      stocks,
+      total: stocks.length,
+    });
+  } catch (error) {
+    console.error('Error fetching stocks:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch stocks',
+    });
+  }
+});
+
+/**
+ * DELETE /api/scalper/:id/stocks/:stockId
+ * Remove a stock from scalper watchlist
+ */
+router.delete('/:id/stocks/:stockId', (req, res) => {
+  try {
+    const scalperId = parseInt(req.params.id);
+    const stockId = parseInt(req.params.stockId);
+
+    scalperService.removeStockFromScalper(scalperId, stockId);
+
+    res.json({
+      success: true,
+      message: `Stock removed from scalper ${scalperId}`,
+    });
+  } catch (error) {
+    console.error('Error removing stock:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to remove stock',
+    });
+  }
+});
+
 export default router;
