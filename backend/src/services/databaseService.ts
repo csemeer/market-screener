@@ -95,7 +95,7 @@ export interface NotificationLog {
 export interface BrokerAccount {
   id?: number;
   userId: string;
-  broker: 'upstox' | 'zerodha' | 'ibkr';
+  broker: 'upstox' | 'zerodha' | 'ibkr' | 'paper';
   accountId: string;
   name?: string; // Optional friendly name
   status?: 'connected' | 'disconnected' | 'expired'; // Connection status
@@ -555,7 +555,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS broker_accounts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT NOT NULL DEFAULT 'default',
-        broker TEXT NOT NULL CHECK(broker IN ('upstox', 'zerodha', 'ibkr')),
+        broker TEXT NOT NULL CHECK(broker IN ('upstox', 'zerodha', 'ibkr', 'paper')),
         account_id TEXT NOT NULL,
         name TEXT,
         status TEXT CHECK(status IN ('connected', 'disconnected', 'expired')) DEFAULT 'disconnected',

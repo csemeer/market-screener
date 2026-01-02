@@ -176,7 +176,7 @@ export function getBrokerConfigFromDatabase(
  * Test broker connection
  */
 export async function testBrokerConnection(
-  broker: 'zerodha' | 'upstox' | 'ibkr' | 'paper',
+  broker: 'zerodha' | 'upstox' | 'ibkr',
   accountId?: string
 ): Promise<{ success: boolean; message: string; error?: string }> {
   try {
@@ -190,7 +190,7 @@ export async function testBrokerConnection(
     // Get full config for connection
     let fullConfig = config;
     if (accountId) {
-      fullConfig = getBrokerConfigFromDatabase(broker, parseInt(accountId));
+      fullConfig = getBrokerConfigFromDatabase(broker as 'zerodha' | 'upstox' | 'ibkr', parseInt(accountId));
     }
 
     // Attempt connection

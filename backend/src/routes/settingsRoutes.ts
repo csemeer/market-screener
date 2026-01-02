@@ -314,8 +314,16 @@ router.get('/brokers/:id/test', async (req, res) => {
 
     loggerService.info('Testing broker connection', { id, broker: account.broker });
 
+    // Paper broker doesn't need testing
+    if (account.broker === 'paper') {
+      return res.json({
+        success: true,
+        message: 'Paper trading mode - no connection test needed',
+      });
+    }
+
     const result = await testBrokerConnection(
-      account.broker as 'zerodha' | 'upstox' | 'ibkr' | 'paper',
+      account.broker as 'zerodha' | 'upstox' | 'ibkr',
       id.toString()
     );
 
