@@ -114,7 +114,7 @@ export class IBKRBroker extends BrokerService {
       side: order.side,
       quantity: order.quantity,
       filledQuantity: 0,
-      price: order.price,
+      price: order.price || 0,
       averagePrice: 0,
       orderTime: new Date(),
       updateTime: new Date(),

@@ -386,7 +386,7 @@ export class UpstoxBroker extends BrokerService {
   private async getInstrumentKey(symbol: string, exchange: string): Promise<string> {
     // In production, fetch from instruments master file or cache
     // Format: NSE_EQ|INE123A01017
-    return `${this.toBrokerExchange(exchange)}_EQ|${symbol}`;
+    return `${this.toBrokerExchange(exchange as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ')}_EQ|${symbol}`;
   }
 
   /**

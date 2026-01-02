@@ -166,7 +166,7 @@ export class ZerodhaBroker extends BrokerService {
 
     try {
       const kiteOrder = {
-        exchange: this.toBrokerExchange(order.exchange),
+        exchange: this.toBrokerExchange(order.exchange as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'),
         tradingsymbol: order.symbol,
         transaction_type: order.side,
         quantity: order.quantity,
@@ -291,7 +291,7 @@ export class ZerodhaBroker extends BrokerService {
    */
   async getLTP(symbol: string, exchange: string): Promise<number> {
     try {
-      const instrumentKey = `${this.toBrokerExchange(exchange)}:${symbol}`;
+      const instrumentKey = `${this.toBrokerExchange(exchange as 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ')}:${symbol}`;
       const response = await this.client.get(`/quote/ltp`, {
         params: { i: instrumentKey },
       });
