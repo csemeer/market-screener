@@ -676,6 +676,140 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_custom_watchlist_stocks_status ON custom_watchlist_stocks(status);
     `);
 
+    // Scalper Configuration Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS scalper_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        enabled BOOLEAN NOT NULL DEFAULT 0,
+        broker TEXT NOT NULL CHECK(broker IN ('zerodha', 'upstox', 'ibkr')),
+        account_id TEXT NOT NULL,
+        auto_trade BOOLEAN NOT NULL DEFAULT 0,
+
+        stock_selection_method TEXT NOT NULL DEFAULT 'MANUAL' CHECK(stock_selection_method IN ('MANUAL', 'AUTO_SCREENER')),
+        stock_symbols TEXT,
+        screener_criteria TEXT,
+        max_stocks INTEGER NOT NULL DEFAULT 5,
+
+        strategy_name TEXT NOT NULL,
+        timeframe TEXT NOT NULL DEFAULT '5m' CHECK(timeframe IN ('1m', '3m', '5m')),
+        indicators_config TEXT NOT NULL,
+        entry_conditions TEXT NOT NULL,
+        exit_conditions TEXT NOT NULL,
+
+        max_position_size REAL NOT NULL DEFAULT 10000,
+        max_positions_open INTEGER NOT NULL DEFAULT 3,
+        max_daily_loss REAL NOT NULL DEFAULT 5000,
+        max_daily_trades INTEGER NOT NULL DEFAULT 20,
+        position_sizing_method TEXT NOT NULL DEFAULT 'FIXED' CHECK(position_sizing_method IN ('FIXED', 'RISK_BASED', 'KELLY')),
+        risk_per_trade REAL NOT NULL DEFAULT 1.0,
+
+        trading_start_time TEXT NOT NULL DEFAULT '09:30',
+        trading_end_time TEXT NOT NULL DEFAULT '15:15',
+        avoid_first_minutes INTEGER NOT NULL DEFAULT 15,
+        avoid_last_minutes INTEGER NOT NULL DEFAULT 15,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Scalping Stocks Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS scalping_stocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scalper_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL CHECK(exchange IN ('NSE', 'BSE', 'NYSE', 'NASDAQ')),
+        active BOOLEAN NOT NULL DEFAULT 1,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_trade_at DATETIME,
+
+        total_trades INTEGER NOT NULL DEFAULT 0,
+        winning_trades INTEGER NOT NULL DEFAULT 0,
+        total_pnl REAL NOT NULL DEFAULT 0,
+        win_rate REAL NOT NULL DEFAULT 0,
+
+        FOREIGN KEY (scalper_id) REFERENCES scalper_configs(id) ON DELETE CASCADE,
+        UNIQUE(scalper_id, symbol, exchange)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_scalping_stocks_scalper ON scalping_stocks(scalper_id);
+      CREATE INDEX IF NOT EXISTS idx_scalping_stocks_active ON scalping_stocks(active);
+    `);
+
+    // Scalp Trades Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS scalp_trades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scalper_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+
+        side TEXT NOT NULL CHECK(side IN ('BUY', 'SELL')),
+        quantity INTEGER NOT NULL,
+        entry_price REAL NOT NULL,
+        entry_time DATETIME NOT NULL,
+        entry_order_id TEXT,
+
+        exit_price REAL,
+        exit_time DATETIME,
+        exit_order_id TEXT,
+
+        stop_loss REAL NOT NULL,
+        target REAL NOT NULL,
+
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'OPEN', 'CLOSED', 'CANCELLED', 'FAILED')),
+        close_reason TEXT CHECK(close_reason IN ('TARGET_HIT', 'STOP_LOSS', 'TIME_EXIT', 'MANUAL', 'EMERGENCY_EXIT')),
+
+        gross_pnl REAL,
+        net_pnl REAL,
+        pnl_percent REAL,
+        brokerage REAL DEFAULT 0,
+
+        entry_signals TEXT NOT NULL,
+        indicators_data TEXT NOT NULL,
+        chart_data TEXT,
+
+        execution_mode TEXT NOT NULL DEFAULT 'AUTO' CHECK(execution_mode IN ('AUTO', 'MANUAL', 'PAPER')),
+        notes TEXT,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (scalper_id) REFERENCES scalper_configs(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_scalp_trades_scalper ON scalp_trades(scalper_id);
+      CREATE INDEX IF NOT EXISTS idx_scalp_trades_status ON scalp_trades(status);
+      CREATE INDEX IF NOT EXISTS idx_scalp_trades_symbol ON scalp_trades(symbol);
+      CREATE INDEX IF NOT EXISTS idx_scalp_trades_entry_time ON scalp_trades(entry_time DESC);
+    `);
+
+    // Broker Connections Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS broker_connections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        broker TEXT NOT NULL CHECK(broker IN ('zerodha', 'upstox', 'ibkr')),
+        account_id TEXT NOT NULL UNIQUE,
+        connected BOOLEAN NOT NULL DEFAULT 0,
+        last_heartbeat DATETIME,
+
+        api_key TEXT,
+        api_secret TEXT,
+        access_token TEXT,
+        refresh_token TEXT,
+        token_expiry DATETIME,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     loggerService.info('Database tables created successfully');
   }
 
