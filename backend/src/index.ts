@@ -10,6 +10,7 @@ import dashboardRoutes from './routes/dashboardRoutes';
 import eodRoutes from './routes/eodRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import watchlistRoutes from './routes/watchlistRoutes';
+import autoScanRoutes from './routes/autoScanRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
@@ -40,6 +41,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/eod', eodRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/auto-scan', autoScanRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

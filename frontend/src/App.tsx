@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Search, Calculator, BarChart3, Menu, X, Activity, Settings as SettingsIcon, ListPlus, Zap } from 'lucide-react';
+import { Search, Calculator, BarChart3, Menu, X, Activity, Settings as SettingsIcon, ListPlus, Zap, Sliders } from 'lucide-react';
 import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
@@ -11,6 +11,7 @@ import CustomWatchlist from './pages/CustomWatchlist';
 import Screener from './pages/Screener';
 import RiskCalculator from './pages/RiskCalculator';
 import StockDetail from './pages/StockDetail';
+import AutoScanSettings from './pages/AutoScanSettings';
 import LoggerDrawer from './components/LoggerDrawer';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
     { to: '/signals', label: 'Signals', icon: Zap },
     { to: '/watchlist', label: 'Watchlist', icon: ListPlus },
     { to: '/screener', label: 'Screener', icon: Search },
+    { to: '/auto-scan-settings', label: 'Auto Scan', icon: Sliders },
     { to: '/risk-calculator', label: 'Risk Calc', icon: Calculator },
     { to: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
@@ -106,6 +108,7 @@ function App() {
             <Route path="/screener" element={<Screener />} />
             <Route path="/intraday" element={<SignalsHub />} />
             <Route path="/swing" element={<SignalsHub />} />
+            <Route path="/auto-scan-settings" element={<AutoScanSettings />} />
             <Route path="/risk-calculator" element={<RiskCalculator />} />
             <Route path="/stock/:exchange/:symbol" element={<StockDetail />} />
           </Routes>
