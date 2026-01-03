@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, Time } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, Time, CandlestickSeriesPartialOptions } from 'lightweight-charts';
 import { Activity, AlertCircle } from 'lucide-react';
 import { scalperAPI, stockAPI } from '../../api/client';
 
@@ -108,13 +108,15 @@ export default function ScalperChart({ scalperId }: ScalperChartProps) {
       chartRef.current = chart;
 
       // Add candlestick series
-      const candlestickSeries = (chart as any).addCandlestickSeries({
+      const candlestickSeriesOptions: CandlestickSeriesPartialOptions = {
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
         wickUpColor: '#26a69a',
         wickDownColor: '#ef5350',
-      });
+      };
+
+      const candlestickSeries = chart.addCandlestickSeries(candlestickSeriesOptions);
 
       // Format data for lightweight-charts
       const candleData = historicalData.map((item: any) => ({
