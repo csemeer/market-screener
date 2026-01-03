@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { backtestAPI } from '../../api/client';
+import EquityCurveChart from './EquityCurveChart';
 
 interface BacktestRun {
   id: number;
@@ -45,6 +46,7 @@ interface BacktestRun {
   status: string;
   created_at: string;
   completed_at?: string;
+  equity_curve?: any[];
 }
 
 interface BacktestTrade {
@@ -85,6 +87,7 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
 
   useEffect(() => {
     if (selectedRun) {
+      loadRunDetails(selectedRun.id);
       loadTrades(selectedRun.id);
     }
   }, [selectedRun]);
@@ -101,6 +104,17 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
       console.error('Error loading backtest runs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRunDetails = async (runId: number) => {
+    try {
+      const response = await backtestAPI.getRunDetails(runId);
+      if (response.data.run) {
+        setSelectedRun(response.data.run);
+      }
+    } catch (error) {
+      console.error('Error loading run details:', error);
     }
   };
 
@@ -344,6 +358,15 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                     <p className="text-xs text-gray-500">{formatCurrency(selectedRun.max_drawdown)}</p>
                   </div>
                 </div>
+
+                {/* Equity Curve Chart */}
+                {selectedRun.equity_curve && selectedRun.equity_curve.length > 0 && (
+                  <EquityCurveChart
+                    equityCurve={selectedRun.equity_curve}
+                    initialCapital={selectedRun.initial_capital}
+                    maxDrawdownPercent={selectedRun.max_drawdown_percent}
+                  />
+                )}
 
                 {/* Detailed Metrics */}
                 <div className="grid md:grid-cols-2 gap-6">
