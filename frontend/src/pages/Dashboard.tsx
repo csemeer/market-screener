@@ -59,6 +59,11 @@ export default function Dashboard() {
     }
   };
 
+  const formatPrice = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return 'N/A';
+    return `$${value.toFixed(2)}`;
+  };
+
   const quickActions = [
     {
       title: 'Momentum Stocks',
@@ -201,9 +206,9 @@ export default function Dashboard() {
                   </div>
                   <p className="text-sm text-gray-600">{signal.description}</p>
                   <div className="flex space-x-4 mt-2 text-xs text-gray-500">
-                    <span>Entry: ${signal.entry.toFixed(2)}</span>
-                    <span>SL: ${signal.stopLoss.toFixed(2)}</span>
-                    <span>Target: ${signal.target.toFixed(2)}</span>
+                    <span>Entry: {formatPrice(signal.entry)}</span>
+                    <span>SL: {formatPrice(signal.stopLoss)}</span>
+                    <span>Target: {formatPrice(signal.target)}</span>
                   </div>
                 </div>
               ))}
@@ -240,9 +245,9 @@ export default function Dashboard() {
                   </div>
                   <p className="text-sm text-gray-600">{signal.description}</p>
                   <div className="flex space-x-4 mt-2 text-xs text-gray-500">
-                    <span>Entry: ${signal.entry.toFixed(2)}</span>
-                    <span>SL: ${signal.stopLoss.toFixed(2)}</span>
-                    <span>Target: ${signal.target.toFixed(2)}</span>
+                    <span>Entry: {formatPrice(signal.entry)}</span>
+                    <span>SL: {formatPrice(signal.stopLoss)}</span>
+                    <span>Target: {formatPrice(signal.target)}</span>
                   </div>
                 </div>
               ))}
