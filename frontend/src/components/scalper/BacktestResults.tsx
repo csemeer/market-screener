@@ -159,15 +159,18 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return 'N/A';
     return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const formatPercent = (value: number) => {
+  const formatPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return 'N/A';
     return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -177,7 +180,8 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
     });
   };
 
-  const formatDuration = (minutes: number) => {
+  const formatDuration = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined) return 'N/A';
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
@@ -277,13 +281,19 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <p className="text-gray-500">Return</p>
-                  <p className={`font-semibold ${run.total_return_percent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`font-semibold ${
+                    run.total_return_percent === null || run.total_return_percent === undefined
+                      ? 'text-gray-500'
+                      : run.total_return_percent >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
                     {formatPercent(run.total_return_percent)}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Win Rate</p>
-                  <p className="font-semibold text-gray-800">{run.win_rate?.toFixed(1)}%</p>
+                  <p className="font-semibold text-gray-800">
+                    {run.win_rate !== null && run.win_rate !== undefined ? `${run.win_rate.toFixed(1)}%` : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -337,7 +347,11 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                       <DollarSign className="w-5 h-5 text-blue-600" />
                     </div>
                     <p className="text-sm text-gray-600">Total Return</p>
-                    <p className={`text-2xl font-bold ${selectedRun.total_return >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-2xl font-bold ${
+                      selectedRun.total_return === null || selectedRun.total_return === undefined
+                        ? 'text-gray-500'
+                        : selectedRun.total_return >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
                       {formatPercent(selectedRun.total_return_percent)}
                     </p>
                     <p className="text-xs text-gray-500">{formatCurrency(selectedRun.total_return)}</p>
@@ -415,7 +429,11 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Net Profit</span>
-                        <span className={`font-medium ${selectedRun.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-medium ${
+                          selectedRun.net_profit === null || selectedRun.net_profit === undefined
+                            ? 'text-gray-500'
+                            : selectedRun.net_profit >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
                           {formatCurrency(selectedRun.net_profit)}
                         </span>
                       </div>
