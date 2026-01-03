@@ -88,6 +88,8 @@ class BacktestEngine {
   async runBacktest(config: BacktestConfig): Promise<number> {
     const { scalperId, startDate, endDate, initialCapital, backtestType } = config;
 
+    let backtestRunId: number | null = null;
+
     try {
       loggerService.info(`Starting backtest for scalper ${scalperId}`, {
         startDate,
@@ -109,7 +111,7 @@ class BacktestEngine {
       }
 
       // Create backtest run record
-      const backtestRunId = this.createBacktestRun(
+      backtestRunId = this.createBacktestRun(
         scalperId,
         scalperConfig.name,
         backtestType,
@@ -151,6 +153,22 @@ class BacktestEngine {
       return backtestRunId;
     } catch (error: any) {
       loggerService.error(`Backtest failed for scalper ${scalperId}`, { error: error.message });
+
+      // Update status to FAILED if backtestRunId exists
+      if (backtestRunId) {
+        try {
+          this.updateBacktestStatus(backtestRunId, 'FAILED');
+          const db = (databaseService as any).db;
+          db.prepare(`
+            UPDATE backtest_runs
+            SET error_message = ?
+            WHERE id = ?
+          `).run(error.message || error.toString(), backtestRunId);
+        } catch (updateError) {
+          loggerService.error('Failed to update backtest status to FAILED', { updateError });
+        }
+      }
+
       throw error;
     }
   }
@@ -727,12 +745,19 @@ class BacktestEngine {
   ): void {
     const db = (databaseService as any).db;
 
-    db.prepare(`
-      UPDATE backtest_runs
-      SET status = ?,
-          ${status === 'COMPLETED' ? "completed_at = datetime('now')" : '1=1'}
-      WHERE id = ?
-    `).run(status, backtestRunId);
+    if (status === 'COMPLETED') {
+      db.prepare(`
+        UPDATE backtest_runs
+        SET status = ?, completed_at = datetime('now')
+        WHERE id = ?
+      `).run(status, backtestRunId);
+    } else {
+      db.prepare(`
+        UPDATE backtest_runs
+        SET status = ?
+        WHERE id = ?
+      `).run(status, backtestRunId);
+    }
   }
 
   private saveBacktestResults(
