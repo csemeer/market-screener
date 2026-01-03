@@ -15,6 +15,7 @@ import {
 import { backtestAPI } from '../../api/client';
 import EquityCurveChart from './EquityCurveChart';
 import RunBacktestForm from './RunBacktestForm';
+import BacktestComparison from './BacktestComparison';
 
 interface BacktestRun {
   id: number;
@@ -83,6 +84,7 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'metrics' | 'trades'>('metrics');
   const [showRunForm, setShowRunForm] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     loadBacktestRuns();
@@ -232,6 +234,14 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
             >
               <Calendar className="w-4 h-4 mr-2" />
               Custom Backtest
+            </button>
+            <button
+              onClick={() => setShowComparison(true)}
+              disabled={backtestRuns.length < 2}
+              className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Compare ({backtestRuns.length})
             </button>
           </div>
         </div>
@@ -559,6 +569,14 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
           onSuccess={() => {
             loadBacktestRuns();
           }}
+        />
+      )}
+
+      {/* Comparison Modal */}
+      {showComparison && (
+        <BacktestComparison
+          runs={backtestRuns}
+          onClose={() => setShowComparison(false)}
         />
       )}
     </div>
