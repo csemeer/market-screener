@@ -177,7 +177,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  const testBrokerConnection = async (broker: 'zerodha' | 'upstox' | 'ibkr', accountId: string) => {
+  const testBrokerConnection = async (accountId: string) => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/settings/brokers/${accountId}/test`);
@@ -633,7 +633,7 @@ const Settings: React.FC = () => {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => testBrokerConnection(account.broker, account.id.toString())}
+                                  onClick={() => testBrokerConnection(account.id.toString())}
                                   disabled={loading}
                                   className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
                                 >
