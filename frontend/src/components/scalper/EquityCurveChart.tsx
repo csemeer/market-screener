@@ -94,7 +94,7 @@ export default function EquityCurveChart({
         lineWidth: 2,
         title: 'Cash',
       };
-      const cashSeries = chart.addLineSeries(cashSeriesOptions);
+      const cashSeries = (chart as any).addLineSeries(cashSeriesOptions);
       cashSeries.setData(cashData);
 
       const positionsSeriesOptions: LineSeriesPartialOptions = {
@@ -102,7 +102,7 @@ export default function EquityCurveChart({
         lineWidth: 2,
         title: 'Positions Value',
       };
-      const positionsSeries = chart.addLineSeries(positionsSeriesOptions);
+      const positionsSeries = (chart as any).addLineSeries(positionsSeriesOptions);
       positionsSeries.setData(positionsData);
     } else {
       // Show main equity curve
@@ -116,11 +116,11 @@ export default function EquityCurveChart({
           minMove: 0.01,
         },
       };
-      const equitySeries = chart.addLineSeries(equitySeriesOptions);
+      const equitySeries = (chart as any).addLineSeries(equitySeriesOptions);
       equitySeries.setData(equityData);
 
       // Add initial capital reference line
-      const initialCapitalLine = chart.addLineSeries({
+      const initialCapitalLine = (chart as any).addLineSeries({
         color: '#9ca3af',
         lineWidth: 1,
         lineStyle: 2, // Dashed
@@ -147,7 +147,7 @@ export default function EquityCurveChart({
           minMove: 0.01,
         },
       };
-      const drawdownSeries = chart.addLineSeries(drawdownSeriesOptions);
+      const drawdownSeries = (chart as any).addLineSeries(drawdownSeriesOptions);
       drawdownSeries.setData(drawdownData);
       drawdownSeries.priceScale().applyOptions({
         scaleMargins: {

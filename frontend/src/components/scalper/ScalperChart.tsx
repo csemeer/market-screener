@@ -116,7 +116,7 @@ export default function ScalperChart({ scalperId }: ScalperChartProps) {
         wickDownColor: '#ef5350',
       };
 
-      const candlestickSeries = chart.addCandlestickSeries(candlestickSeriesOptions);
+      const candlestickSeries = (chart as any).addCandlestickSeries(candlestickSeriesOptions);
 
       // Format data for lightweight-charts
       const candleData = historicalData.map((item: any) => ({

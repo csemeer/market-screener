@@ -96,7 +96,8 @@ class BacktestEngine {
       });
 
       // Get scalper configuration
-      const scalperConfig = databaseService.getScalperConfig(scalperId);
+      const db = (databaseService as any).db;
+      const scalperConfig = db.prepare('SELECT * FROM scalper_configs WHERE id = ?').get(scalperId);
       if (!scalperConfig) {
         throw new Error(`Scalper ${scalperId} not found`);
       }

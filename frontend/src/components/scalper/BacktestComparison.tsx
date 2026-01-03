@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, TrendingUp, TrendingDown, Target, BarChart3, DollarSign } from 'lucide-react';
+import { X, BarChart3 } from 'lucide-react';
 
 interface BacktestRun {
   id: number;
@@ -24,6 +24,15 @@ interface BacktestRun {
   avg_trade_duration_minutes: number;
   total_brokerage: number;
   created_at: string;
+}
+
+interface MetricItem {
+  label: string;
+  key?: string | null;
+  format: (value: number) => string;
+  calculate?: (run: BacktestRun) => number;
+  higherIsBetter: boolean;
+  colorCode?: boolean;
 }
 
 interface BacktestComparisonProps {
@@ -67,7 +76,7 @@ export default function BacktestComparison({ runs, onClose }: BacktestComparison
     return higherIsBetter ? Math.max(...values) : Math.min(...values);
   };
 
-  const metrics = [
+  const metrics: { category: string; items: MetricItem[] }[] = [
     {
       category: 'Performance',
       items: [

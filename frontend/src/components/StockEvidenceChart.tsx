@@ -120,7 +120,7 @@ export default function StockEvidenceChart({ data }: Props) {
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
     };
-    const candlestickSeries = chart.addCandlestickSeries(candlestickSeriesOptions);
+    const candlestickSeries = (chart as any).addCandlestickSeries(candlestickSeriesOptions);
 
     candlestickSeries.setData(candleData);
 
@@ -131,7 +131,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 20',
       };
-      const ema20Series = chart.addLineSeries(ema20SeriesOptions);
+      const ema20Series = (chart as any).addLineSeries(ema20SeriesOptions);
       ema20Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema20! })));
     }
 
@@ -141,7 +141,7 @@ export default function StockEvidenceChart({ data }: Props) {
         lineWidth: 2,
         title: 'EMA 50',
       };
-      const ema50Series = chart.addLineSeries(ema50SeriesOptions);
+      const ema50Series = (chart as any).addLineSeries(ema50SeriesOptions);
       ema50Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema50! })));
     }
 
@@ -159,7 +159,7 @@ export default function StockEvidenceChart({ data }: Props) {
         priceLineVisible: true,
         lastValueVisible: true,
       };
-      const entryLine = chart.addLineSeries(entryLineOptions);
+      const entryLine = (chart as any).addLineSeries(entryLineOptions);
       entryLine.setData([
         { time: candleData[0].time as Time, value: data.levels.entry },
         { time: lastTime as Time, value: data.levels.entry },
@@ -174,7 +174,7 @@ export default function StockEvidenceChart({ data }: Props) {
         priceLineVisible: true,
         lastValueVisible: true,
       };
-      const targetLine = chart.addLineSeries(targetLineOptions);
+      const targetLine = (chart as any).addLineSeries(targetLineOptions);
       targetLine.setData([
         { time: candleData[0].time as Time, value: data.levels.target },
         { time: lastTime as Time, value: data.levels.target },
@@ -189,7 +189,7 @@ export default function StockEvidenceChart({ data }: Props) {
         priceLineVisible: true,
         lastValueVisible: true,
       };
-      const stopLine = chart.addLineSeries(stopLineOptions);
+      const stopLine = (chart as any).addLineSeries(stopLineOptions);
       stopLine.setData([
         { time: candleData[0].time as Time, value: data.levels.stopLoss },
         { time: lastTime as Time, value: data.levels.stopLoss },

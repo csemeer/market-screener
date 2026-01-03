@@ -6,7 +6,6 @@ import {
   Target,
   BarChart3,
   Activity,
-  Clock,
   Play,
   Trash2,
   RefreshCw,
