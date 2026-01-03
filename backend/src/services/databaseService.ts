@@ -214,6 +214,7 @@ class DatabaseService {
 
       this.createTables();
       this.runMigrations();
+      this.seedDatabase();
       this.initialized = true;
       loggerService.info('Database initialized successfully');
     } catch (error) {
@@ -1038,6 +1039,136 @@ class DatabaseService {
     } catch (error) {
       loggerService.error('Failed to run database migrations', { error });
       throw error;
+    }
+  }
+
+  /**
+   * Seed database with demo data for first-time setup
+   */
+  private seedDatabase(): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      // Check if any scalper configs exist
+      const scalpersCount = this.db.prepare('SELECT COUNT(*) as count FROM scalper_configs').get() as { count: number };
+
+      if (scalpersCount.count > 0) {
+        loggerService.info('Database already seeded - skipping demo data creation');
+        return;
+      }
+
+      loggerService.info('Seeding database with demo scalpers...');
+
+      // Create Demo Scalper 1: NSE Indian Stocks
+      const scalper1Result = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Demo Scalper 1',
+          1,
+          'zerodha',
+          '',
+          1,
+          'MANUAL',
+          '["RELIANCE","TCS","INFY","HDFCBANK","ICICIBANK"]',
+          5,
+          'Breakout Scalper',
+          '5m',
+          '{"useEMA":true,"emaFast":9,"emaSlow":21,"useRSI":true,"rsiPeriod":14,"useVWAP":true}',
+          '{"type":"BREAKOUT","volumeConfirmation":true,"minVolumeMultiplier":1.5}',
+          '{"targetPercent":0.7,"stopLossPercent":0.3,"useTrailingStop":false,"maxHoldTimeMinutes":30}',
+          50000,
+          3,
+          5000,
+          20,
+          'FIXED',
+          1.0,
+          '09:30',
+          '15:15',
+          15,
+          15
+        )
+      `).run();
+
+      // Add stocks for Scalper 1
+      const scalper1Stocks = [
+        { symbol: 'RELIANCE', exchange: 'NSE' },
+        { symbol: 'TCS', exchange: 'NSE' },
+        { symbol: 'INFY', exchange: 'NSE' },
+        { symbol: 'HDFCBANK', exchange: 'NSE' },
+        { symbol: 'ICICIBANK', exchange: 'NSE' }
+      ];
+
+      const insertStockStmt = this.db.prepare(`
+        INSERT INTO scalping_stocks (scalper_id, symbol, exchange, active)
+        VALUES (?, ?, ?, 1)
+      `);
+
+      for (const stock of scalper1Stocks) {
+        insertStockStmt.run(scalper1Result.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success(`Created Demo Scalper 1 with ${scalper1Stocks.length} NSE stocks`);
+
+      // Create Demo Scalper 2: NASDAQ US Stocks
+      const scalper2Result = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Demo Scalper 2',
+          1,
+          'zerodha',
+          '',
+          1,
+          'MANUAL',
+          '["AAPL","MSFT","GOOGL","AMZN","TSLA"]',
+          5,
+          'Momentum Scalper',
+          '5m',
+          '{"useEMA":true,"emaFast":9,"emaSlow":21,"useRSI":true,"rsiPeriod":14,"useVWAP":true}',
+          '{"type":"MOMENTUM","volumeConfirmation":true,"minVolumeMultiplier":2.0}',
+          '{"targetPercent":1.0,"stopLossPercent":0.5,"useTrailingStop":true,"maxHoldTimeMinutes":45}',
+          50000,
+          3,
+          5000,
+          20,
+          'FIXED',
+          1.0,
+          '09:30',
+          '15:15',
+          15,
+          15
+        )
+      `).run();
+
+      // Add stocks for Scalper 2
+      const scalper2Stocks = [
+        { symbol: 'AAPL', exchange: 'NASDAQ' },
+        { symbol: 'MSFT', exchange: 'NASDAQ' },
+        { symbol: 'GOOGL', exchange: 'NASDAQ' },
+        { symbol: 'AMZN', exchange: 'NASDAQ' },
+        { symbol: 'TSLA', exchange: 'NASDAQ' }
+      ];
+
+      for (const stock of scalper2Stocks) {
+        insertStockStmt.run(scalper2Result.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success(`Created Demo Scalper 2 with ${scalper2Stocks.length} NASDAQ stocks`);
+      loggerService.success('Database seeding completed - 2 demo scalpers created with paper trading mode');
+    } catch (error) {
+      loggerService.error('Failed to seed database', { error });
+      // Don't throw - seeding is optional
     }
   }
 
