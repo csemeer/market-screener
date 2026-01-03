@@ -223,8 +223,12 @@ export default function ScalperChart({ scalperId }: ScalperChartProps) {
 
       // Handle resize
       const handleResize = () => {
-        if (chartContainerRef.current) {
-          chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        if (chartContainerRef.current && chartRef.current) {
+          try {
+            chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+          } catch (e) {
+            // Chart may have been disposed, ignore error
+          }
         }
       };
 
@@ -232,7 +236,10 @@ export default function ScalperChart({ scalperId }: ScalperChartProps) {
 
       return () => {
         window.removeEventListener('resize', handleResize);
-        chart.remove();
+        if (chartRef.current) {
+          chartRef.current.remove();
+          chartRef.current = null;
+        }
       };
     } catch (error) {
       console.error('Error loading chart data:', error);

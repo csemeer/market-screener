@@ -204,7 +204,11 @@ export default function StockEvidenceChart({ data }: Props) {
     // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        try {
+          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        } catch (e) {
+          // Chart may have been disposed, ignore error
+        }
       }
     };
 
