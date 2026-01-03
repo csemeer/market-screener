@@ -267,7 +267,8 @@ class BacktestEngine {
         // Check stop loss
         if (currentCandle.low <= trade.stopLoss) {
           this.closeTrade(trade, trade.stopLoss, timestamp, 'STOP_LOSS');
-          currentCapital += (trade.netPnL || 0);
+          // Return sale proceeds to capital (quantity * exitPrice - exit brokerage)
+          currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
           trades.push(trade);
           this.saveBacktestTrade(backtestRunId, scalperId, trade);
           openPositions.delete(key);
@@ -277,7 +278,8 @@ class BacktestEngine {
         // Check target
         if (currentCandle.high >= trade.target) {
           this.closeTrade(trade, trade.target, timestamp, 'TARGET_HIT');
-          currentCapital += (trade.netPnL || 0);
+          // Return sale proceeds to capital (quantity * exitPrice - exit brokerage)
+          currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
           trades.push(trade);
           this.saveBacktestTrade(backtestRunId, scalperId, trade);
           openPositions.delete(key);
@@ -290,7 +292,8 @@ class BacktestEngine {
 
         if (holdMinutes >= maxHoldMinutes) {
           this.closeTrade(trade, currentCandle.close, timestamp, 'TIME_EXIT');
-          currentCapital += (trade.netPnL || 0);
+          // Return sale proceeds to capital (quantity * exitPrice - exit brokerage)
+          currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
           trades.push(trade);
           this.saveBacktestTrade(backtestRunId, scalperId, trade);
           openPositions.delete(key);
@@ -415,7 +418,8 @@ class BacktestEngine {
 
       const lastCandle = stockData[stockData.length - 1];
       this.closeTrade(trade, lastCandle.close, lastCandle.timestamp, 'END_OF_BACKTEST');
-      currentCapital += (trade.netPnL || 0);
+      // Return sale proceeds to capital (quantity * exitPrice - exit brokerage)
+      currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
       trades.push(trade);
       this.saveBacktestTrade(backtestRunId, scalperId, trade);
     }
