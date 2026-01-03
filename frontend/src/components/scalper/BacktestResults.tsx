@@ -10,9 +10,11 @@ import {
   Play,
   Trash2,
   RefreshCw,
+  Calendar,
 } from 'lucide-react';
 import { backtestAPI } from '../../api/client';
 import EquityCurveChart from './EquityCurveChart';
+import RunBacktestForm from './RunBacktestForm';
 
 interface BacktestRun {
   id: number;
@@ -80,6 +82,7 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'metrics' | 'trades'>('metrics');
+  const [showRunForm, setShowRunForm] = useState(false);
 
   useEffect(() => {
     loadBacktestRuns();
@@ -213,14 +216,24 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
       <div className="bg-white rounded-lg shadow-md p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">Backtest Runs</h3>
-          <button
-            onClick={handleRunQuickTest}
-            disabled={running}
-            className="inline-flex items-center px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Play className="w-4 h-4 mr-2" />
-            {running ? 'Running...' : 'Quick Test'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRunQuickTest}
+              disabled={running}
+              className="inline-flex items-center px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              {running ? 'Running...' : 'Quick Test'}
+            </button>
+            <button
+              onClick={() => setShowRunForm(true)}
+              disabled={running}
+              className="inline-flex items-center px-4 py-2 text-sm border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Custom Backtest
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -536,6 +549,17 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
             )}
           </div>
         </>
+      )}
+
+      {/* Run Backtest Form Modal */}
+      {showRunForm && (
+        <RunBacktestForm
+          scalperId={scalperId}
+          onClose={() => setShowRunForm(false)}
+          onSuccess={() => {
+            loadBacktestRuns();
+          }}
+        />
       )}
     </div>
   );
