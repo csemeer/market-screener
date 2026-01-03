@@ -511,3 +511,51 @@ export const scalperAPI = {
   getStocks: (id: number) =>
     api.get(`/scalper/${id}/stocks`),
 };
+
+// Backtest API - Historical simulation and performance analysis
+export const backtestAPI = {
+  // Run Backtests
+  runBacktest: (data: {
+    scalperId: number;
+    startDate: string; // ISO format
+    endDate: string; // ISO format
+    initialCapital?: number;
+    backtestType?: 'PERIOD' | 'INTRADAY' | 'CUSTOM';
+  }) => api.post('/backtest/run', data),
+
+  quickTest: (scalperId: number) =>
+    api.post('/backtest/quick-test', { scalperId }),
+
+  // Get Results
+  getAllRuns: (params?: {
+    scalperId?: number;
+    status?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+    limit?: number;
+  }) => api.get('/backtest/runs', { params }),
+
+  getRunDetails: (id: number) =>
+    api.get(`/backtest/runs/${id}`),
+
+  getRunTrades: (id: number, params?: {
+    status?: 'OPEN' | 'CLOSED';
+    symbol?: string;
+    limit?: number;
+  }) => api.get(`/backtest/runs/${id}/trades`, { params }),
+
+  getEquityCurve: (id: number) =>
+    api.get(`/backtest/runs/${id}/equity-curve`),
+
+  getMetrics: (id: number) =>
+    api.get(`/backtest/runs/${id}/metrics`),
+
+  getDailyReturns: (id: number) =>
+    api.get(`/backtest/runs/${id}/daily-returns`),
+
+  // Summary & Analysis
+  getScalperSummary: (scalperId: number) =>
+    api.get(`/backtest/scalpers/${scalperId}/summary`),
+
+  // Management
+  deleteRun: (id: number) =>
+    api.delete(`/backtest/runs/${id}`),
+};

@@ -6,6 +6,7 @@ import ScalperCreateForm from '../components/scalper/ScalperCreateForm';
 import ScalperPositions from '../components/scalper/ScalperPositions';
 import ScalperChart from '../components/scalper/ScalperChart';
 import ScalperTrades from '../components/scalper/ScalperTrades';
+import BacktestResults from '../components/scalper/BacktestResults';
 
 interface ScalperConfig {
   id: number;
@@ -34,7 +35,7 @@ export default function ScalperDashboard() {
   const [selectedScalper, setSelectedScalper] = useState<number | null>(null);
   const [scalperStatus, setScalperStatus] = useState<ScalperStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'config' | 'positions' | 'chart' | 'trades'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'config' | 'positions' | 'chart' | 'trades' | 'backtest'>('overview');
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -305,6 +306,7 @@ export default function ScalperDashboard() {
               { id: 'positions', label: 'Positions', icon: TrendingUp },
               { id: 'chart', label: 'Live Charts', icon: Activity },
               { id: 'trades', label: 'Trade History', icon: DollarSign },
+              { id: 'backtest', label: 'Backtest Results', icon: BarChart3 },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -400,6 +402,10 @@ export default function ScalperDashboard() {
 
           {activeTab === 'trades' && selectedScalper && (
             <ScalperTrades scalperId={selectedScalper} />
+          )}
+
+          {activeTab === 'backtest' && selectedScalper && (
+            <BacktestResults scalperId={selectedScalper} />
           )}
         </div>
       </div>
