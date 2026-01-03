@@ -51,15 +51,15 @@ try {
       ema: { enabled: true, periods: [9, 21] }
     }),
     JSON.stringify({
-      type: 'mean_reversion',
-      rsi_oversold: true,
-      bollinger_lower_touch: true,
+      type: 'MEAN_REVERSION',
+      rsiOversold: 30,
+      bbPullback: true,
       min_confidence: 60
     }),
     JSON.stringify({
-      rsi_overbought: true,
-      bollinger_upper_touch: true,
-      trailing_stop: { enabled: true, percent: 2 }
+      stopLossPercent: 0.5,
+      targetPercent: 1.5,
+      trailingStop: { enabled: true, percent: 2 }
     }),
     50000,
     3,
@@ -92,16 +92,17 @@ try {
       adx: { enabled: true, period: 14, threshold: 25 }
     }),
     JSON.stringify({
-      type: 'trend_following',
-      ema_bullish_cross: true,
-      macd_bullish: true,
-      adx_strong_trend: true,
+      type: 'TREND_FOLLOWING',
+      emaCrossover: true,
+      adxThreshold: 25,
+      macdBullish: true,
       min_confidence: 70
     }),
     JSON.stringify({
-      ema_bearish_cross: true,
-      trailing_stop: { enabled: true, percent: 3 },
-      time_based: { max_hold_hours: 48 }
+      stopLossPercent: 1.0,
+      targetPercent: 2.5,
+      trailingStop: { enabled: true, percent: 3 },
+      maxHoldHours: 48
     }),
     75000,
     2,
@@ -134,16 +135,17 @@ try {
       rsi: { enabled: true, period: 14 }
     }),
     JSON.stringify({
-      type: 'volume_breakout',
-      volume_surge: true,
-      price_above_vwap: true,
-      rsi_bullish: true,
+      type: 'VOLUME_BREAKOUT',
+      volumeMultiple: 2.0,
+      priceBreakout: true,
+      vwapConfirmation: true,
       min_confidence: 65
     }),
     JSON.stringify({
-      time_based: { max_hold_minutes: 120 },
-      trailing_stop: { enabled: true, percent: 1.5 },
-      target_percent: 3
+      stopLossPercent: 0.8,
+      targetPercent: 3.0,
+      trailingStop: { enabled: true, percent: 1.5 },
+      maxHoldMinutes: 120
     }),
     30000,
     5,
@@ -176,17 +178,17 @@ try {
       volume: { enabled: true, ma_period: 20 }
     }),
     JSON.stringify({
-      type: 'momentum',
-      rsi_momentum: true,
-      macd_bullish_cross: true,
-      volume_confirmation: true,
+      type: 'MOMENTUM',
+      macdCrossover: true,
+      volumeMultiple: 2.5,
+      rsiMomentum: true,
       min_confidence: 68
     }),
     JSON.stringify({
-      rsi_overbought: true,
-      macd_bearish_cross: true,
-      time_based: { max_hold_minutes: 90 },
-      trailing_stop: { enabled: true, percent: 2 }
+      stopLossPercent: 0.7,
+      targetPercent: 2.0,
+      trailingStop: { enabled: true, percent: 2 },
+      maxHoldMinutes: 90
     }),
     40000,
     4,
