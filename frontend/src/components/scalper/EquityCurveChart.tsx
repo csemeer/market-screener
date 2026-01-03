@@ -184,9 +184,21 @@ export default function EquityCurveChart({
     };
   }, [equityCurve, initialCapital, showBreakdown]);
 
-  const finalEquity = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].equity : initialCapital;
+  const finalEquity = equityCurve.length > 0 && equityCurve[equityCurve.length - 1].equity !== undefined
+    ? equityCurve[equityCurve.length - 1].equity
+    : initialCapital;
   const totalReturn = finalEquity - initialCapital;
-  const totalReturnPercent = ((totalReturn / initialCapital) * 100);
+  const totalReturnPercent = initialCapital > 0 ? ((totalReturn / initialCapital) * 100) : 0;
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return '₹0';
+    return `₹${value.toLocaleString('en-IN')}`;
+  };
+
+  const formatPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return '0.00%';
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -203,8 +215,7 @@ export default function EquityCurveChart({
           <div className="text-right">
             <p className="text-xs text-gray-500">Total Return</p>
             <p className={`text-lg font-bold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {totalReturn >= 0 ? '+' : ''}
-              {totalReturnPercent.toFixed(2)}%
+              {formatPercent(totalReturnPercent)}
             </p>
           </div>
 
@@ -265,19 +276,19 @@ export default function EquityCurveChart({
         <div className="text-center">
           <p className="text-xs text-gray-500">Starting Capital</p>
           <p className="text-base font-semibold text-gray-800">
-            ₹{initialCapital.toLocaleString('en-IN')}
+            {formatCurrency(initialCapital)}
           </p>
         </div>
         <div className="text-center">
           <p className="text-xs text-gray-500">Final Capital</p>
           <p className={`text-base font-semibold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            ₹{finalEquity.toLocaleString('en-IN')}
+            {formatCurrency(finalEquity)}
           </p>
         </div>
         <div className="text-center">
           <p className="text-xs text-gray-500">Net Profit/Loss</p>
           <p className={`text-base font-semibold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {totalReturn >= 0 ? '+' : ''}₹{totalReturn.toLocaleString('en-IN')}
+            {totalReturn >= 0 ? '+' : ''}{formatCurrency(Math.abs(totalReturn))}
           </p>
         </div>
       </div>
