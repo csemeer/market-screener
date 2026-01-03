@@ -94,7 +94,7 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
       loadRunDetails(selectedRun.id);
       loadTrades(selectedRun.id);
     }
-  }, [selectedRun]);
+  }, [selectedRun?.id]); // Only re-run when the ID changes, not the entire object
 
   const loadBacktestRuns = async () => {
     try {
