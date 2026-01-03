@@ -827,6 +827,115 @@ class DatabaseService {
       )
     `);
 
+    // Backtest Runs Table - Stores backtest execution metadata
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS backtest_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scalper_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+
+        backtest_type TEXT NOT NULL CHECK(backtest_type IN ('PERIOD', 'INTRADAY', 'CUSTOM')),
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+
+        initial_capital REAL NOT NULL DEFAULT 100000,
+        final_capital REAL,
+        total_return REAL,
+        total_return_percent REAL,
+
+        total_trades INTEGER DEFAULT 0,
+        winning_trades INTEGER DEFAULT 0,
+        losing_trades INTEGER DEFAULT 0,
+        win_rate REAL,
+
+        gross_profit REAL DEFAULT 0,
+        gross_loss REAL DEFAULT 0,
+        net_profit REAL DEFAULT 0,
+        profit_factor REAL,
+
+        max_drawdown REAL DEFAULT 0,
+        max_drawdown_percent REAL DEFAULT 0,
+        sharpe_ratio REAL,
+        sortino_ratio REAL,
+
+        avg_win REAL DEFAULT 0,
+        avg_loss REAL DEFAULT 0,
+        largest_win REAL DEFAULT 0,
+        largest_loss REAL DEFAULT 0,
+
+        avg_trade_duration_minutes INTEGER,
+        total_brokerage REAL DEFAULT 0,
+
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+        error_message TEXT,
+
+        equity_curve TEXT,
+        daily_returns TEXT,
+
+        started_at DATETIME,
+        completed_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (scalper_id) REFERENCES scalper_configs(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_backtest_runs_scalper ON backtest_runs(scalper_id);
+      CREATE INDEX IF NOT EXISTS idx_backtest_runs_status ON backtest_runs(status);
+      CREATE INDEX IF NOT EXISTS idx_backtest_runs_type ON backtest_runs(backtest_type);
+      CREATE INDEX IF NOT EXISTS idx_backtest_runs_dates ON backtest_runs(start_date, end_date);
+    `);
+
+    // Backtest Trades Table - Stores individual trades from backtests
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS backtest_trades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        backtest_run_id INTEGER NOT NULL,
+        scalper_id INTEGER NOT NULL,
+
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        side TEXT NOT NULL CHECK(side IN ('BUY', 'SELL')),
+
+        quantity INTEGER NOT NULL,
+        entry_price REAL NOT NULL,
+        entry_time DATETIME NOT NULL,
+
+        exit_price REAL,
+        exit_time DATETIME,
+
+        stop_loss REAL NOT NULL,
+        target REAL NOT NULL,
+
+        status TEXT NOT NULL CHECK(status IN ('OPEN', 'CLOSED')),
+        close_reason TEXT CHECK(close_reason IN ('TARGET_HIT', 'STOP_LOSS', 'TIME_EXIT', 'END_OF_BACKTEST')),
+
+        gross_pnl REAL,
+        brokerage REAL DEFAULT 0,
+        net_pnl REAL,
+        pnl_percent REAL,
+
+        entry_signals TEXT,
+        indicators_data TEXT,
+
+        duration_minutes INTEGER,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (backtest_run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE,
+        FOREIGN KEY (scalper_id) REFERENCES scalper_configs(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_backtest_trades_run ON backtest_trades(backtest_run_id);
+      CREATE INDEX IF NOT EXISTS idx_backtest_trades_scalper ON backtest_trades(scalper_id);
+      CREATE INDEX IF NOT EXISTS idx_backtest_trades_symbol ON backtest_trades(symbol);
+      CREATE INDEX IF NOT EXISTS idx_backtest_trades_entry_time ON backtest_trades(entry_time);
+    `);
+
     loggerService.info('Database tables created successfully');
   }
 
@@ -1165,7 +1274,212 @@ class DatabaseService {
       }
 
       loggerService.success(`Created Demo Scalper 2 with ${scalper2Stocks.length} NASDAQ stocks`);
-      loggerService.success('Database seeding completed - 2 demo scalpers created with paper trading mode');
+
+      // =============================================================================
+      // BACKTESTING DEMO SCALPERS
+      // =============================================================================
+
+      // Demo Backtest 1: 30-Day Period Backtest - NSE Stocks
+      const backtestScalper1 = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Backtest: 30-Day NSE',
+          0,
+          'zerodha',
+          '',
+          0,
+          'MANUAL',
+          '["RELIANCE","TCS","INFY","WIPRO","BAJFINANCE"]',
+          5,
+          'Mean Reversion Scalper',
+          '5m',
+          '{"useEMA":true,"emaFast":9,"emaSlow":21,"useRSI":true,"rsiPeriod":14,"useVWAP":true,"useBB":true}',
+          '{"type":"MEAN_REVERSION","rsiOversold":30,"rsiOverbought":70,"bbPullback":true}',
+          '{"targetPercent":0.5,"stopLossPercent":0.25,"useTrailingStop":true,"maxHoldTimeMinutes":45}',
+          50000,
+          2,
+          3000,
+          15,
+          'FIXED',
+          0.5,
+          '09:30',
+          '15:15',
+          15,
+          15
+        )
+      `).run();
+
+      const backtest1Stocks = [
+        { symbol: 'RELIANCE', exchange: 'NSE' },
+        { symbol: 'TCS', exchange: 'NSE' },
+        { symbol: 'INFY', exchange: 'NSE' },
+        { symbol: 'WIPRO', exchange: 'NSE' },
+        { symbol: 'BAJFINANCE', exchange: 'NSE' }
+      ];
+
+      for (const stock of backtest1Stocks) {
+        insertStockStmt.run(backtestScalper1.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success('Created Backtest Demo 1: 30-Day Period NSE');
+
+      // Demo Backtest 2: 90-Day Period Backtest - NASDAQ Stocks
+      const backtestScalper2 = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Backtest: 90-Day NASDAQ',
+          0,
+          'zerodha',
+          '',
+          0,
+          'MANUAL',
+          '["AAPL","MSFT","NVDA","META","GOOGL"]',
+          5,
+          'Trend Following Scalper',
+          '5m',
+          '{"useEMA":true,"emaFast":8,"emaSlow":21,"useRSI":true,"rsiPeriod":14,"useVWAP":true,"useADX":true}',
+          '{"type":"TREND_FOLLOWING","emaCrossover":true,"adxStrength":25,"volumeConfirmation":true}',
+          '{"targetPercent":1.2,"stopLossPercent":0.6,"useTrailingStop":true,"maxHoldTimeMinutes":60}',
+          50000,
+          3,
+          5000,
+          20,
+          'RISK_BASED',
+          1.0,
+          '09:30',
+          '15:15',
+          15,
+          15
+        )
+      `).run();
+
+      const backtest2Stocks = [
+        { symbol: 'AAPL', exchange: 'NASDAQ' },
+        { symbol: 'MSFT', exchange: 'NASDAQ' },
+        { symbol: 'NVDA', exchange: 'NASDAQ' },
+        { symbol: 'META', exchange: 'NASDAQ' },
+        { symbol: 'GOOGL', exchange: 'NASDAQ' }
+      ];
+
+      for (const stock of backtest2Stocks) {
+        insertStockStmt.run(backtestScalper2.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success('Created Backtest Demo 2: 90-Day Period NASDAQ');
+
+      // Demo Backtest 3: Last Market Day Intraday - NSE
+      const backtestScalper3 = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Backtest: Last Day NSE Intraday',
+          0,
+          'zerodha',
+          '',
+          0,
+          'MANUAL',
+          '["SBIN","HDFCBANK","ICICIBANK","AXISBANK","KOTAKBANK"]',
+          5,
+          'Volume Breakout Scalper',
+          '3m',
+          '{"useEMA":true,"emaFast":5,"emaSlow":13,"useRSI":true,"rsiPeriod":9,"useVWAP":true,"useVolume":true}',
+          '{"type":"VOLUME_BREAKOUT","volumeMultiplier":2.5,"priceBreakout":true}',
+          '{"targetPercent":0.8,"stopLossPercent":0.4,"useTrailingStop":false,"maxHoldTimeMinutes":20}',
+          50000,
+          4,
+          4000,
+          25,
+          'FIXED',
+          0.8,
+          '09:30',
+          '15:15',
+          10,
+          10
+        )
+      `).run();
+
+      const backtest3Stocks = [
+        { symbol: 'SBIN', exchange: 'NSE' },
+        { symbol: 'HDFCBANK', exchange: 'NSE' },
+        { symbol: 'ICICIBANK', exchange: 'NSE' },
+        { symbol: 'AXISBANK', exchange: 'NSE' },
+        { symbol: 'KOTAKBANK', exchange: 'NSE' }
+      ];
+
+      for (const stock of backtest3Stocks) {
+        insertStockStmt.run(backtestScalper3.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success('Created Backtest Demo 3: Last Market Day Intraday NSE');
+
+      // Demo Backtest 4: Last Market Day Intraday - NASDAQ
+      const backtestScalper4 = this.db.prepare(`
+        INSERT INTO scalper_configs (
+          name, enabled, broker, account_id, auto_trade,
+          stock_selection_method, stock_symbols, max_stocks,
+          strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+          max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+          position_sizing_method, risk_per_trade,
+          trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
+        ) VALUES (
+          'Backtest: Last Day NASDAQ Intraday',
+          0,
+          'zerodha',
+          '',
+          0,
+          'MANUAL',
+          '["TSLA","AMD","NFLX","AMZN","NVDA"]',
+          5,
+          'Momentum Scalper Pro',
+          '3m',
+          '{"useEMA":true,"emaFast":5,"emaSlow":13,"useRSI":true,"rsiPeriod":9,"useVWAP":true,"useMACD":true}',
+          '{"type":"MOMENTUM","macdCrossover":true,"volumeConfirmation":true,"minVolumeMultiplier":3.0}',
+          '{"targetPercent":1.5,"stopLossPercent":0.75,"useTrailingStop":true,"maxHoldTimeMinutes":25}',
+          50000,
+          3,
+          6000,
+          30,
+          'RISK_BASED',
+          1.2,
+          '09:30',
+          '15:15',
+          10,
+          10
+        )
+      `).run();
+
+      const backtest4Stocks = [
+        { symbol: 'TSLA', exchange: 'NASDAQ' },
+        { symbol: 'AMD', exchange: 'NASDAQ' },
+        { symbol: 'NFLX', exchange: 'NASDAQ' },
+        { symbol: 'AMZN', exchange: 'NASDAQ' },
+        { symbol: 'NVDA', exchange: 'NASDAQ' }
+      ];
+
+      for (const stock of backtest4Stocks) {
+        insertStockStmt.run(backtestScalper4.lastInsertRowid, stock.symbol, stock.exchange);
+      }
+
+      loggerService.success('Created Backtest Demo 4: Last Market Day Intraday NASDAQ');
+
+      loggerService.success('Database seeding completed - 6 demo scalpers created (2 live + 4 backtest)');
     } catch (error) {
       loggerService.error('Failed to seed database', { error });
       // Don't throw - seeding is optional
