@@ -156,10 +156,30 @@ router.get('/runs/:id', (req, res) => {
 
     // Parse JSON fields
     if (run.equity_curve) {
-      run.equity_curve = JSON.parse(run.equity_curve);
+      try {
+        run.equity_curve = JSON.parse(run.equity_curve);
+        // Ensure it's an array
+        if (!Array.isArray(run.equity_curve)) {
+          run.equity_curve = [];
+        }
+      } catch (e) {
+        run.equity_curve = [];
+      }
+    } else {
+      run.equity_curve = [];
     }
+
     if (run.daily_returns) {
-      run.daily_returns = JSON.parse(run.daily_returns);
+      try {
+        run.daily_returns = JSON.parse(run.daily_returns);
+        if (!Array.isArray(run.daily_returns)) {
+          run.daily_returns = [];
+        }
+      } catch (e) {
+        run.daily_returns = [];
+      }
+    } else {
+      run.daily_returns = [];
     }
 
     res.json({

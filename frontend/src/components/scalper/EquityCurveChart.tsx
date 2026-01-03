@@ -25,7 +25,7 @@ export default function EquityCurveChart({
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
-    if (!chartContainerRef.current || equityCurve.length === 0) return;
+    if (!chartContainerRef.current || !Array.isArray(equityCurve) || equityCurve.length === 0) return;
 
     // Clear previous chart
     if (chartRef.current) {
@@ -184,7 +184,7 @@ export default function EquityCurveChart({
     };
   }, [equityCurve, initialCapital, showBreakdown]);
 
-  const finalEquity = equityCurve.length > 0 && equityCurve[equityCurve.length - 1].equity !== undefined
+  const finalEquity = Array.isArray(equityCurve) && equityCurve.length > 0 && equityCurve[equityCurve.length - 1].equity !== undefined
     ? equityCurve[equityCurve.length - 1].equity
     : initialCapital;
   const totalReturn = finalEquity - initialCapital;
@@ -206,7 +206,7 @@ export default function EquityCurveChart({
         <div>
           <h3 className="text-lg font-semibold text-gray-800">Equity Curve</h3>
           <p className="text-sm text-gray-600">
-            Capital growth over {equityCurve.length} data points
+            Capital growth over {Array.isArray(equityCurve) ? equityCurve.length : 0} data points
           </p>
         </div>
 

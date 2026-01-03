@@ -396,7 +396,7 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                 </div>
 
                 {/* Equity Curve Chart */}
-                {selectedRun.equity_curve && selectedRun.equity_curve.length > 0 && (
+                {selectedRun.equity_curve && Array.isArray(selectedRun.equity_curve) && selectedRun.equity_curve.length > 0 && (
                   <EquityCurveChart
                     equityCurve={selectedRun.equity_curve}
                     initialCapital={selectedRun.initial_capital}
