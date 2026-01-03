@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, CandlestickSeries, LineSeries, LineStyle, Time } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, CandlestickSeriesPartialOptions, LineSeriesPartialOptions, LineStyle, Time } from 'lightweight-charts';
 
 interface ChartData {
   symbol: string;
@@ -113,32 +113,35 @@ export default function StockEvidenceChart({ data }: Props) {
     }
 
     // Add candlestick series using correct v5 API
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const candlestickSeriesOptions: CandlestickSeriesPartialOptions = {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
-    });
+    };
+    const candlestickSeries = chart.addCandlestickSeries(candlestickSeriesOptions);
 
     candlestickSeries.setData(candleData);
 
     // Add EMA lines
     if (data.indicators.ema20) {
-      const ema20Series = chart.addSeries(LineSeries, {
+      const ema20SeriesOptions: LineSeriesPartialOptions = {
         color: '#2962FF',
         lineWidth: 2,
         title: 'EMA 20',
-      });
+      };
+      const ema20Series = chart.addLineSeries(ema20SeriesOptions);
       ema20Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema20! })));
     }
 
     if (data.indicators.ema50) {
-      const ema50Series = chart.addSeries(LineSeries, {
+      const ema50SeriesOptions: LineSeriesPartialOptions = {
         color: '#FF6D00',
         lineWidth: 2,
         title: 'EMA 50',
-      });
+      };
+      const ema50Series = chart.addLineSeries(ema50SeriesOptions);
       ema50Series.setData(candleData.map(d => ({ time: d.time as Time, value: data.indicators.ema50! })));
     }
 
@@ -148,42 +151,45 @@ export default function StockEvidenceChart({ data }: Props) {
     // Add price levels if available
     if (data.levels) {
       // Entry level
-      const entryLine = chart.addSeries(LineSeries, {
+      const entryLineOptions: LineSeriesPartialOptions = {
         color: '#2196F3',
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
         title: 'Entry',
         priceLineVisible: true,
         lastValueVisible: true,
-      });
+      };
+      const entryLine = chart.addLineSeries(entryLineOptions);
       entryLine.setData([
         { time: candleData[0].time as Time, value: data.levels.entry },
         { time: lastTime as Time, value: data.levels.entry },
       ]);
 
       // Target level
-      const targetLine = chart.addSeries(LineSeries, {
+      const targetLineOptions: LineSeriesPartialOptions = {
         color: '#4CAF50',
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
         title: 'Target',
         priceLineVisible: true,
         lastValueVisible: true,
-      });
+      };
+      const targetLine = chart.addLineSeries(targetLineOptions);
       targetLine.setData([
         { time: candleData[0].time as Time, value: data.levels.target },
         { time: lastTime as Time, value: data.levels.target },
       ]);
 
       // Stop Loss level
-      const stopLine = chart.addSeries(LineSeries, {
+      const stopLineOptions: LineSeriesPartialOptions = {
         color: '#F44336',
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
         title: 'Stop Loss',
         priceLineVisible: true,
         lastValueVisible: true,
-      });
+      };
+      const stopLine = chart.addLineSeries(stopLineOptions);
       stopLine.setData([
         { time: candleData[0].time as Time, value: data.levels.stopLoss },
         { time: lastTime as Time, value: data.levels.stopLoss },
