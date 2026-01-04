@@ -14,6 +14,7 @@ import autoScanRoutes from './routes/autoScanRoutes';
 import scalperRoutes from './routes/scalperRoutes';
 import authRoutes from './routes/authRoutes';
 import backtestRoutes from './routes/backtestRoutes';
+import strategyRoutes from './routes/strategyRoutes';
 import { marketDataService } from './services/marketDataService';
 import { indexService } from './services/indexService';
 import { loggerService } from './services/loggerService';
@@ -49,6 +50,7 @@ app.use('/api/auto-scan', autoScanRoutes);
 app.use('/api/scalper', scalperRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/backtest', backtestRoutes);
+app.use('/api/strategies', strategyRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

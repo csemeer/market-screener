@@ -731,6 +731,52 @@ class DatabaseService {
       )
     `);
 
+    // Trading Strategies Table - Reusable strategy library
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS trading_strategies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL,
+        category TEXT NOT NULL CHECK(category IN ('MEAN_REVERSION', 'TREND_FOLLOWING', 'VOLUME_BREAKOUT', 'MOMENTUM', 'CUSTOM')),
+
+        entry_conditions TEXT NOT NULL,
+        exit_conditions TEXT NOT NULL,
+        indicators_config TEXT NOT NULL,
+
+        is_system BOOLEAN NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        created_by TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+
+        total_uses INTEGER NOT NULL DEFAULT 0,
+        avg_win_rate REAL,
+        avg_return_percent REAL,
+
+        recommended_timeframes TEXT,
+        recommended_stop_loss_percent REAL,
+        recommended_target_percent REAL,
+        min_capital_required REAL,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_trading_strategies_category ON trading_strategies(category);
+      CREATE INDEX IF NOT EXISTS idx_trading_strategies_active ON trading_strategies(is_active);
+      CREATE INDEX IF NOT EXISTS idx_trading_strategies_system ON trading_strategies(is_system);
+    `);
+
+    // Add strategy_id to scalper_configs (if not exists)
+    try {
+      this.db.exec(`
+        ALTER TABLE scalper_configs ADD COLUMN strategy_id INTEGER REFERENCES trading_strategies(id);
+      `);
+    } catch (e) {
+      // Column already exists, ignore error
+    }
+
     // Scalping Stocks Table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS scalping_stocks (
