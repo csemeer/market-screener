@@ -247,16 +247,18 @@ router.post('/', (req: Request, res: Response) => {
 
     db.close();
 
+    const parsedNewStrategy = newStrategy ? {
+      ...(newStrategy as any),
+      entry_conditions: JSON.parse((newStrategy as any).entry_conditions),
+      exit_conditions: JSON.parse((newStrategy as any).exit_conditions),
+      indicators_config: JSON.parse((newStrategy as any).indicators_config),
+      recommended_timeframes: JSON.parse((newStrategy as any).recommended_timeframes)
+    } : null;
+
     res.status(201).json({
       success: true,
       message: 'Strategy created successfully',
-      strategy: {
-        ...newStrategy,
-        entry_conditions: JSON.parse((newStrategy as any).entry_conditions),
-        exit_conditions: JSON.parse((newStrategy as any).exit_conditions),
-        indicators_config: JSON.parse((newStrategy as any).indicators_config),
-        recommended_timeframes: JSON.parse((newStrategy as any).recommended_timeframes)
-      }
+      strategy: parsedNewStrategy
     });
   } catch (error: any) {
     console.error('Error creating strategy:', error);
@@ -377,18 +379,20 @@ router.put('/:id', (req: Request, res: Response) => {
 
     db.close();
 
+    const parsedUpdated = updated ? {
+      ...(updated as any),
+      entry_conditions: JSON.parse((updated as any).entry_conditions),
+      exit_conditions: JSON.parse((updated as any).exit_conditions),
+      indicators_config: JSON.parse((updated as any).indicators_config),
+      recommended_timeframes: (updated as any).recommended_timeframes
+        ? JSON.parse((updated as any).recommended_timeframes)
+        : []
+    } : null;
+
     res.json({
       success: true,
       message: 'Strategy updated successfully',
-      strategy: {
-        ...updated,
-        entry_conditions: JSON.parse((updated as any).entry_conditions),
-        exit_conditions: JSON.parse((updated as any).exit_conditions),
-        indicators_config: JSON.parse((updated as any).indicators_config),
-        recommended_timeframes: (updated as any).recommended_timeframes
-          ? JSON.parse((updated as any).recommended_timeframes)
-          : []
-      }
+      strategy: parsedUpdated
     });
   } catch (error: any) {
     console.error('Error updating strategy:', error);
@@ -527,18 +531,20 @@ router.post('/:id/clone', (req: Request, res: Response) => {
 
     db.close();
 
+    const parsedCloned = cloned ? {
+      ...(cloned as any),
+      entry_conditions: JSON.parse((cloned as any).entry_conditions),
+      exit_conditions: JSON.parse((cloned as any).exit_conditions),
+      indicators_config: JSON.parse((cloned as any).indicators_config),
+      recommended_timeframes: (cloned as any).recommended_timeframes
+        ? JSON.parse((cloned as any).recommended_timeframes)
+        : []
+    } : null;
+
     res.status(201).json({
       success: true,
       message: 'Strategy cloned successfully',
-      strategy: {
-        ...cloned,
-        entry_conditions: JSON.parse((cloned as any).entry_conditions),
-        exit_conditions: JSON.parse((cloned as any).exit_conditions),
-        indicators_config: JSON.parse((cloned as any).indicators_config),
-        recommended_timeframes: (cloned as any).recommended_timeframes
-          ? JSON.parse((cloned as any).recommended_timeframes)
-          : []
-      }
+      strategy: parsedCloned
     });
   } catch (error: any) {
     console.error('Error cloning strategy:', error);
