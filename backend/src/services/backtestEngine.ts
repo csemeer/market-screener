@@ -196,12 +196,39 @@ class BacktestEngine {
     let currentCapital = initialCapital;
     const openPositions: Map<string, BacktestTrade> = new Map();
 
+    // Resolve strategy configuration (from strategy_id or embedded config)
+    let indicators, entryConditions, exitConditions;
+
+    if (scalperConfig.strategy_id) {
+      // Load strategy from trading_strategies table
+      const db = (databaseService as any).db;
+      const strategy: any = db.prepare('SELECT * FROM trading_strategies WHERE id = ?').get(scalperConfig.strategy_id);
+
+      if (strategy) {
+        loggerService.info(`Using strategy: ${strategy.name} (ID: ${strategy.id})`, { scalperId });
+        indicators = JSON.parse(strategy.indicators_config || '{}');
+        entryConditions = JSON.parse(strategy.entry_conditions || '{}');
+        exitConditions = JSON.parse(strategy.exit_conditions || '{}');
+      } else {
+        loggerService.warn(`Strategy ${scalperConfig.strategy_id} not found, falling back to embedded config`, { scalperId });
+        // Fall back to embedded configuration
+        indicators = JSON.parse(scalperConfig.indicators_config || '{}');
+        entryConditions = JSON.parse(scalperConfig.entry_conditions || '{}');
+        exitConditions = JSON.parse(scalperConfig.exit_conditions || '{}');
+      }
+    } else {
+      // Use embedded configuration (legacy scalpers)
+      indicators = JSON.parse(scalperConfig.indicators_config || '{}');
+      entryConditions = JSON.parse(scalperConfig.entry_conditions || '{}');
+      exitConditions = JSON.parse(scalperConfig.exit_conditions || '{}');
+    }
+
     // Parse strategy configuration
     const strategyConfig = {
       timeframe: scalperConfig.timeframe || '5m',
-      indicators: JSON.parse(scalperConfig.indicators_config || '{}'),
-      entryConditions: JSON.parse(scalperConfig.entry_conditions || '{}'),
-      exitConditions: JSON.parse(scalperConfig.exit_conditions || '{}'),
+      indicators,
+      entryConditions,
+      exitConditions,
       maxPositionSize: scalperConfig.max_position_size || 50000,
       maxPositionsOpen: scalperConfig.max_positions_open || 3,
       positionSizingMethod: scalperConfig.position_sizing_method || 'FIXED',
