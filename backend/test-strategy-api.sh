@@ -14,6 +14,20 @@ echo "Strategy Management API - E2E Tests"
 echo "=========================================="
 echo ""
 
+# Cleanup: Delete any custom strategies from previous test runs
+echo "🧹 Cleaning up previous test data..."
+custom_ids=$(curl -s "$BASE_URL?is_system=false" 2>/dev/null | python3 -c "import sys, json; data=json.load(sys.stdin); print(' '.join(str(s['id']) for s in data.get('strategies', []) if not s.get('is_system')))" 2>/dev/null || echo "")
+
+if [ -n "$custom_ids" ]; then
+    for id in $custom_ids; do
+        curl -s -X DELETE "$BASE_URL/$id" > /dev/null 2>&1
+    done
+    echo "   ✓ Deleted $(echo $custom_ids | wc -w) custom strategies"
+else
+    echo "   ✓ No custom strategies to clean up"
+fi
+echo ""
+
 # Test counter
 PASSED=0
 FAILED=0
@@ -129,12 +143,23 @@ create_data='{
   "created_by": "api_test"
 }'
 
-test_endpoint "POST /api/strategies - Create custom" "$BASE_URL" "POST" "$create_data" "201"
+# Create custom strategy and capture ID
+create_response=$(curl -s -X POST -H "Content-Type: application/json" -d "$create_data" "$BASE_URL")
+create_http_code=$(echo "$create_response" | tail -c 4)
+CUSTOM_STRATEGY_ID=$(echo "$create_response" | python3 -c "import sys, json; print(json.load(sys.stdin).get('strategy', {}).get('id', 0))" 2>/dev/null || echo "0")
 
-# Store created strategy ID for later tests
-CUSTOM_STRATEGY_ID=$(curl -s -X POST -H "Content-Type: application/json" -d "$create_data" "$BASE_URL" 2>/dev/null | python3 -c "import sys, json; print(json.load(sys.stdin).get('strategy', {}).get('id', 0))" 2>/dev/null || echo "16")
-
-echo "   → Created strategy ID: $CUSTOM_STRATEGY_ID"
+echo -n "Testing: POST /api/strategies - Create custom ... "
+success_value=$(echo "$create_response" | python3 -c 'import sys, json; print(str(json.load(sys.stdin).get("success", False)).lower())' 2>/dev/null || echo "false")
+if [ "$success_value" == "true" ] && [ "$CUSTOM_STRATEGY_ID" != "0" ]; then
+    echo -e "${GREEN}✓ PASSED${NC} (HTTP 201)"
+    echo "   → Created strategy ID: $CUSTOM_STRATEGY_ID"
+    PASSED=$((PASSED + 1))
+else
+    echo -e "${RED}✗ FAILED${NC}"
+    echo "   → Response: $create_response" | head -c 200
+    echo "   → Success value: $success_value, ID: $CUSTOM_STRATEGY_ID"
+    FAILED=$((FAILED + 1))
+fi
 
 # Test 10: Create duplicate (should fail)
 test_endpoint "POST /api/strategies - Duplicate name" "$BASE_URL" "POST" "$create_data" "400"
@@ -203,12 +228,23 @@ echo "4. CLONE OPERATIONS"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Test 19: Clone system strategy
+# Test 19: Clone system strategy and capture ID
 clone_data='{"new_name": "My Custom RSI Bollinger", "created_by": "api_test"}'
-test_endpoint "POST /api/strategies/1/clone - Clone system" "$BASE_URL/1/clone" "POST" "$clone_data" "201"
+clone_response=$(curl -s -X POST -H "Content-Type: application/json" -d "$clone_data" "$BASE_URL/1/clone")
+CLONED_STRATEGY_ID=$(echo "$clone_response" | python3 -c "import sys, json; print(json.load(sys.stdin).get('strategy', {}).get('id', 0))" 2>/dev/null || echo "0")
 
-# Store cloned strategy ID
-CLONED_STRATEGY_ID=$(curl -s -X POST -H "Content-Type: application/json" -d "$clone_data" "$BASE_URL/1/clone" 2>/dev/null | python3 -c "import sys, json; print(json.load(sys.stdin).get('strategy', {}).get('id', 0))" 2>/dev/null || echo "17")
+echo -n "Testing: POST /api/strategies/1/clone - Clone system ... "
+clone_success=$(echo "$clone_response" | python3 -c 'import sys, json; print(str(json.load(sys.stdin).get("success", False)).lower())' 2>/dev/null || echo "false")
+if [ "$clone_success" == "true" ] && [ "$CLONED_STRATEGY_ID" != "0" ]; then
+    echo -e "${GREEN}✓ PASSED${NC} (HTTP 201)"
+    echo "   → Cloned strategy ID: $CLONED_STRATEGY_ID"
+    PASSED=$((PASSED + 1))
+else
+    echo -e "${RED}✗ FAILED${NC}"
+    echo "   → Response: $clone_response" | head -c 200
+    echo "   → Success value: $clone_success, ID: $CLONED_STRATEGY_ID"
+    FAILED=$((FAILED + 1))
+fi
 
 # Test 20: Clone with duplicate name (should fail)
 test_endpoint "POST /api/strategies/1/clone - Duplicate name" "$BASE_URL/1/clone" "POST" "$clone_data" "400"

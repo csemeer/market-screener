@@ -301,13 +301,17 @@ router.put('/:id', (req: Request, res: Response) => {
       });
     }
 
-    // Can't edit system strategies
-    if (existing.is_system && req.body.entry_conditions) {
-      db.close();
-      return res.status(403).json({
-        success: false,
-        error: 'Cannot modify system strategies. Clone it to create a custom variant.'
-      });
+    // Can't edit system strategies (except for is_active toggle)
+    if (existing.is_system) {
+      // Allow only is_active toggle for system strategies
+      const hasOtherUpdates = Object.keys(req.body).some(key => key !== 'is_active');
+      if (hasOtherUpdates) {
+        db.close();
+        return res.status(403).json({
+          success: false,
+          error: 'Cannot modify system strategies. Only activation status can be changed. Clone it to create a custom variant.'
+        });
+      }
     }
 
     // Build update query dynamically
