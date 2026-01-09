@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Plus, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle } from 'lucide-react';
 import { strategyAPI } from '../api/client';
 import toast from 'react-hot-toast';
 
