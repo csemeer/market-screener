@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Save, X, AlertCircle } from 'lucide-react';
-import { scalperAPI } from '../../api/client';
+import { Save, X, AlertCircle, Target } from 'lucide-react';
+import { scalperAPI, strategyAPI } from '../../api/client';
 import axios from 'axios';
 
 interface ScalperCreateFormProps {
@@ -20,11 +20,30 @@ interface BrokerAccount {
   };
 }
 
+interface Strategy {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  entry_conditions: any;
+  exit_conditions: any;
+  indicators_config: any;
+  recommended_timeframes?: string[];
+  recommended_stop_loss_percent?: number;
+  recommended_target_percent?: number;
+  is_system: boolean;
+  is_active: boolean;
+}
+
 export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreateFormProps) {
   const [loading, setLoading] = useState(false);
   const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BrokerAccount | null>(null);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [loadingStrategies, setLoadingStrategies] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+  const [useStrategy, setUseStrategy] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     broker: 'zerodha' as 'zerodha' | 'upstox' | 'ibkr',
@@ -53,6 +72,24 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
     avoidFirstMinutes: 15,
     avoidLastMinutes: 15,
   });
+
+  // Load strategies on mount
+  useEffect(() => {
+    const loadStrategies = async () => {
+      try {
+        setLoadingStrategies(true);
+        const response = await strategyAPI.getAllStrategies({ is_active: true });
+        setStrategies(response.data.strategies || []);
+      } catch (error) {
+        console.error('Error loading strategies:', error);
+        setStrategies([]);
+      } finally {
+        setLoadingStrategies(false);
+      }
+    };
+
+    loadStrategies();
+  }, []);
 
   // Load broker accounts when broker changes
   useEffect(() => {
@@ -83,11 +120,35 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
     loadBrokerAccounts();
   }, [formData.broker]);
 
+  // Update form when strategy is selected
+  useEffect(() => {
+    if (selectedStrategy && useStrategy) {
+      // Pre-fill form with strategy's recommended values
+      setFormData((prev) => ({
+        ...prev,
+        strategyName: selectedStrategy.name,
+        timeframe: (selectedStrategy.recommended_timeframes?.[0] as any) || prev.timeframe,
+        targetPercent: selectedStrategy.recommended_target_percent || prev.targetPercent,
+        stopLossPercent: selectedStrategy.recommended_stop_loss_percent || prev.stopLossPercent,
+      }));
+    }
+  }, [selectedStrategy, useStrategy]);
+
   const handleAccountSelect = (accountId: string) => {
     setFormData({ ...formData, accountId });
 
     const account = brokerAccounts.find((acc) => acc.id.toString() === accountId);
     setSelectedAccount(account || null);
+  };
+
+  const handleStrategySelect = (strategyId: string) => {
+    if (strategyId === '') {
+      setSelectedStrategy(null);
+      return;
+    }
+
+    const strategy = strategies.find((s) => s.id.toString() === strategyId);
+    setSelectedStrategy(strategy || null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,6 +162,47 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
     try {
       setLoading(true);
 
+      // Build strategy configuration
+      const strategyConfig: any = {
+        name: formData.strategyName,
+        timeframe: formData.timeframe,
+      };
+
+      // If using a strategy from library, add strategy_id
+      // Otherwise, include full configuration (legacy mode)
+      if (useStrategy && selectedStrategy) {
+        strategyConfig.strategy_id = selectedStrategy.id;
+        // Use strategy's configuration
+        strategyConfig.indicators = selectedStrategy.indicators_config;
+        strategyConfig.entryConditions = selectedStrategy.entry_conditions;
+        strategyConfig.exitConditions = {
+          ...selectedStrategy.exit_conditions,
+          targetPercent: formData.targetPercent,
+          stopLossPercent: formData.stopLossPercent,
+        };
+      } else {
+        // Custom strategy (legacy mode)
+        strategyConfig.indicators = {
+          useEMA: true,
+          emaFast: 9,
+          emaSlow: 21,
+          useRSI: true,
+          rsiPeriod: 14,
+          useVWAP: true,
+        };
+        strategyConfig.entryConditions = {
+          type: 'BREAKOUT',
+          volumeConfirmation: true,
+          minVolumeMultiplier: 1.5,
+        };
+        strategyConfig.exitConditions = {
+          targetPercent: formData.targetPercent,
+          stopLossPercent: formData.stopLossPercent,
+          useTrailingStop: false,
+          maxHoldTimeMinutes: 30,
+        };
+      }
+
       const config = {
         name: formData.name,
         broker: formData.broker,
@@ -110,29 +212,7 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
           method: formData.stockSelectionMethod,
           maxStocks: formData.maxStocks,
         },
-        strategy: {
-          name: formData.strategyName,
-          timeframe: formData.timeframe,
-          indicators: {
-            useEMA: true,
-            emaFast: 9,
-            emaSlow: 21,
-            useRSI: true,
-            rsiPeriod: 14,
-            useVWAP: true,
-          },
-          entryConditions: {
-            type: 'BREAKOUT',
-            volumeConfirmation: true,
-            minVolumeMultiplier: 1.5,
-          },
-          exitConditions: {
-            targetPercent: formData.targetPercent,
-            stopLossPercent: formData.stopLossPercent,
-            useTrailingStop: false,
-            maxHoldTimeMinutes: 30,
-          },
-        },
+        strategy: strategyConfig,
         riskManagement: {
           maxPositionSize: formData.maxPositionSize,
           maxPositionsOpen: formData.maxPositionsOpen,
@@ -266,6 +346,167 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Strategy Selection */}
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-blue-600" />
+            Strategy Selection
+          </h3>
+
+          {/* Strategy Mode Toggle */}
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={useStrategy}
+                  onChange={() => setUseStrategy(true)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="font-medium text-blue-900">Select from Strategy Library</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={!useStrategy}
+                  onChange={() => setUseStrategy(false)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="font-medium text-blue-900">Create Custom Strategy</span>
+              </label>
+            </div>
+            <p className="text-sm text-blue-700 mt-2">
+              {useStrategy
+                ? 'Choose a professional strategy from our library with proven configurations'
+                : 'Build your own custom strategy with manual configuration'}
+            </p>
+          </div>
+
+          {/* Strategy Selector */}
+          {useStrategy && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Strategy <span className="text-red-500">*</span>
+              </label>
+              {loadingStrategies ? (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                  Loading strategies...
+                </div>
+              ) : strategies.length > 0 ? (
+                <>
+                  <select
+                    value={selectedStrategy?.id || ''}
+                    onChange={(e) => handleStrategySelect(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required={useStrategy}
+                  >
+                    <option value="">Select a trading strategy</option>
+                    <optgroup label="Mean Reversion">
+                      {strategies.filter(s => s.category === 'MEAN_REVERSION').map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name} {strategy.is_system ? '(System)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Trend Following">
+                      {strategies.filter(s => s.category === 'TREND_FOLLOWING').map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name} {strategy.is_system ? '(System)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Volume Breakout">
+                      {strategies.filter(s => s.category === 'VOLUME_BREAKOUT').map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name} {strategy.is_system ? '(System)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Momentum">
+                      {strategies.filter(s => s.category === 'MOMENTUM').map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name} {strategy.is_system ? '(System)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Custom">
+                      {strategies.filter(s => s.category === 'CUSTOM').map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+
+                  {/* Show selected strategy details */}
+                  {selectedStrategy && (
+                    <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-semibold text-green-900">{selectedStrategy.name}</p>
+                          <p className="text-sm text-green-700 mt-1">{selectedStrategy.description}</p>
+                        </div>
+                        {selectedStrategy.is_system && (
+                          <span className="px-2 py-1 bg-green-200 text-green-800 text-xs font-semibold rounded">
+                            SYSTEM
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-3 mt-3">
+                        <div className="bg-white rounded p-2">
+                          <div className="text-xs text-gray-600">Category</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {selectedStrategy.category.replace('_', ' ')}
+                          </div>
+                        </div>
+                        <div className="bg-white rounded p-2">
+                          <div className="text-xs text-gray-600">Stop Loss</div>
+                          <div className="text-sm font-semibold text-red-600">
+                            {selectedStrategy.recommended_stop_loss_percent}%
+                          </div>
+                        </div>
+                        <div className="bg-white rounded p-2">
+                          <div className="text-xs text-gray-600">Target</div>
+                          <div className="text-sm font-semibold text-green-600">
+                            {selectedStrategy.recommended_target_percent}%
+                          </div>
+                        </div>
+                        <div className="bg-white rounded p-2">
+                          <div className="text-xs text-gray-600">R:R Ratio</div>
+                          <div className="text-sm font-semibold text-blue-600">
+                            1:{selectedStrategy.recommended_target_percent && selectedStrategy.recommended_stop_loss_percent
+                              ? (selectedStrategy.recommended_target_percent / selectedStrategy.recommended_stop_loss_percent).toFixed(1)
+                              : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      {selectedStrategy.recommended_timeframes && selectedStrategy.recommended_timeframes.length > 0 && (
+                        <div className="mt-3">
+                          <div className="text-xs text-green-700 mb-1">Recommended Timeframes:</div>
+                          <div className="flex gap-2">
+                            {selectedStrategy.recommended_timeframes.map((tf) => (
+                              <span key={tf} className="px-2 py-1 bg-white text-green-800 text-xs rounded">
+                                {tf}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full px-4 py-3 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">
+                    No strategies available. Visit the Strategy Library to create one.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Strategy Settings */}

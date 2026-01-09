@@ -559,3 +559,63 @@ export const backtestAPI = {
   deleteRun: (id: number) =>
     api.delete(`/backtest/runs/${id}`),
 };
+
+// Strategy Management API - Trading strategy library
+export const strategyAPI = {
+  // List Strategies
+  getAllStrategies: (params?: {
+    category?: 'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'VOLUME_BREAKOUT' | 'MOMENTUM' | 'CUSTOM';
+    is_active?: boolean;
+    is_system?: boolean;
+    search?: string;
+  }) => api.get('/strategies', { params }),
+
+  getStrategyById: (id: number) =>
+    api.get(`/strategies/${id}`),
+
+  getCategories: () =>
+    api.get('/strategies/categories'),
+
+  // Create & Manage
+  createStrategy: (data: {
+    name: string;
+    description: string;
+    category: 'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'VOLUME_BREAKOUT' | 'MOMENTUM' | 'CUSTOM';
+    entry_conditions: any;
+    exit_conditions: any;
+    indicators_config: any;
+    recommended_timeframes?: string[];
+    recommended_stop_loss_percent?: number;
+    recommended_target_percent?: number;
+    min_capital_required?: number;
+    created_by?: string;
+  }) => api.post('/strategies', data),
+
+  updateStrategy: (id: number, data: {
+    name?: string;
+    description?: string;
+    entry_conditions?: any;
+    exit_conditions?: any;
+    indicators_config?: any;
+    is_active?: boolean;
+    recommended_timeframes?: string[];
+    recommended_stop_loss_percent?: number;
+    recommended_target_percent?: number;
+    min_capital_required?: number;
+  }) => api.put(`/strategies/${id}`, data),
+
+  deleteStrategy: (id: number) =>
+    api.delete(`/strategies/${id}`),
+
+  // Clone Strategy
+  cloneStrategy: (id: number, data: {
+    new_name: string;
+    created_by?: string;
+  }) => api.post(`/strategies/${id}/clone`, data),
+
+  // Update Performance
+  updatePerformance: (id: number, data: {
+    win_rate: number;
+    return_percent: number;
+  }) => api.put(`/strategies/${id}/performance`, data),
+};

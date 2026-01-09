@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Search, Calculator, BarChart3, Menu, X, Activity, Settings as SettingsIcon, ListPlus, Zap, Sliders, TrendingUp } from 'lucide-react';
+import { Search, Calculator, BarChart3, Menu, X, Activity, Settings as SettingsIcon, ListPlus, Zap, Sliders, TrendingUp, Target } from 'lucide-react';
 import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
@@ -13,6 +13,7 @@ import RiskCalculator from './pages/RiskCalculator';
 import StockDetail from './pages/StockDetail';
 import AutoScanSettings from './pages/AutoScanSettings';
 import ScalperDashboard from './pages/ScalperDashboard';
+import StrategyLibrary from './pages/StrategyLibrary';
 import LoggerDrawer from './components/LoggerDrawer';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
     { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { to: '/signals', label: 'Signals', icon: Zap },
     { to: '/scalper', label: 'Auto-Scalper', icon: TrendingUp },
+    { to: '/strategies', label: 'Strategies', icon: Target },
     { to: '/watchlist', label: 'Watchlist', icon: ListPlus },
     { to: '/screener', label: 'Screener', icon: Search },
     { to: '/auto-scan-settings', label: 'Auto Scan', icon: Sliders },
@@ -104,6 +106,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/signals" element={<SignalsHub />} />
             <Route path="/scalper" element={<ScalperDashboard />} />
+            <Route path="/strategies" element={<StrategyLibrary />} />
             <Route path="/autoscan" element={<SignalsHub />} />
             <Route path="/eod" element={<EODDashboard />} />
             <Route path="/watchlist" element={<CustomWatchlist />} />
