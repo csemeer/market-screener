@@ -26,6 +26,7 @@ export interface ScalperConfig {
 
   // Scalping Strategy
   strategy: {
+    strategy_id?: number; // Foreign key to trading_strategies table
     name: string;
     timeframe: '1m' | '3m' | '5m';
     indicators: {

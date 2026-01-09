@@ -84,6 +84,7 @@ class ScalperManagementService extends EventEmitter {
         : null,
       maxStocks: config.stockSelection?.maxStocks || 5,
 
+      strategyId: config.strategy?.strategy_id || null,
       strategyName: config.strategy?.name || 'Breakout Scalper',
       timeframe: config.strategy?.timeframe || '5m',
       indicatorsConfig: JSON.stringify(config.strategy?.indicators || this.getDefaultIndicators()),
@@ -109,11 +110,11 @@ class ScalperManagementService extends EventEmitter {
       INSERT INTO scalper_configs (
         name, enabled, broker, account_id, auto_trade,
         stock_selection_method, stock_symbols, screener_criteria, max_stocks,
-        strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+        strategy_id, strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
         max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
         position_sizing_method, risk_per_trade,
         trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -126,6 +127,7 @@ class ScalperManagementService extends EventEmitter {
       scalperConfig.stockSymbols,
       scalperConfig.screenerCriteria,
       scalperConfig.maxStocks,
+      scalperConfig.strategyId,
       scalperConfig.strategyName,
       scalperConfig.timeframe,
       scalperConfig.indicatorsConfig,
