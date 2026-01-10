@@ -709,7 +709,7 @@ class DatabaseService {
         max_stocks INTEGER NOT NULL DEFAULT 5,
 
         strategy_name TEXT NOT NULL,
-        timeframe TEXT NOT NULL DEFAULT '5m' CHECK(timeframe IN ('1m', '3m', '5m')),
+        timeframe TEXT NOT NULL DEFAULT '5m' CHECK(timeframe IN ('1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '1d')),
         indicators_config TEXT NOT NULL,
         entry_conditions TEXT NOT NULL,
         exit_conditions TEXT NOT NULL,
@@ -1188,6 +1188,102 @@ class DatabaseService {
 
           loggerService.info(`Migration completed: Removed ${deleteResult.changes} duplicate scan results`);
         }
+      }
+
+      // Migration 4: Update scalper_configs timeframe constraint to support more timeframes
+      try {
+        // Check if we need to migrate by checking if table exists and trying to insert a test record
+        const scalpersTableInfo = this.db.pragma('table_info(scalper_configs)') as Array<{ name: string }>;
+
+        if (scalpersTableInfo.length > 0) {
+          // Try to insert a test record with '15m' timeframe to check if constraint allows it
+          let needsMigration = false;
+
+          try {
+            this.db.prepare(`
+              INSERT INTO scalper_configs (
+                name, broker, account_id, strategy_name, timeframe,
+                indicators_config, entry_conditions, exit_conditions
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run('_test_15m', 'zerodha', 'test', 'test', '15m', '{}', '{}', '{}');
+
+            // If successful, delete the test record and skip migration
+            this.db.prepare(`DELETE FROM scalper_configs WHERE name = '_test_15m'`).run();
+          } catch (error: any) {
+            if (error.code === 'SQLITE_CONSTRAINT_CHECK') {
+              needsMigration = true;
+            }
+          }
+
+          if (needsMigration) {
+            loggerService.info('Running migration: Updating scalper_configs timeframe constraint');
+
+            // Create new table
+            this.db.prepare(`
+              CREATE TABLE scalper_configs_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                enabled BOOLEAN NOT NULL DEFAULT 0,
+                broker TEXT NOT NULL CHECK(broker IN ('zerodha', 'upstox', 'ibkr')),
+                account_id TEXT NOT NULL,
+                auto_trade BOOLEAN NOT NULL DEFAULT 0,
+                stock_selection_method TEXT NOT NULL DEFAULT 'MANUAL' CHECK(stock_selection_method IN ('MANUAL', 'AUTO_SCREENER')),
+                stock_symbols TEXT,
+                screener_criteria TEXT,
+                max_stocks INTEGER NOT NULL DEFAULT 5,
+                strategy_name TEXT NOT NULL,
+                timeframe TEXT NOT NULL DEFAULT '5m' CHECK(timeframe IN ('1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '1d')),
+                indicators_config TEXT NOT NULL,
+                entry_conditions TEXT NOT NULL,
+                exit_conditions TEXT NOT NULL,
+                max_position_size REAL NOT NULL DEFAULT 10000,
+                max_positions_open INTEGER NOT NULL DEFAULT 3,
+                max_daily_loss REAL NOT NULL DEFAULT 5000,
+                max_daily_trades INTEGER NOT NULL DEFAULT 20,
+                position_sizing_method TEXT NOT NULL DEFAULT 'FIXED' CHECK(position_sizing_method IN ('FIXED', 'RISK_BASED', 'KELLY')),
+                risk_per_trade REAL NOT NULL DEFAULT 1.0,
+                trading_start_time TEXT NOT NULL DEFAULT '09:30',
+                trading_end_time TEXT NOT NULL DEFAULT '15:15',
+                avoid_first_minutes INTEGER NOT NULL DEFAULT 15,
+                avoid_last_minutes INTEGER NOT NULL DEFAULT 15,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                strategy_id INTEGER
+              )
+            `).run();
+
+            // Copy data
+            const copyStmt = this.db.prepare(`
+              INSERT INTO scalper_configs_new (
+                id, name, enabled, broker, account_id, auto_trade,
+                stock_selection_method, stock_symbols, screener_criteria, max_stocks,
+                strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+                max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+                position_sizing_method, risk_per_trade,
+                trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes,
+                created_at, updated_at, strategy_id
+              )
+              SELECT
+                id, name, enabled, broker, account_id, auto_trade,
+                stock_selection_method, stock_symbols, screener_criteria, max_stocks,
+                strategy_name, timeframe, indicators_config, entry_conditions, exit_conditions,
+                max_position_size, max_positions_open, max_daily_loss, max_daily_trades,
+                position_sizing_method, risk_per_trade,
+                trading_start_time, trading_end_time, avoid_first_minutes, avoid_last_minutes,
+                created_at, updated_at, NULL
+              FROM scalper_configs
+            `);
+            copyStmt.run();
+
+            // Drop old table and rename new one
+            this.db.prepare(`DROP TABLE scalper_configs`).run();
+            this.db.prepare(`ALTER TABLE scalper_configs_new RENAME TO scalper_configs`).run();
+
+            loggerService.info('Migration completed: scalper_configs timeframe constraint updated');
+          }
+        }
+      } catch (error) {
+        loggerService.warn('Scalper configs migration skipped or already applied', { error });
       }
 
       loggerService.info('Database migrations completed successfully');
