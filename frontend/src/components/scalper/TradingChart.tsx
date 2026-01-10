@@ -596,7 +596,11 @@ export default function TradingChart({
                   <div key={key} className="flex justify-between">
                     <span className="text-gray-600">{key}:</span>
                     <span className="font-medium text-gray-900">
-                      {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                      {typeof value === 'number'
+                        ? value.toFixed(2)
+                        : typeof value === 'object' && value !== null
+                        ? JSON.stringify(value)
+                        : String(value)}
                     </span>
                   </div>
                 ))}
