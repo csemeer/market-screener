@@ -650,21 +650,50 @@ router.get('/runs/:id/chart-data', (req, res) => {
         indicators: trade.indicators_data,
       })),
 
-      // Aggregated indicator values (from first few trades for overview)
-      indicatorSample: parsedTrades.slice(0, 10).map((trade: any) => ({
-        time: trade.entry_time,
-        ...trade.indicators_data,
-      })),
+      // Price data points with ALL indicators (reconstructed from trades)
+      priceData: parsedTrades.map((trade: any) => {
+        const indicators = trade.indicators_data || {};
+        return {
+          time: trade.entry_time,
+          // OHLCV data from indicators or fallback to trade prices
+          open: indicators.open || trade.entry_price,
+          high: indicators.high || trade.entry_price * 1.005,
+          low: indicators.low || trade.entry_price * 0.995,
+          close: indicators.close || trade.exit_price || trade.entry_price,
+          volume: indicators.volume || trade.quantity,
+          // Technical indicators
+          rsi: indicators.rsi,
+          macd: indicators.macd,
+          signal: indicators.macd_signal, // MACD signal line
+          histogram: indicators.macd_histogram, // MACD histogram
+          ema9: indicators.ema9,
+          ema21: indicators.ema21,
+          ema50: indicators.ema50,
+          bb_upper: indicators.bb_upper,
+          bb_middle: indicators.bb_middle,
+          bb_lower: indicators.bb_lower,
+          vwap: indicators.vwap,
+        };
+      }),
 
-      // Price data points (reconstructed from trades)
-      priceData: parsedTrades.map((trade: any) => ({
-        time: trade.entry_time,
-        open: trade.entry_price,
-        high: trade.entry_price * 1.005, // Approximate
-        low: trade.entry_price * 0.995, // Approximate
-        close: trade.exit_price || trade.entry_price,
-        volume: trade.quantity,
-      })),
+      // Indicator data (same as priceData for compatibility)
+      indicatorData: parsedTrades.map((trade: any) => {
+        const indicators = trade.indicators_data || {};
+        return {
+          time: trade.entry_time,
+          rsi: indicators.rsi,
+          macd: indicators.macd,
+          signal: indicators.macd_signal,
+          histogram: indicators.macd_histogram,
+          ema9: indicators.ema9,
+          ema21: indicators.ema21,
+          ema50: indicators.ema50,
+          bb_upper: indicators.bb_upper,
+          bb_middle: indicators.bb_middle,
+          bb_lower: indicators.bb_lower,
+          vwap: indicators.vwap,
+        };
+      }),
 
       // Summary statistics
       stats: {
