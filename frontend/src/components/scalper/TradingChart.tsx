@@ -78,10 +78,10 @@ export default function TradingChart({
 
   const [selectedTrade, setSelectedTrade] = useState<TradeMarker | null>(null);
 
-  // Combine price data with indicators
+  // priceData now contains all indicators from backend
+  // Just add index for positioning on chart
   const combinedData = priceData.map((point, index) => ({
     ...point,
-    ...indicatorData[index],
     index,
   }));
 
