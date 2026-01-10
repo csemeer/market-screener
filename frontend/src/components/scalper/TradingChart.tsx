@@ -85,6 +85,12 @@ export default function TradingChart({
     index,
   }));
 
+  // Debug: Log first data point to verify structure
+  if (combinedData.length > 0) {
+    console.log('First chart data point:', combinedData[0]);
+    console.log('Total data points:', combinedData.length);
+  }
+
   // Prepare trade markers for scatter plot
   const entryMarkers = tradeMarkers
     .filter((t) => t.type === 'entry')
@@ -221,8 +227,8 @@ export default function TradingChart({
               tick={{ fontSize: 12 }}
             />
             <YAxis
-              domain={['dataMin - 5', 'dataMax + 5']}
-              tickFormatter={(value) => `₹${value}`}
+              domain={['auto', 'auto']}
+              tickFormatter={(value) => `₹${Math.round(value)}`}
               tick={{ fontSize: 12 }}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -258,6 +264,7 @@ export default function TradingChart({
                   strokeWidth={1.5}
                   name="BB Middle"
                   dot={false}
+                  connectNulls={true}
                 />
               </>
             )}
@@ -272,6 +279,7 @@ export default function TradingChart({
                   strokeWidth={2}
                   name="EMA(9)"
                   dot={false}
+                  connectNulls={true}
                 />
                 <Line
                   type="monotone"
@@ -280,6 +288,7 @@ export default function TradingChart({
                   strokeWidth={2}
                   name="EMA(21)"
                   dot={false}
+                  connectNulls={true}
                 />
                 <Line
                   type="monotone"
@@ -289,6 +298,7 @@ export default function TradingChart({
                   name="EMA(50)"
                   dot={false}
                   strokeDasharray="3 3"
+                  connectNulls={true}
                 />
               </>
             )}
@@ -303,6 +313,7 @@ export default function TradingChart({
                 name="VWAP"
                 dot={false}
                 strokeDasharray="5 5"
+                connectNulls={true}
               />
             )}
 
@@ -314,6 +325,7 @@ export default function TradingChart({
               strokeWidth={3}
               name="Price"
               dot={false}
+              connectNulls={true}
             />
 
             {/* Entry Markers */}
@@ -392,6 +404,7 @@ export default function TradingChart({
                 fill="#fef08a"
                 fillOpacity={0.6}
                 name="RSI"
+                connectNulls={true}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -432,6 +445,7 @@ export default function TradingChart({
                 strokeWidth={2}
                 name="MACD"
                 dot={false}
+                connectNulls={true}
               />
               <Line
                 type="monotone"
@@ -440,6 +454,7 @@ export default function TradingChart({
                 strokeWidth={2}
                 name="Signal"
                 dot={false}
+                connectNulls={true}
               />
             </ComposedChart>
           </ResponsiveContainer>
