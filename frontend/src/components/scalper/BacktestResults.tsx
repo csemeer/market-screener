@@ -10,6 +10,7 @@ import {
   Trash2,
   RefreshCw,
   Calendar,
+  AlertCircle,
 } from 'lucide-react';
 import { backtestAPI } from '../../api/client';
 import EquityCurveChart from './EquityCurveChart';
