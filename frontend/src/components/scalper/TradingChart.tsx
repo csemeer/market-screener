@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  LineChart,
   Line,
   AreaChart,
   Area,
-  BarChart,
   Bar,
   XAxis,
   YAxis,
@@ -15,9 +13,7 @@ import {
   ReferenceLine,
   Scatter,
   ComposedChart,
-  ReferenceDot,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Target, AlertCircle, Activity } from 'lucide-react';
 
 interface TradeMarker {
   id: number;
@@ -65,7 +61,7 @@ interface TradingChartProps {
 }
 
 export default function TradingChart({
-  runId,
+  runId: _runId,
   tradeMarkers,
   priceData,
   indicatorData,
@@ -80,7 +76,6 @@ export default function TradingChart({
     vwap: true,
   });
 
-  const [hoveredTrade, setHoveredTrade] = useState<TradeMarker | null>(null);
   const [selectedTrade, setSelectedTrade] = useState<TradeMarker | null>(null);
 
   // Combine price data with indicators
@@ -161,62 +156,6 @@ export default function TradingChart({
             <p className="text-yellow-600">
               <span className="font-medium">RSI:</span> {data.rsi.toFixed(1)}
             </p>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Custom tooltip for trade markers
-  const TradeTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const trade = payload[0].payload;
-
-    return (
-      <div className="bg-white border-2 border-blue-500 rounded-lg shadow-xl p-4 text-sm max-w-xs">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-bold text-gray-900">Trade #{trade.id}</p>
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded ${
-              (trade.pnl ?? 0) >= 0
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}
-          >
-            {trade.result?.replace(/_/g, ' ')}
-          </span>
-        </div>
-        <div className="space-y-1">
-          <p className="text-gray-700">
-            <span className="font-medium">Entry:</span> ₹{trade.price.toFixed(2)}
-          </p>
-          {trade.exitPrice && (
-            <p className="text-gray-700">
-              <span className="font-medium">Exit:</span> ₹{trade.exitPrice.toFixed(2)}
-            </p>
-          )}
-          <p className="text-gray-700">
-            <span className="font-medium">Stop Loss:</span> ₹{trade.stopLoss.toFixed(2)}
-          </p>
-          <p className="text-gray-700">
-            <span className="font-medium">Target:</span> ₹{trade.target.toFixed(2)}
-          </p>
-          {trade.pnl !== undefined && (
-            <p className={`font-semibold ${(trade.pnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              P&L: ₹{trade.pnl.toFixed(2)} ({trade.pnlPercent >= 0 ? '+' : ''}
-              {trade.pnlPercent?.toFixed(2)}%)
-            </p>
-          )}
-          {trade.signals && trade.signals.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-200">
-              <p className="font-medium text-gray-700 text-xs mb-1">Signals:</p>
-              <ul className="text-xs text-gray-600 space-y-0.5">
-                {trade.signals.slice(0, 3).map((signal: string, i: number) => (
-                  <li key={i}>• {signal}</li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
       </div>
@@ -406,17 +345,20 @@ export default function TradingChart({
               shape="triangle"
               name="Exit"
             >
-              {exitMarkers.map((exit, index) => (
-                <polygon
-                  key={`exit-${index}`}
-                  points={`${exit.index},${exit.y - 5} ${exit.index + 4},${exit.y + 5} ${exit.index - 4},${exit.y + 5}`}
-                  fill={(exit.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedTrade(exit)}
-                />
-              ))}
+              {exitMarkers.map((exit, index) => {
+                const y = exit.y ?? 0;
+                return (
+                  <polygon
+                    key={`exit-${index}`}
+                    points={`${exit.index},${y - 5} ${exit.index + 4},${y + 5} ${exit.index - 4},${y + 5}`}
+                    fill={(exit.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedTrade(exit)}
+                  />
+                );
+              })}
             </Scatter>
           </ComposedChart>
         </ResponsiveContainer>
@@ -565,7 +507,7 @@ export default function TradingChart({
                     (selectedTrade.pnlPercent ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}
                 >
-                  {selectedTrade.pnlPercent >= 0 ? '+' : ''}
+                  {(selectedTrade.pnlPercent ?? 0) >= 0 ? '+' : ''}
                   {selectedTrade.pnlPercent?.toFixed(2)}%
                 </p>
               </div>
