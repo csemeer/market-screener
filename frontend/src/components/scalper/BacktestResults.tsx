@@ -15,6 +15,7 @@ import { backtestAPI } from '../../api/client';
 import EquityCurveChart from './EquityCurveChart';
 import RunBacktestForm from './RunBacktestForm';
 import BacktestComparison from './BacktestComparison';
+import TradingChart from './TradingChart';
 
 interface BacktestRun {
   id: number;
@@ -81,9 +82,11 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
   const [trades, setTrades] = useState<BacktestTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [activeTab, setActiveTab] = useState<'metrics' | 'trades'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'chart' | 'trades'>('metrics');
   const [showRunForm, setShowRunForm] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [chartData, setChartData] = useState<any>(null);
+  const [loadingChart, setLoadingChart] = useState(false);
 
   useEffect(() => {
     loadBacktestRuns();
@@ -95,6 +98,13 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
       loadTrades(selectedRun.id);
     }
   }, [selectedRun?.id]); // Only re-run when the ID changes, not the entire object
+
+  // Load chart data when Chart tab is selected
+  useEffect(() => {
+    if (activeTab === 'chart' && selectedRun && !chartData) {
+      loadChartData(selectedRun.id);
+    }
+  }, [activeTab, selectedRun?.id]);
 
   const loadBacktestRuns = async () => {
     try {
@@ -128,6 +138,18 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
       setTrades(response.data.trades || []);
     } catch (error) {
       console.error('Error loading trades:', error);
+    }
+  };
+
+  const loadChartData = async (runId: number) => {
+    try {
+      setLoadingChart(true);
+      const response = await backtestAPI.getChartData(runId);
+      setChartData(response.data.chartData);
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+    } finally {
+      setLoadingChart(false);
     }
   };
 
@@ -322,6 +344,19 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                   </div>
                 </button>
                 <button
+                  onClick={() => setActiveTab('chart')}
+                  className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'chart'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Chart Analysis
+                  </div>
+                </button>
+                <button
                   onClick={() => setActiveTab('trades')}
                   className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'trades'
@@ -490,6 +525,35 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Chart Analysis Tab */}
+            {activeTab === 'chart' && (
+              <div className="p-6">
+                {loadingChart ? (
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                    <span className="ml-3 text-gray-600">Loading chart data...</span>
+                  </div>
+                ) : chartData ? (
+                  <TradingChart
+                    runId={selectedRun.id}
+                    tradeMarkers={chartData.tradeMarkers || []}
+                    priceData={chartData.priceData || []}
+                    indicatorData={chartData.indicatorSample || []}
+                    symbol={chartData.symbol}
+                    exchange={chartData.exchange}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">No Chart Data Available</h3>
+                    <p className="text-gray-600">
+                      Chart data could not be loaded for this backtest run.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

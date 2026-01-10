@@ -573,4 +573,122 @@ router.post('/quick-test', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/backtest/runs/:id/chart-data
+ * Get chart data with indicators and trade markers for visualization
+ *
+ * Returns:
+ * - Trade markers with entry/exit points
+ * - Indicators data aggregated from all trades
+ * - Price data reconstructed from trades
+ */
+router.get('/runs/:id/chart-data', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid backtest run ID',
+      });
+    }
+
+    const db = (databaseService as any).db;
+
+    // Get backtest run details
+    const run: any = db.prepare('SELECT * FROM backtest_runs WHERE id = ?').get(id);
+
+    if (!run) {
+      return res.status(404).json({
+        success: false,
+        error: 'Backtest run not found',
+      });
+    }
+
+    // Get all trades with their indicators and signals
+    const trades: any[] = db.prepare(`
+      SELECT
+        id, symbol, exchange, side, quantity,
+        entry_price, entry_time, exit_price, exit_time,
+        stop_loss, target, status, close_reason,
+        net_pnl, pnl_percent, duration_minutes,
+        entry_signals, indicators_data
+      FROM backtest_trades
+      WHERE backtest_run_id = ?
+      ORDER BY entry_time ASC
+    `).all(id);
+
+    // Parse JSON fields
+    const parsedTrades = trades.map((trade: any) => ({
+      ...trade,
+      entry_signals: trade.entry_signals ? JSON.parse(trade.entry_signals) : [],
+      indicators_data: trade.indicators_data ? JSON.parse(trade.indicators_data) : {},
+    }));
+
+    // Build chart data structure
+    const chartData = {
+      runId: id,
+      symbol: parsedTrades.length > 0 ? parsedTrades[0].symbol : '',
+      exchange: parsedTrades.length > 0 ? parsedTrades[0].exchange : '',
+      startDate: run.start_date,
+      endDate: run.end_date,
+
+      // Trade markers for the chart
+      tradeMarkers: parsedTrades.map((trade: any) => ({
+        id: trade.id,
+        type: trade.side === 'BUY' ? 'entry' : 'exit',
+        time: trade.entry_time,
+        price: trade.entry_price,
+        exitTime: trade.exit_time,
+        exitPrice: trade.exit_price,
+        stopLoss: trade.stop_loss,
+        target: trade.target,
+        result: trade.close_reason,
+        pnl: trade.net_pnl,
+        pnlPercent: trade.pnl_percent,
+        signals: trade.entry_signals,
+        indicators: trade.indicators_data,
+      })),
+
+      // Aggregated indicator values (from first few trades for overview)
+      indicatorSample: parsedTrades.slice(0, 10).map((trade: any) => ({
+        time: trade.entry_time,
+        ...trade.indicators_data,
+      })),
+
+      // Price data points (reconstructed from trades)
+      priceData: parsedTrades.map((trade: any) => ({
+        time: trade.entry_time,
+        open: trade.entry_price,
+        high: trade.entry_price * 1.005, // Approximate
+        low: trade.entry_price * 0.995, // Approximate
+        close: trade.exit_price || trade.entry_price,
+        volume: trade.quantity,
+      })),
+
+      // Summary statistics
+      stats: {
+        totalTrades: parsedTrades.length,
+        winningTrades: parsedTrades.filter((t: any) => (t.net_pnl || 0) > 0).length,
+        losingTrades: parsedTrades.filter((t: any) => (t.net_pnl || 0) < 0).length,
+        avgPnl: parsedTrades.length > 0
+          ? parsedTrades.reduce((sum: number, t: any) => sum + (t.net_pnl || 0), 0) / parsedTrades.length
+          : 0,
+      },
+    };
+
+    res.json({
+      success: true,
+      chartData,
+      totalMarkers: chartData.tradeMarkers.length,
+    });
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch chart data',
+    });
+  }
+});
+
 export default router;

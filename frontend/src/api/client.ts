@@ -558,6 +558,10 @@ export const backtestAPI = {
   // Management
   deleteRun: (id: number) =>
     api.delete(`/backtest/runs/${id}`),
+
+  // Chart Data
+  getChartData: (id: number) =>
+    api.get(`/backtest/runs/${id}/chart-data`),
 };
 
 // Strategy Management API - Trading strategy library
