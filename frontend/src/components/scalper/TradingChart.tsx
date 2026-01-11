@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   ComposedChart,
+  ReferenceDot,
 } from 'recharts';
 
 interface TradeMarker {
@@ -346,8 +347,38 @@ export default function TradingChart({
               isAnimationActive={false}
             />
 
-            {/* TEMPORARILY DISABLED - Trade Markers causing rendering issues */}
-            {/* Will re-add with proper implementation */}
+            {/* Trade Entry Markers - Using ReferenceDot (Recharts-compatible) */}
+            {tradeMarkers
+              .filter((t) => t.type === 'entry')
+              .map((trade, idx) => (
+                <ReferenceDot
+                  key={`entry-${trade.id}-${idx}`}
+                  x={trade.time}
+                  y={trade.price}
+                  r={8}
+                  fill={(trade.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  isFront={true}
+                />
+              ))}
+
+            {/* Trade Exit Markers - Using ReferenceDot */}
+            {tradeMarkers
+              .filter((t) => t.exitTime && t.exitPrice)
+              .map((trade, idx) => (
+                <ReferenceDot
+                  key={`exit-${trade.id}-${idx}`}
+                  x={trade.exitTime!}
+                  y={trade.exitPrice!}
+                  r={8}
+                  fill={(trade.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
+                  stroke="#ffffff"
+                  strokeWidth={3}
+                  isFront={true}
+                  shape="triangle"
+                />
+              ))}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
