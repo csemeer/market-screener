@@ -5,6 +5,8 @@
 import express from 'express';
 import { backtestEngine } from '../services/backtestEngine';
 import { databaseService } from '../services/databaseService';
+import { marketDataService } from '../services/marketDataService';
+import { TechnicalAnalysis } from '../utils/technicalIndicators';
 
 const router = express.Router();
 
@@ -575,14 +577,15 @@ router.post('/quick-test', async (req, res) => {
 
 /**
  * GET /api/backtest/runs/:id/chart-data
- * Get chart data with indicators and trade markers for visualization
+ * Get COMPLETE candlestick chart data for the entire backtest period
  *
  * Returns:
- * - Trade markers with entry/exit points
- * - Indicators data aggregated from all trades
- * - Price data reconstructed from trades
+ * - Full OHLCV candlestick data for the backtest period
+ * - Technical indicators calculated for ALL candles
+ * - Trade markers to overlay on the candlestick chart
+ * - Complete visualization for strategy fine-tuning
  */
-router.get('/runs/:id/chart-data', (req, res) => {
+router.get('/runs/:id/chart-data', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
 
@@ -595,8 +598,13 @@ router.get('/runs/:id/chart-data', (req, res) => {
 
     const db = (databaseService as any).db;
 
-    // Get backtest run details
-    const run: any = db.prepare('SELECT * FROM backtest_runs WHERE id = ?').get(id);
+    // Get backtest run details with scalper config
+    const run: any = db.prepare(`
+      SELECT br.*, sc.timeframe, sc.symbol, sc.exchange
+      FROM backtest_runs br
+      JOIN scalper_configs sc ON br.scalper_id = sc.id
+      WHERE br.id = ?
+    `).get(id);
 
     if (!run) {
       return res.status(404).json({
@@ -605,7 +613,7 @@ router.get('/runs/:id/chart-data', (req, res) => {
       });
     }
 
-    // Get all trades with their indicators and signals
+    // Get all trades for markers
     const trades: any[] = db.prepare(`
       SELECT
         id, symbol, exchange, side, quantity,
@@ -618,98 +626,127 @@ router.get('/runs/:id/chart-data', (req, res) => {
       ORDER BY entry_time ASC
     `).all(id);
 
-    // Parse JSON fields
+    // Parse trade JSON fields
     const parsedTrades = trades.map((trade: any) => ({
       ...trade,
       entry_signals: trade.entry_signals ? JSON.parse(trade.entry_signals) : [],
       indicators_data: trade.indicators_data ? JSON.parse(trade.indicators_data) : {},
     }));
 
-    // Build chart data structure
+    // Fetch COMPLETE historical data for the backtest period
+    const interval = convertTimeframeToInterval(run.timeframe);
+    const range = calculateDateRange(new Date(run.start_date), new Date(run.end_date));
+
+    const historicalData = await marketDataService.getHistoricalData(
+      run.symbol,
+      run.exchange,
+      interval,
+      range
+    );
+
+    if (!historicalData || historicalData.length === 0) {
+      return res.json({
+        success: true,
+        chartData: {
+          runId: id,
+          symbol: run.symbol,
+          exchange: run.exchange,
+          timeframe: run.timeframe,
+          startDate: run.start_date,
+          endDate: run.end_date,
+          candles: [],
+          tradeMarkers: [],
+          message: 'No historical data available for this period',
+        },
+      });
+    }
+
+    // Calculate indicators for ALL candles
+    const ta = new (TechnicalAnalysis as any)(historicalData);
+    const ema = ta.calculateEMA([9, 21, 50]);
+    const rsi = ta.calculateRSI(14);
+    const macd = ta.calculateMACD();
+    const bollingerBands = ta.calculateBollingerBands(20, 2);
+    const vwap = ta.calculateVWAP();
+    const adx = ta.calculateADX(14);
+
+    // Combine all data into candlestick format
+    const candles = historicalData.map((candle: any, index: number) => ({
+      time: candle.timestamp,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+      volume: candle.volume,
+      // Technical indicators
+      rsi: rsi[index],
+      macd: macd[index]?.macd,
+      macd_signal: macd[index]?.signal,
+      macd_histogram: macd[index]?.histogram,
+      ema9: ema.ema9[index],
+      ema21: ema.ema20?.[index] || ema.ema21?.[index], // Handle both naming conventions
+      ema50: ema.ema50[index],
+      bb_upper: bollingerBands[index]?.upper,
+      bb_middle: bollingerBands[index]?.middle,
+      bb_lower: bollingerBands[index]?.lower,
+      vwap: vwap[index],
+      adx: adx[index],
+    }));
+
+    // Build trade markers for overlay
+    const tradeMarkers = parsedTrades.map((trade: any) => ({
+      id: trade.id,
+      type: trade.side === 'BUY' ? 'entry' : 'exit',
+      time: trade.entry_time,
+      price: trade.entry_price,
+      exitTime: trade.exit_time,
+      exitPrice: trade.exit_price,
+      stopLoss: trade.stop_loss,
+      target: trade.target,
+      result: trade.close_reason,
+      pnl: trade.net_pnl,
+      pnlPercent: trade.pnl_percent,
+      signals: trade.entry_signals,
+      indicators: trade.indicators_data,
+    }));
+
+    // Build response with complete chart data
     const chartData = {
       runId: id,
-      symbol: parsedTrades.length > 0 ? parsedTrades[0].symbol : '',
-      exchange: parsedTrades.length > 0 ? parsedTrades[0].exchange : '',
+      symbol: run.symbol,
+      exchange: run.exchange,
+      timeframe: run.timeframe,
       startDate: run.start_date,
       endDate: run.end_date,
 
-      // Trade markers for the chart
-      tradeMarkers: parsedTrades.map((trade: any) => ({
-        id: trade.id,
-        type: trade.side === 'BUY' ? 'entry' : 'exit',
-        time: trade.entry_time,
-        price: trade.entry_price,
-        exitTime: trade.exit_time,
-        exitPrice: trade.exit_price,
-        stopLoss: trade.stop_loss,
-        target: trade.target,
-        result: trade.close_reason,
-        pnl: trade.net_pnl,
-        pnlPercent: trade.pnl_percent,
-        signals: trade.entry_signals,
-        indicators: trade.indicators_data,
-      })),
+      // COMPLETE candlestick data for entire period
+      candles,
 
-      // Price data points with ALL indicators (reconstructed from trades)
-      priceData: parsedTrades.map((trade: any) => {
-        const indicators = trade.indicators_data || {};
-        return {
-          time: trade.entry_time,
-          // OHLCV data from indicators or fallback to trade prices
-          open: indicators.open || trade.entry_price,
-          high: indicators.high || trade.entry_price * 1.005,
-          low: indicators.low || trade.entry_price * 0.995,
-          close: indicators.close || trade.exit_price || trade.entry_price,
-          volume: indicators.volume || trade.quantity,
-          // Technical indicators
-          rsi: indicators.rsi,
-          macd: indicators.macd,
-          signal: indicators.macd_signal, // MACD signal line
-          histogram: indicators.macd_histogram, // MACD histogram
-          ema9: indicators.ema9,
-          ema21: indicators.ema21,
-          ema50: indicators.ema50,
-          bb_upper: indicators.bb_upper,
-          bb_middle: indicators.bb_middle,
-          bb_lower: indicators.bb_lower,
-          vwap: indicators.vwap,
-        };
-      }),
+      // Trade markers to overlay
+      tradeMarkers,
 
-      // Indicator data (same as priceData for compatibility)
-      indicatorData: parsedTrades.map((trade: any) => {
-        const indicators = trade.indicators_data || {};
-        return {
-          time: trade.entry_time,
-          rsi: indicators.rsi,
-          macd: indicators.macd,
-          signal: indicators.macd_signal,
-          histogram: indicators.macd_histogram,
-          ema9: indicators.ema9,
-          ema21: indicators.ema21,
-          ema50: indicators.ema50,
-          bb_upper: indicators.bb_upper,
-          bb_middle: indicators.bb_middle,
-          bb_lower: indicators.bb_lower,
-          vwap: indicators.vwap,
-        };
-      }),
+      // Backwards compatibility
+      priceData: candles, // Alias for existing code
+      indicatorData: candles, // Alias for existing code
 
-      // Summary statistics
+      // Summary stats
       stats: {
+        totalCandles: candles.length,
         totalTrades: parsedTrades.length,
         winningTrades: parsedTrades.filter((t: any) => (t.net_pnl || 0) > 0).length,
         losingTrades: parsedTrades.filter((t: any) => (t.net_pnl || 0) < 0).length,
-        avgPnl: parsedTrades.length > 0
-          ? parsedTrades.reduce((sum: number, t: any) => sum + (t.net_pnl || 0), 0) / parsedTrades.length
-          : 0,
+        priceRange: {
+          low: Math.min(...candles.map((c: any) => c.low).filter(Boolean)),
+          high: Math.max(...candles.map((c: any) => c.high).filter(Boolean)),
+        },
       },
     };
 
     res.json({
       success: true,
       chartData,
-      totalMarkers: chartData.tradeMarkers.length,
+      totalCandles: candles.length,
+      totalMarkers: tradeMarkers.length,
     });
   } catch (error) {
     console.error('Error fetching chart data:', error);
@@ -719,5 +756,33 @@ router.get('/runs/:id/chart-data', (req, res) => {
     });
   }
 });
+
+// Helper functions
+function convertTimeframeToInterval(timeframe: string): string {
+  const map: { [key: string]: string } = {
+    '1m': '1min',
+    '3m': '3min',
+    '5m': '5min',
+    '15m': '15min',
+    '30m': '30min',
+    '1h': '1hour',
+    '2h': '2hour',
+    '4h': '4hour',
+    '1d': '1day',
+  };
+  return map[timeframe] || '5min';
+}
+
+function calculateDateRange(startDate: Date, endDate: Date): string {
+  const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 1) return '1d';
+  if (diffDays <= 7) return '7d';
+  if (diffDays <= 30) return '1mo';
+  if (diffDays <= 90) return '3mo';
+  if (diffDays <= 180) return '6mo';
+  if (diffDays <= 365) return '1y';
+  return '2y';
+}
 
 export default router;
