@@ -600,7 +600,7 @@ router.get('/runs/:id/chart-data', async (req, res) => {
 
     // Get backtest run details with scalper config
     const run: any = db.prepare(`
-      SELECT br.*, sc.timeframe, sc.symbol, sc.exchange
+      SELECT br.*, sc.timeframe
       FROM backtest_runs br
       JOIN scalper_configs sc ON br.scalper_id = sc.id
       WHERE br.id = ?
@@ -633,13 +633,34 @@ router.get('/runs/:id/chart-data', async (req, res) => {
       indicators_data: trade.indicators_data ? JSON.parse(trade.indicators_data) : {},
     }));
 
+    // Get symbol and exchange from first trade (all trades in a backtest are for same symbol)
+    if (parsedTrades.length === 0) {
+      return res.json({
+        success: true,
+        chartData: {
+          runId: id,
+          symbol: '',
+          exchange: '',
+          timeframe: run.timeframe,
+          startDate: run.start_date,
+          endDate: run.end_date,
+          candles: [],
+          tradeMarkers: [],
+          message: 'No trades found for this backtest',
+        },
+      });
+    }
+
+    const symbol = parsedTrades[0].symbol;
+    const exchange = parsedTrades[0].exchange;
+
     // Fetch COMPLETE historical data for the backtest period
     const interval = convertTimeframeToInterval(run.timeframe);
     const range = calculateDateRange(new Date(run.start_date), new Date(run.end_date));
 
     const historicalData = await marketDataService.getHistoricalData(
-      run.symbol,
-      run.exchange,
+      symbol,
+      exchange,
       interval,
       range
     );
@@ -649,8 +670,8 @@ router.get('/runs/:id/chart-data', async (req, res) => {
         success: true,
         chartData: {
           runId: id,
-          symbol: run.symbol,
-          exchange: run.exchange,
+          symbol,
+          exchange,
           timeframe: run.timeframe,
           startDate: run.start_date,
           endDate: run.end_date,
@@ -713,8 +734,8 @@ router.get('/runs/:id/chart-data', async (req, res) => {
     // Build response with complete chart data
     const chartData = {
       runId: id,
-      symbol: run.symbol,
-      exchange: run.exchange,
+      symbol,
+      exchange,
       timeframe: run.timeframe,
       startDate: run.start_date,
       endDate: run.end_date,
