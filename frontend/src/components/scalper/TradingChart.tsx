@@ -87,8 +87,14 @@ export default function TradingChart({
 
   // Debug: Log first data point to verify structure
   if (combinedData.length > 0) {
+    console.log('=== CHART DEBUG ===');
     console.log('First chart data point:', combinedData[0]);
     console.log('Total data points:', combinedData.length);
+    console.log('Sample data keys:', Object.keys(combinedData[0]));
+    console.log('Has close?', combinedData[0].close);
+    console.log('Has ema9?', combinedData[0].ema9);
+    console.log('Has rsi?', combinedData[0].rsi);
+    console.log('===================');
   }
 
   // Prepare trade markers for scatter plot
@@ -246,6 +252,7 @@ export default function TradingChart({
                   name="BB Upper"
                   strokeWidth={1}
                   strokeDasharray="5 5"
+                  isAnimationActive={false}
                 />
                 <Area
                   type="monotone"
@@ -256,15 +263,17 @@ export default function TradingChart({
                   name="BB Lower"
                   strokeWidth={1}
                   strokeDasharray="5 5"
+                  isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
                   dataKey="bb_middle"
-                  stroke="#f97316"
-                  strokeWidth={1.5}
+                  stroke="#FFA500"
+                  strokeWidth={3}
                   name="BB Middle"
                   dot={false}
                   connectNulls={true}
+                  isAnimationActive={false}
                 />
               </>
             )}
@@ -275,30 +284,33 @@ export default function TradingChart({
                 <Line
                   type="monotone"
                   dataKey="ema9"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
+                  stroke="#0000FF"
+                  strokeWidth={3}
                   name="EMA(9)"
                   dot={false}
                   connectNulls={true}
+                  isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
                   dataKey="ema21"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
+                  stroke="#FF00FF"
+                  strokeWidth={3}
                   name="EMA(21)"
                   dot={false}
                   connectNulls={true}
+                  isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
                   dataKey="ema50"
-                  stroke="#06b6d4"
-                  strokeWidth={1.5}
+                  stroke="#00FFFF"
+                  strokeWidth={3}
                   name="EMA(50)"
                   dot={false}
                   strokeDasharray="3 3"
                   connectNulls={true}
+                  isAnimationActive={false}
                 />
               </>
             )}
@@ -308,24 +320,26 @@ export default function TradingChart({
               <Line
                 type="monotone"
                 dataKey="vwap"
-                stroke="#14b8a6"
-                strokeWidth={2}
+                stroke="#FF0000"
+                strokeWidth={3}
                 name="VWAP"
                 dot={false}
                 strokeDasharray="5 5"
                 connectNulls={true}
+                isAnimationActive={false}
               />
             )}
 
-            {/* Price Line */}
+            {/* Price Line - Make it VERY visible */}
             <Line
               type="monotone"
               dataKey="close"
-              stroke="#1f2937"
-              strokeWidth={3}
+              stroke="#000000"
+              strokeWidth={4}
               name="Price"
               dot={false}
               connectNulls={true}
+              isAnimationActive={false}
             />
 
             {/* Entry Markers */}
@@ -405,6 +419,7 @@ export default function TradingChart({
                 fillOpacity={0.6}
                 name="RSI"
                 connectNulls={true}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -437,6 +452,7 @@ export default function TradingChart({
                 fill="#93c5fd"
                 name="Histogram"
                 barSize={20}
+                isAnimationActive={false}
               />
               <Line
                 type="monotone"
@@ -446,6 +462,7 @@ export default function TradingChart({
                 name="MACD"
                 dot={false}
                 connectNulls={true}
+                isAnimationActive={false}
               />
               <Line
                 type="monotone"
@@ -455,6 +472,7 @@ export default function TradingChart({
                 name="Signal"
                 dot={false}
                 connectNulls={true}
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>
