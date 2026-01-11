@@ -758,19 +758,20 @@ router.get('/runs/:id/chart-data', async (req, res) => {
 });
 
 // Helper functions
-function convertTimeframeToInterval(timeframe: string): string {
-  const map: { [key: string]: string } = {
-    '1m': '1min',
-    '3m': '3min',
-    '5m': '5min',
-    '15m': '15min',
-    '30m': '30min',
-    '1h': '1hour',
-    '2h': '2hour',
-    '4h': '4hour',
-    '1d': '1day',
+function convertTimeframeToInterval(timeframe: string): '1d' | '1h' | '15m' | '5m' {
+  // Map scalper timeframes to available market data intervals
+  const map: { [key: string]: '1d' | '1h' | '15m' | '5m' } = {
+    '1m': '5m', // Use 5m as fallback for 1m
+    '3m': '5m', // Use 5m as fallback for 3m
+    '5m': '5m',
+    '15m': '15m',
+    '30m': '1h', // Use 1h as fallback for 30m
+    '1h': '1h',
+    '2h': '1h', // Use 1h as fallback for 2h
+    '4h': '1h', // Use 1h as fallback for 4h
+    '1d': '1d',
   };
-  return map[timeframe] || '5min';
+  return map[timeframe] || '5m';
 }
 
 function calculateDateRange(startDate: Date, endDate: Date): string {
