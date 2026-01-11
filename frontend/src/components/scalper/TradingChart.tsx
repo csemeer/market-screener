@@ -64,7 +64,7 @@ export default function TradingChart({
   runId: _runId,
   tradeMarkers,
   priceData,
-  indicatorData,
+  indicatorData: _indicatorData,
   symbol,
   exchange,
 }: TradingChartProps) {
