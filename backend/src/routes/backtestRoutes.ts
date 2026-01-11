@@ -682,37 +682,48 @@ router.get('/runs/:id/chart-data', async (req, res) => {
       });
     }
 
-    // Calculate indicators for ALL candles
-    const ta = new (TechnicalAnalysis as any)(historicalData);
-    const ema = ta.calculateEMA([9, 21, 50]);
-    const rsi = ta.calculateRSI(14);
-    const macd = ta.calculateMACD();
-    const bollingerBands = ta.calculateBollingerBands(20, 2);
-    const vwap = ta.calculateVWAP();
-    const adx = ta.calculateADX(14);
+    // Calculate indicators for ALL candles progressively
+    // TechnicalAnalysis uses static methods that return values for the most recent data point
+    // We need to calculate indicators progressively for each candle
+    const candles = historicalData.map((candle: any, index: number) => {
+      // Get data slice up to current index (for progressive calculation)
+      const dataSlice = historicalData.slice(0, index + 1);
+      const priceSlice = dataSlice.map((d: any) => d.close);
 
-    // Combine all data into candlestick format
-    const candles = historicalData.map((candle: any, index: number) => ({
-      time: candle.timestamp,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-      volume: candle.volume,
-      // Technical indicators
-      rsi: rsi[index],
-      macd: macd[index]?.macd,
-      macd_signal: macd[index]?.signal,
-      macd_histogram: macd[index]?.histogram,
-      ema9: ema.ema9[index],
-      ema21: ema.ema20?.[index] || ema.ema21?.[index], // Handle both naming conventions
-      ema50: ema.ema50[index],
-      bb_upper: bollingerBands[index]?.upper,
-      bb_middle: bollingerBands[index]?.middle,
-      bb_lower: bollingerBands[index]?.lower,
-      vwap: vwap[index],
-      adx: adx[index],
-    }));
+      // Calculate indicators using static methods
+      const rsi = TechnicalAnalysis.calculateRSI(dataSlice, 14);
+      const macd = TechnicalAnalysis.calculateMACD(dataSlice);
+      const bollingerBands = TechnicalAnalysis.calculateBollingerBands(dataSlice, 20, 2);
+      const vwap = TechnicalAnalysis.calculateVWAP(dataSlice);
+      const adx = TechnicalAnalysis.calculateADX(dataSlice, 14);
+
+      // Calculate EMAs
+      const ema9 = TechnicalAnalysis.calculateEMA(priceSlice, 9);
+      const ema21 = TechnicalAnalysis.calculateEMA(priceSlice, 21);
+      const ema50 = TechnicalAnalysis.calculateEMA(priceSlice, 50);
+
+      return {
+        time: candle.timestamp,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+        // Technical indicators
+        rsi: rsi || undefined,
+        macd: macd?.macd,
+        macd_signal: macd?.signal,
+        macd_histogram: macd?.histogram,
+        ema9: ema9 || undefined,
+        ema21: ema21 || undefined,
+        ema50: ema50 || undefined,
+        bb_upper: bollingerBands?.upper,
+        bb_middle: bollingerBands?.middle,
+        bb_lower: bollingerBands?.lower,
+        vwap: vwap || undefined,
+        adx: adx || undefined,
+      };
+    });
 
     // Build trade markers for overlay
     const tradeMarkers = parsedTrades.map((trade: any) => ({
