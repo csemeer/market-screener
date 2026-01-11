@@ -347,50 +347,8 @@ export default function TradingChart({
               isAnimationActive={false}
             />
 
-            {/* Entry Markers */}
-            <Scatter
-              data={entryMarkers}
-              fill="#10b981"
-              shape="circle"
-              name="Entry"
-            >
-              {entryMarkers.map((entry, index) => (
-                <circle
-                  key={`entry-${index}`}
-                  cx={entry.index}
-                  cy={entry.y}
-                  r={6}
-                  fill={(entry.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedTrade(entry)}
-                />
-              ))}
-            </Scatter>
-
-            {/* Exit Markers */}
-            <Scatter
-              data={exitMarkers}
-              fill="#ef4444"
-              shape="triangle"
-              name="Exit"
-            >
-              {exitMarkers.map((exit, index) => {
-                const y = exit.y ?? 0;
-                return (
-                  <polygon
-                    key={`exit-${index}`}
-                    points={`${exit.index},${y - 5} ${exit.index + 4},${y + 5} ${exit.index - 4},${y + 5}`}
-                    fill={(exit.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setSelectedTrade(exit)}
-                  />
-                );
-              })}
-            </Scatter>
+            {/* TEMPORARILY DISABLED - Trade Markers causing rendering issues */}
+            {/* Will re-add with proper implementation */}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
