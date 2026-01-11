@@ -15,7 +15,28 @@ import {
   ReferenceDot,
 } from 'recharts';
 
-// Custom Candlestick Shape Component
+// TradingView-style Volume Bar with color based on price direction
+const VolumeBar = (props: any) => {
+  const { x, y, width, height, payload } = props;
+
+  if (!payload || payload.volume === undefined) return null;
+
+  const isBullish = payload.isBullish;
+  const color = isBullish ? '#26a69a' : '#ef5350';
+
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      fill={color}
+      fillOpacity={0.7}
+    />
+  );
+};
+
+// TradingView-style Candlestick Shape Component
 const CandlestickShape = (props: any) => {
   const { x, y, width, height, payload } = props;
 
@@ -27,18 +48,20 @@ const CandlestickShape = (props: any) => {
     return null;
   }
 
-  const isGreen = close > open;
-  const color = isGreen ? '#10b981' : '#ef4444'; // Green for up, Red for down
+  const isBullish = close >= open;
+
+  // TradingView colors: Bullish (teal green), Bearish (red)
+  const bullColor = '#26a69a';
+  const bearColor = '#ef5350';
+  const color = isBullish ? bullColor : bearColor;
 
   // Calculate candlestick dimensions
-  const candleWidth = Math.max(width * 0.7, 3); // 70% of available width, min 3px
+  const candleWidth = Math.max(width * 0.65, 2);
   const centerX = x + width / 2;
 
-  // The y and height provided by Recharts are for the high value
-  // We need to calculate positions for all OHLC values
+  // Handle doji/flat candles
   const priceRange = high - low;
   if (priceRange === 0) {
-    // Doji or data error - draw a thin horizontal line
     return (
       <line
         x1={centerX - candleWidth / 2}
@@ -46,43 +69,45 @@ const CandlestickShape = (props: any) => {
         x2={centerX + candleWidth / 2}
         y2={y}
         stroke={color}
-        strokeWidth={2}
+        strokeWidth={1.5}
       />
     );
   }
 
   // Calculate pixel positions
-  // Note: y is at the top (high price), y + height is at bottom (low price)
   const bodyTop = Math.min(open, close);
   const bodyBottom = Math.max(open, close);
   const bodyHeight = Math.abs(close - open);
 
-  // Calculate Y positions for body
+  // Y positions
   const bodyTopY = y + (height * (high - bodyTop) / priceRange);
-  const bodyHeightPx = Math.max((height * bodyHeight / priceRange), 1);
+  const bodyHeightPx = Math.max((height * bodyHeight / priceRange), 1.5);
+
+  // Minimum body height for visibility
+  const displayBodyHeight = Math.max(bodyHeightPx, 1.5);
 
   return (
     <g>
-      {/* High-Low Wick (thin line from high to low) */}
+      {/* High-Low Wick */}
       <line
         x1={centerX}
         y1={y}
         x2={centerX}
         y2={y + height}
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={1}
+        strokeOpacity={0.8}
       />
 
-      {/* Candle Body (rectangle from open to close) */}
+      {/* Candle Body: Hollow for bullish, Filled for bearish */}
       <rect
         x={centerX - candleWidth / 2}
         y={bodyTopY}
         width={candleWidth}
-        height={bodyHeightPx}
-        fill={color}
+        height={displayBodyHeight}
+        fill={isBullish ? 'transparent' : color}
         stroke={color}
-        strokeWidth={1}
-        opacity={isGreen ? 0.8 : 0.9}
+        strokeWidth={isBullish ? 1.5 : 1}
       />
     </g>
   );
@@ -153,12 +178,16 @@ export default function TradingChart({
   const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
   const [showVolume, setShowVolume] = useState(true);
 
-  // priceData now contains all indicators from backend
-  // Just add index for positioning on chart
-  const combinedData = priceData.map((point, index) => ({
-    ...point,
-    index,
-  }));
+  // Add volume coloring based on price direction (TradingView style)
+  const combinedData = priceData.map((point, index) => {
+    const isBullish = (point.close ?? 0) >= (point.open ?? 0);
+    return {
+      ...point,
+      index,
+      volumeColor: isBullish ? '#26a69a' : '#ef5350', // Green for up, Red for down
+      isBullish,
+    };
+  });
 
   // Debug: Log first data point to verify structure
   if (combinedData.length > 0) {
@@ -202,52 +231,91 @@ export default function TradingChart({
       };
     });
 
-  // Custom tooltip for price chart
+  // TradingView-style OHLC Tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
 
     const data = payload[0].payload;
+    const isBullish = data.close >= data.open;
+    const change = data.close - data.open;
+    const changePercent = ((change / data.open) * 100);
 
     return (
-      <div className="bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-sm">
-        <p className="font-semibold text-gray-900 mb-2">
+      <div className="bg-gray-900/95 border border-gray-700 rounded-md shadow-2xl p-3 text-xs font-mono">
+        {/* Timestamp */}
+        <p className="font-semibold text-gray-200 mb-2 text-sm">
           {new Date(data.time).toLocaleString('en-IN', {
+            year: 'numeric',
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
           })}
         </p>
-        <div className="space-y-1">
-          {data.close && (
-            <p className="text-gray-700">
-              <span className="font-medium">Price:</span> ₹{data.close.toFixed(2)}
-            </p>
+
+        {/* OHLC Data */}
+        <div className="space-y-1 mb-2 border-b border-gray-700 pb-2">
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-400">O</span>
+            <span className="text-white">₹{data.open?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-400">H</span>
+            <span className="text-green-400">₹{data.high?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-400">L</span>
+            <span className="text-red-400">₹{data.low?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-400">C</span>
+            <span className={isBullish ? 'text-emerald-400' : 'text-rose-400'}>
+              ₹{data.close?.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-gray-400">Change</span>
+            <span className={isBullish ? 'text-emerald-400' : 'text-rose-400'}>
+              {change >= 0 ? '+' : ''}₹{change.toFixed(2)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+            </span>
+          </div>
+          {data.volume && (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Vol</span>
+              <span className="text-purple-400">
+                {data.volume >= 1000000 ? `${(data.volume / 1000000).toFixed(2)}M` :
+                 data.volume >= 1000 ? `${(data.volume / 1000).toFixed(2)}K` :
+                 data.volume}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Indicators */}
+        <div className="space-y-1 text-xs">
+          {data.rsi !== undefined && activeIndicators.rsi && (
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">RSI(14)</span>
+              <span className="text-yellow-400">{data.rsi.toFixed(1)}</span>
+            </div>
           )}
           {data.ema9 && activeIndicators.ema && (
-            <p className="text-blue-600">
-              <span className="font-medium">EMA(9):</span> ₹{data.ema9.toFixed(2)}
-            </p>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">EMA(9)</span>
+              <span className="text-blue-400">₹{data.ema9.toFixed(2)}</span>
+            </div>
           )}
           {data.ema21 && activeIndicators.ema && (
-            <p className="text-purple-600">
-              <span className="font-medium">EMA(21):</span> ₹{data.ema21.toFixed(2)}
-            </p>
-          )}
-          {data.bb_middle && activeIndicators.bollinger && (
-            <p className="text-orange-600">
-              <span className="font-medium">BB Mid:</span> ₹{data.bb_middle.toFixed(2)}
-            </p>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">EMA(21)</span>
+              <span className="text-indigo-400">₹{data.ema21.toFixed(2)}</span>
+            </div>
           )}
           {data.vwap && activeIndicators.vwap && (
-            <p className="text-cyan-600">
-              <span className="font-medium">VWAP:</span> ₹{data.vwap.toFixed(2)}
-            </p>
-          )}
-          {data.rsi !== undefined && activeIndicators.rsi && (
-            <p className="text-yellow-600">
-              <span className="font-medium">RSI:</span> {data.rsi.toFixed(1)}
-            </p>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">VWAP</span>
+              <span className="text-cyan-400">₹{data.vwap.toFixed(2)}</span>
+            </div>
           )}
         </div>
       </div>
@@ -337,13 +405,18 @@ export default function TradingChart({
       </div>
 
       {/* Main Price Chart */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h4 className="text-lg font-semibold text-gray-800 mb-4">
-          Price Chart with Indicators & Trade Markers
-        </h4>
-        <ResponsiveContainer width="100%" height={400}>
-          <ComposedChart data={combinedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+      <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-lg font-semibold text-gray-900">
+            {symbol} / {exchange} - {chartType === 'candlestick' ? 'Candlestick' : 'Line'} Chart
+          </h4>
+          <div className="text-sm text-gray-600">
+            {combinedData.length} candles
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={500}>
+          <ComposedChart data={combinedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="1 3" stroke="#e5e7eb" opacity={0.5} />
             <XAxis
               dataKey="time"
               tickFormatter={(value) =>
@@ -352,12 +425,16 @@ export default function TradingChart({
                   minute: '2-digit',
                 })
               }
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11 }}
+              stroke="#9e9e9e"
             />
             <YAxis
               domain={['auto', 'auto']}
               tickFormatter={(value) => `₹${Math.round(value)}`}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11 }}
+              stroke="#9e9e9e"
+              width={60}
+              orientation="right"
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
@@ -365,72 +442,74 @@ export default function TradingChart({
             {/* Bollinger Bands */}
             {activeIndicators.bollinger && (
               <>
-                <Area
+                <Line
                   type="monotone"
                   dataKey="bb_upper"
-                  stroke="#fb923c"
-                  fill="#fed7aa"
-                  fillOpacity={0.1}
+                  stroke="#9E9E9E"
+                  strokeWidth={1}
                   name="BB Upper"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
+                  dot={false}
+                  strokeDasharray="2 2"
+                  connectNulls={true}
                   isAnimationActive={false}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="bb_lower"
-                  stroke="#fb923c"
-                  fill="#fed7aa"
-                  fillOpacity={0.1}
-                  name="BB Lower"
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                  isAnimationActive={false}
+                  opacity={0.5}
                 />
                 <Line
                   type="monotone"
                   dataKey="bb_middle"
-                  stroke="#FFA500"
-                  strokeWidth={3}
+                  stroke="#757575"
+                  strokeWidth={1}
                   name="BB Middle"
-                  dot={{ fill: '#FFA500', r: 5 }}
+                  dot={false}
                   connectNulls={true}
                   isAnimationActive={false}
+                  opacity={0.6}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="bb_lower"
+                  stroke="#9E9E9E"
+                  strokeWidth={1}
+                  name="BB Lower"
+                  dot={false}
+                  strokeDasharray="2 2"
+                  connectNulls={true}
+                  isAnimationActive={false}
+                  opacity={0.5}
                 />
               </>
             )}
 
-            {/* EMA Lines */}
+            {/* EMA Lines - TradingView style */}
             {activeIndicators.ema && (
               <>
                 <Line
                   type="monotone"
                   dataKey="ema9"
-                  stroke="#0000FF"
-                  strokeWidth={3}
+                  stroke="#2962FF"
+                  strokeWidth={1.5}
                   name="EMA(9)"
-                  dot={{ fill: '#0000FF', r: 5 }}
+                  dot={false}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
                   dataKey="ema21"
-                  stroke="#FF00FF"
-                  strokeWidth={3}
+                  stroke="#9C27B0"
+                  strokeWidth={1.5}
                   name="EMA(21)"
-                  dot={{ fill: '#FF00FF', r: 5 }}
+                  dot={false}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
                   dataKey="ema50"
-                  stroke="#00FFFF"
-                  strokeWidth={3}
+                  stroke="#FF6D00"
+                  strokeWidth={1.5}
                   name="EMA(50)"
-                  dot={{ fill: '#00FFFF', r: 5 }}
-                  strokeDasharray="3 3"
+                  dot={false}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
@@ -442,11 +521,11 @@ export default function TradingChart({
               <Line
                 type="monotone"
                 dataKey="vwap"
-                stroke="#FF0000"
-                strokeWidth={3}
+                stroke="#00BCD4"
+                strokeWidth={1.5}
                 name="VWAP"
-                dot={{ fill: '#FF0000', r: 5 }}
-                strokeDasharray="5 5"
+                dot={false}
+                strokeDasharray="3 3"
                 connectNulls={true}
                 isAnimationActive={false}
               />
@@ -463,10 +542,10 @@ export default function TradingChart({
               <Line
                 type="monotone"
                 dataKey="close"
-                stroke="#000000"
-                strokeWidth={4}
+                stroke="#2962FF"
+                strokeWidth={2}
                 name="Price"
-                dot={{ fill: '#000000', r: 6 }}
+                dot={false}
                 connectNulls={true}
                 isAnimationActive={false}
               />
@@ -509,11 +588,11 @@ export default function TradingChart({
 
       {/* Volume Chart */}
       {showVolume && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Volume</h4>
-          <ResponsiveContainer width="100%" height={120}>
-            <ComposedChart data={combinedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">Volume</h4>
+          <ResponsiveContainer width="100%" height={150}>
+            <ComposedChart data={combinedData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="1 3" stroke="#e5e7eb" opacity={0.5} />
               <XAxis
                 dataKey="time"
                 tickFormatter={(value) =>
@@ -522,7 +601,8 @@ export default function TradingChart({
                     minute: '2-digit',
                   })
                 }
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                stroke="#9e9e9e"
               />
               <YAxis
                 tickFormatter={(value) => {
@@ -530,9 +610,14 @@ export default function TradingChart({
                   if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
                   return value.toString();
                 }}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                stroke="#9e9e9e"
+                width={60}
               />
               <Tooltip
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.9)', border: '1px solid #555', borderRadius: '4px' }}
+                labelStyle={{ color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
                 formatter={(value: number) => {
                   if (value >= 1000000) return `${(value / 1000000).toFixed(2)}M`;
                   if (value >= 1000) return `${(value / 1000).toFixed(2)}K`;
@@ -541,8 +626,7 @@ export default function TradingChart({
               />
               <Bar
                 dataKey="volume"
-                fill="#9333ea"
-                fillOpacity={0.6}
+                shape={<VolumeBar />}
                 name="Volume"
                 isAnimationActive={false}
               />
@@ -553,11 +637,11 @@ export default function TradingChart({
 
       {/* RSI Chart */}
       {activeIndicators.rsi && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">RSI (Relative Strength Index)</h4>
-          <ResponsiveContainer width="100%" height={150}>
-            <AreaChart data={combinedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">RSI (14)</h4>
+          <ResponsiveContainer width="100%" height={140}>
+            <AreaChart data={combinedData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="1 3" stroke="#e5e7eb" opacity={0.5} />
               <XAxis
                 dataKey="time"
                 tickFormatter={(value) =>
@@ -566,19 +650,26 @@ export default function TradingChart({
                     minute: '2-digit',
                   })
                 }
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                stroke="#9e9e9e"
               />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" label="Overbought" />
-              <ReferenceLine y={30} stroke="#10b981" strokeDasharray="3 3" label="Oversold" />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#9e9e9e" width={40} />
+              <Tooltip
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.9)', border: '1px solid #555', borderRadius: '4px' }}
+                labelStyle={{ color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <ReferenceLine y={70} stroke="#ef5350" strokeDasharray="2 2" strokeOpacity={0.5} />
+              <ReferenceLine y={50} stroke="#9e9e9e" strokeDasharray="1 1" strokeOpacity={0.3} />
+              <ReferenceLine y={30} stroke="#26a69a" strokeDasharray="2 2" strokeOpacity={0.5} />
               <Area
                 type="monotone"
                 dataKey="rsi"
-                stroke="#eab308"
-                fill="#fef08a"
-                fillOpacity={0.6}
-                name="RSI"
+                stroke="#7B68EE"
+                fill="#7B68EE"
+                fillOpacity={0.2}
+                strokeWidth={2}
+                name="RSI(14)"
                 connectNulls={true}
                 isAnimationActive={false}
               />
@@ -589,11 +680,11 @@ export default function TradingChart({
 
       {/* MACD Chart */}
       {activeIndicators.macd && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">MACD (Moving Average Convergence Divergence)</h4>
-          <ResponsiveContainer width="100%" height={150}>
-            <ComposedChart data={combinedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">MACD (12, 26, 9)</h4>
+          <ResponsiveContainer width="100%" height={140}>
+            <ComposedChart data={combinedData} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="1 3" stroke="#e5e7eb" opacity={0.5} />
               <XAxis
                 dataKey="time"
                 tickFormatter={(value) =>
@@ -602,23 +693,28 @@ export default function TradingChart({
                     minute: '2-digit',
                   })
                 }
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
+                stroke="#9e9e9e"
               />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Legend />
-              <ReferenceLine y={0} stroke="#6b7280" />
+              <YAxis tick={{ fontSize: 11 }} stroke="#9e9e9e" width={50} />
+              <Tooltip
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.9)', border: '1px solid #555', borderRadius: '4px' }}
+                labelStyle={{ color: '#fff' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend iconSize={12} wrapperStyle={{ fontSize: '12px' }} />
+              <ReferenceLine y={0} stroke="#616161" strokeWidth={1} />
               <Bar
-                dataKey="histogram"
-                fill="#93c5fd"
+                dataKey="macd_histogram"
+                fill="#546E7A"
                 name="Histogram"
-                barSize={20}
                 isAnimationActive={false}
+                opacity={0.6}
               />
               <Line
                 type="monotone"
                 dataKey="macd"
-                stroke="#3b82f6"
+                stroke="#2196F3"
                 strokeWidth={2}
                 name="MACD"
                 dot={false}
@@ -627,8 +723,8 @@ export default function TradingChart({
               />
               <Line
                 type="monotone"
-                dataKey="signal"
-                stroke="#ef4444"
+                dataKey="macd_signal"
+                stroke="#FF6B6B"
                 strokeWidth={2}
                 name="Signal"
                 dot={false}
