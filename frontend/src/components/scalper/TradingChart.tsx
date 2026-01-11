@@ -76,7 +76,6 @@ const CandlestickShape = (props: any) => {
 
   // Calculate pixel positions
   const bodyTop = Math.min(open, close);
-  const bodyBottom = Math.max(open, close);
   const bodyHeight = Math.abs(close - open);
 
   // Y positions
