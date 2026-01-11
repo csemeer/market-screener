@@ -11,7 +11,6 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
-  Scatter,
   ComposedChart,
 } from 'recharts';
 
