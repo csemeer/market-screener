@@ -363,7 +363,7 @@ export default function TradingChart({
                 />
               ))}
 
-            {/* Trade Exit Markers - Using ReferenceDot */}
+            {/* Trade Exit Markers - Using ReferenceDot (larger stroke for distinction) */}
             {tradeMarkers
               .filter((t) => t.exitTime && t.exitPrice)
               .map((trade, idx) => (
@@ -371,12 +371,11 @@ export default function TradingChart({
                   key={`exit-${trade.id}-${idx}`}
                   x={trade.exitTime!}
                   y={trade.exitPrice!}
-                  r={8}
+                  r={10}
                   fill={(trade.pnl ?? 0) >= 0 ? '#10b981' : '#ef4444'}
-                  stroke="#ffffff"
-                  strokeWidth={3}
+                  stroke="#FFA500"
+                  strokeWidth={4}
                   isFront={true}
-                  shape="triangle"
                 />
               ))}
           </ComposedChart>
