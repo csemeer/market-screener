@@ -15,6 +15,79 @@ import {
   ReferenceDot,
 } from 'recharts';
 
+// Custom Candlestick Shape Component
+const CandlestickShape = (props: any) => {
+  const { x, y, width, height, payload } = props;
+
+  // Get OHLC data from payload
+  const { open, close, high, low } = payload;
+
+  // Skip if missing required data
+  if (open === undefined || close === undefined || high === undefined || low === undefined) {
+    return null;
+  }
+
+  const isGreen = close > open;
+  const color = isGreen ? '#10b981' : '#ef4444'; // Green for up, Red for down
+
+  // Calculate candlestick dimensions
+  const candleWidth = Math.max(width * 0.7, 3); // 70% of available width, min 3px
+  const centerX = x + width / 2;
+
+  // The y and height provided by Recharts are for the high value
+  // We need to calculate positions for all OHLC values
+  const priceRange = high - low;
+  if (priceRange === 0) {
+    // Doji or data error - draw a thin horizontal line
+    return (
+      <line
+        x1={centerX - candleWidth / 2}
+        y1={y}
+        x2={centerX + candleWidth / 2}
+        y2={y}
+        stroke={color}
+        strokeWidth={2}
+      />
+    );
+  }
+
+  // Calculate pixel positions
+  // Note: y is at the top (high price), y + height is at bottom (low price)
+  const bodyTop = Math.min(open, close);
+  const bodyBottom = Math.max(open, close);
+  const bodyHeight = Math.abs(close - open);
+
+  // Calculate Y positions for body
+  const bodyTopY = y + (height * (high - bodyTop) / priceRange);
+  const bodyHeightPx = Math.max((height * bodyHeight / priceRange), 1);
+
+  return (
+    <g>
+      {/* High-Low Wick (thin line from high to low) */}
+      <line
+        x1={centerX}
+        y1={y}
+        x2={centerX}
+        y2={y + height}
+        stroke={color}
+        strokeWidth={1.5}
+      />
+
+      {/* Candle Body (rectangle from open to close) */}
+      <rect
+        x={centerX - candleWidth / 2}
+        y={bodyTopY}
+        width={candleWidth}
+        height={bodyHeightPx}
+        fill={color}
+        stroke={color}
+        strokeWidth={1}
+        opacity={isGreen ? 0.8 : 0.9}
+      />
+    </g>
+  );
+};
+
 interface TradeMarker {
   id: number;
   type: 'entry' | 'exit';
@@ -77,6 +150,8 @@ export default function TradingChart({
   });
 
   const [selectedTrade, setSelectedTrade] = useState<TradeMarker | null>(null);
+  const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
+  const [showVolume, setShowVolume] = useState(true);
 
   // priceData now contains all indicators from backend
   // Just add index for positioning on chart
@@ -200,22 +275,64 @@ export default function TradingChart({
           </p>
         </div>
 
-        {/* Indicator Toggles */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700 mr-2">Indicators:</span>
-          {Object.entries(activeIndicators).map(([key, value]) => (
+        {/* Chart Type & Display Toggles */}
+        <div className="flex items-center gap-4">
+          {/* Chart Type Toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 mr-1">Chart:</span>
             <button
-              key={key}
-              onClick={() => toggleIndicator(key as keyof typeof activeIndicators)}
+              onClick={() => setChartType('candlestick')}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                value
-                  ? 'bg-blue-600 text-white'
+                chartType === 'candlestick'
+                  ? 'bg-green-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {key.toUpperCase()}
+              CANDLESTICK
             </button>
-          ))}
+            <button
+              onClick={() => setChartType('line')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                chartType === 'line'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              LINE
+            </button>
+          </div>
+
+          {/* Volume Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowVolume(!showVolume)}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                showVolume
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              VOLUME
+            </button>
+          </div>
+
+          {/* Indicator Toggles */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 mr-1">Indicators:</span>
+            {Object.entries(activeIndicators).map(([key, value]) => (
+              <button
+                key={key}
+                onClick={() => toggleIndicator(key as keyof typeof activeIndicators)}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {key.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -335,17 +452,25 @@ export default function TradingChart({
               />
             )}
 
-            {/* Price Line - Make it VERY visible */}
-            <Line
-              type="monotone"
-              dataKey="close"
-              stroke="#000000"
-              strokeWidth={4}
-              name="Price"
-              dot={{ fill: '#000000', r: 6 }}
-              connectNulls={true}
-              isAnimationActive={false}
-            />
+            {/* Price Visualization - Candlestick or Line */}
+            {chartType === 'candlestick' ? (
+              <Bar
+                dataKey="high"
+                shape={<CandlestickShape open={0} close={0} high={0} low={0} />}
+                isAnimationActive={false}
+              />
+            ) : (
+              <Line
+                type="monotone"
+                dataKey="close"
+                stroke="#000000"
+                strokeWidth={4}
+                name="Price"
+                dot={{ fill: '#000000', r: 6 }}
+                connectNulls={true}
+                isAnimationActive={false}
+              />
+            )}
 
             {/* Trade Entry Markers - Using ReferenceDot (Recharts-compatible) */}
             {tradeMarkers
@@ -381,6 +506,50 @@ export default function TradingChart({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Volume Chart */}
+      {showVolume && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Volume</h4>
+          <ResponsiveContainer width="100%" height={120}>
+            <ComposedChart data={combinedData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="time"
+                tickFormatter={(value) =>
+                  new Date(value).toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                }
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis
+                tickFormatter={(value) => {
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+                  return value.toString();
+                }}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip
+                formatter={(value: number) => {
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(2)}M`;
+                  if (value >= 1000) return `${(value / 1000).toFixed(2)}K`;
+                  return value.toFixed(0);
+                }}
+              />
+              <Bar
+                dataKey="volume"
+                fill="#9333ea"
+                fillOpacity={0.6}
+                name="Volume"
+                isAnimationActive={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* RSI Chart */}
       {activeIndicators.rsi && (
