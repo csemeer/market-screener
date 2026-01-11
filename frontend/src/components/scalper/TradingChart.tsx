@@ -89,11 +89,16 @@ export default function TradingChart({
   if (combinedData.length > 0) {
     console.log('=== CHART DEBUG ===');
     console.log('First chart data point:', combinedData[0]);
+    console.log('Last chart data point:', combinedData[combinedData.length - 1]);
     console.log('Total data points:', combinedData.length);
     console.log('Sample data keys:', Object.keys(combinedData[0]));
     console.log('Has close?', combinedData[0].close);
     console.log('Has ema9?', combinedData[0].ema9);
     console.log('Has rsi?', combinedData[0].rsi);
+
+    // Check data ranges for Y-axis
+    const closes = combinedData.map(d => d.close).filter(Boolean) as number[];
+    console.log('Close price range:', Math.min(...closes), 'to', Math.max(...closes));
     console.log('===================');
   }
 
@@ -271,7 +276,7 @@ export default function TradingChart({
                   stroke="#FFA500"
                   strokeWidth={3}
                   name="BB Middle"
-                  dot={false}
+                  dot={{ fill: '#FFA500', r: 5 }}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
@@ -287,7 +292,7 @@ export default function TradingChart({
                   stroke="#0000FF"
                   strokeWidth={3}
                   name="EMA(9)"
-                  dot={false}
+                  dot={{ fill: '#0000FF', r: 5 }}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
@@ -297,7 +302,7 @@ export default function TradingChart({
                   stroke="#FF00FF"
                   strokeWidth={3}
                   name="EMA(21)"
-                  dot={false}
+                  dot={{ fill: '#FF00FF', r: 5 }}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
@@ -307,7 +312,7 @@ export default function TradingChart({
                   stroke="#00FFFF"
                   strokeWidth={3}
                   name="EMA(50)"
-                  dot={false}
+                  dot={{ fill: '#00FFFF', r: 5 }}
                   strokeDasharray="3 3"
                   connectNulls={true}
                   isAnimationActive={false}
@@ -323,7 +328,7 @@ export default function TradingChart({
                 stroke="#FF0000"
                 strokeWidth={3}
                 name="VWAP"
-                dot={false}
+                dot={{ fill: '#FF0000', r: 5 }}
                 strokeDasharray="5 5"
                 connectNulls={true}
                 isAnimationActive={false}
@@ -337,7 +342,7 @@ export default function TradingChart({
               stroke="#000000"
               strokeWidth={4}
               name="Price"
-              dot={false}
+              dot={{ fill: '#000000', r: 6 }}
               connectNulls={true}
               isAnimationActive={false}
             />
