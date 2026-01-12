@@ -3,7 +3,6 @@ import {
   createChart,
   ColorType,
   IChartApi,
-  ISeriesApi,
   Time,
   CandlestickData,
   LineData,
@@ -125,13 +124,11 @@ export default function BacktestLightweightChart({
         mode: 1,
         vertLine: {
           color: '#758696',
-          width: 1,
           style: 3,
           labelBackgroundColor: '#2962FF',
         },
         horzLine: {
           color: '#758696',
-          width: 1,
           style: 3,
           labelBackgroundColor: '#2962FF',
         },
