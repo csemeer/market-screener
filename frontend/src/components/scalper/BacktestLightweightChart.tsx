@@ -80,19 +80,51 @@ export default function BacktestLightweightChart({
   useEffect(() => {
     if (!mainChartRef.current || chartData.length === 0) return;
 
-    // Clear existing charts
-    if (mainChart.current) mainChart.current.remove();
-    if (volumeChart.current) volumeChart.current.remove();
-    if (rsiChart.current) rsiChart.current.remove();
-    if (macdChart.current) macdChart.current.remove();
+    // Clear existing charts safely
+    try {
+      if (mainChart.current) {
+        mainChart.current.remove();
+        mainChart.current = null;
+      }
+      if (volumeChart.current) {
+        volumeChart.current.remove();
+        volumeChart.current = null;
+      }
+      if (rsiChart.current) {
+        rsiChart.current.remove();
+        rsiChart.current = null;
+      }
+      if (macdChart.current) {
+        macdChart.current.remove();
+        macdChart.current = null;
+      }
+    } catch (e) {
+      // Charts already disposed, ignore
+    }
 
     initializeCharts();
 
     return () => {
-      if (mainChart.current) mainChart.current.remove();
-      if (volumeChart.current) volumeChart.current.remove();
-      if (rsiChart.current) rsiChart.current.remove();
-      if (macdChart.current) macdChart.current.remove();
+      try {
+        if (mainChart.current) {
+          mainChart.current.remove();
+          mainChart.current = null;
+        }
+        if (volumeChart.current) {
+          volumeChart.current.remove();
+          volumeChart.current = null;
+        }
+        if (rsiChart.current) {
+          rsiChart.current.remove();
+          rsiChart.current = null;
+        }
+        if (macdChart.current) {
+          macdChart.current.remove();
+          macdChart.current = null;
+        }
+      } catch (e) {
+        // Charts already disposed, ignore
+      }
     };
   }, [chartData, activeIndicators]);
 
