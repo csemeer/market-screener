@@ -16,7 +16,7 @@ import { backtestAPI } from '../../api/client';
 import EquityCurveChart from './EquityCurveChart';
 import RunBacktestForm from './RunBacktestForm';
 import BacktestComparison from './BacktestComparison';
-import TradingChart from './TradingChart';
+import BacktestLightweightChart from './BacktestLightweightChart';
 
 interface BacktestRun {
   id: number;
@@ -538,13 +538,11 @@ export default function BacktestResults({ scalperId }: BacktestResultsProps) {
                     <span className="ml-3 text-gray-600">Loading chart data...</span>
                   </div>
                 ) : chartData ? (
-                  <TradingChart
-                    runId={selectedRun.id}
-                    tradeMarkers={chartData.tradeMarkers || []}
-                    priceData={chartData.priceData || []}
-                    indicatorData={chartData.indicatorSample || []}
+                  <BacktestLightweightChart
                     symbol={chartData.symbol}
                     exchange={chartData.exchange}
+                    chartData={chartData.candles || chartData.priceData || []}
+                    tradeMarkers={chartData.tradeMarkers || []}
                   />
                 ) : (
                   <div className="text-center py-12">
