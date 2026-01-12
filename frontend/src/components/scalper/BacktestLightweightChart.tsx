@@ -452,13 +452,6 @@ export default function BacktestLightweightChart({
       title: 'Oversold',
     });
 
-    rsiChart.current.priceScale('').applyOptions({
-      scaleMargins: {
-        top: 0.1,
-        bottom: 0.1,
-      },
-    });
-
     rsiChart.current.timeScale().fitContent();
   };
 
