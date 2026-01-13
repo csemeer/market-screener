@@ -291,6 +291,47 @@ class BacktestEngine {
         );
         if (!currentCandle) continue;
 
+        // ENHANCED EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
+
+        // Calculate current indicators for trailing stop
+        const stockData = stockDataMap.get(key);
+        if (stockData) {
+          const dataUpToNow = stockData.filter(
+            (c) => c.timestamp.getTime() <= timestamp.getTime()
+          );
+
+          // Calculate indicators for trailing stop
+          const currentIndicators = TechnicalAnalysis.calculateAllIndicators(dataUpToNow);
+
+          // TRAILING STOP using EMA9 (for VOLUME_BREAKOUT strategy)
+          if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT' &&
+              currentIndicators.ema?.ema9) {
+            // Exit if price closes below EMA9 (trend reversal)
+            if (currentCandle.close < currentIndicators.ema.ema9) {
+              // Only exit if we're in profit or small loss
+              const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
+              if (currentPnLPercent > -1.0) { // Exit if loss is less than 1%
+                this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+                currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+                trades.push(trade);
+                this.saveBacktestTrade(backtestRunId, scalperId, trade);
+                openPositions.delete(key);
+                continue;
+              }
+            }
+
+            // Dynamic trailing stop: Raise stop loss to below EMA9 once in profit
+            const profitPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
+            if (profitPercent > 2.0 && currentIndicators.ema.ema9) {
+              // Update stop loss to 0.5% below EMA9
+              const newStopLoss = currentIndicators.ema.ema9 * 0.995;
+              if (newStopLoss > trade.stopLoss) {
+                trade.stopLoss = newStopLoss; // Raise the stop loss (trailing)
+              }
+            }
+          }
+        }
+
         // Check stop loss
         if (currentCandle.low <= trade.stopLoss) {
           this.closeTrade(trade, trade.stopLoss, timestamp, 'STOP_LOSS');
@@ -373,13 +414,24 @@ class BacktestEngine {
 
             if (quantity === 0) continue;
 
+            // ENHANCED STOP LOSS for VOLUME_BREAKOUT: Tighter at 1.5%
+            const stopLossPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
+              ? 1.5 // Tighter stop for Volume Breakout strategy
+              : (strategyConfig.exitConditions.stopLossPercent || 0.5);
+
             const stopLoss = this.calculateStopLoss(
               entryPrice,
-              strategyConfig.exitConditions.stopLossPercent || 0.5
+              stopLossPercent
             );
+
+            // ENHANCED TARGET for VOLUME_BREAKOUT: Higher at 3-5%
+            const targetPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
+              ? 4.0 // Higher target for better risk/reward (2.67:1 ratio)
+              : (strategyConfig.exitConditions.targetPercent || 1.0);
+
             const target = this.calculateTarget(
               entryPrice,
-              strategyConfig.exitConditions.targetPercent || 1.0
+              targetPercent
             );
 
             const trade: BacktestTrade = {
@@ -509,17 +561,64 @@ class BacktestEngine {
         signals.push(`High volume: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
       }
     } else if (entryConditions.type === 'VOLUME_BREAKOUT') {
-      // Volume spike
-      if (indicators.volumeProfile &&
-          indicators.volumeProfile.volumeRatio > (entryConditions.volumeMultiple || 2)) {
-        signals.push(`Volume breakout: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
+      // ENHANCED VOLUME BREAKOUT STRATEGY with Trend Filter
+
+      // 1. TREND FILTER - Only enter in established uptrend
+      const trendAligned =
+        indicators.ema?.ema20 &&
+        indicators.ema?.ema50 &&
+        currentPrice > indicators.ema.ema50 && // Price above long-term EMA
+        indicators.ema.ema20 > indicators.ema.ema50; // EMAs aligned (uptrend)
+
+      if (!trendAligned) {
+        return { shouldEnter: false, signals: [] }; // Skip if trend not aligned
       }
 
-      // Price breakout (simplified - checking if above recent high)
-      const recent20High = Math.max(...data.slice(-20).map((d) => d.high));
-      if (currentPrice > recent20High * 0.99) {
-        signals.push('Price breakout');
+      signals.push('Uptrend confirmed');
+
+      // 2. VOLUME CONFIRMATION - Require stronger volume spike
+      const volumeThreshold = entryConditions.volumeMultiple || 1.5; // Lower from 2x to 1.5x
+      if (indicators.volumeProfile &&
+          indicators.volumeProfile.volumeRatio > volumeThreshold) {
+        signals.push(`Volume breakout: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
+      } else {
+        return { shouldEnter: false, signals: [] }; // Volume not sufficient
       }
+
+      // 3. RSI FILTER - Avoid overbought conditions
+      if (indicators.rsi && indicators.rsi > 70) {
+        return { shouldEnter: false, signals: ['Overbought - RSI > 70'] };
+      }
+
+      if (indicators.rsi && indicators.rsi > 45) {
+        signals.push(`RSI momentum: ${indicators.rsi.toFixed(1)}`);
+      }
+
+      // 4. ENTRY TIMING - Wait for pullback to EMAs for better entry
+      const nearEMA9 = indicators.ema?.ema9 &&
+                       Math.abs(currentPrice - indicators.ema.ema9) / currentPrice < 0.02; // Within 2%
+      const nearEMA20 = indicators.ema?.ema20 &&
+                        Math.abs(currentPrice - indicators.ema.ema20) / currentPrice < 0.02; // Within 2%
+
+      if (nearEMA9 || nearEMA20) {
+        signals.push('Pullback to EMA support');
+      }
+
+      // 5. PRICE BREAKOUT - Check if breaking recent high
+      const recent20High = Math.max(...data.slice(-20).map((d) => d.high));
+      const recent10High = Math.max(...data.slice(-10).map((d) => d.high));
+
+      if (currentPrice > recent10High * 0.995) { // Within 0.5% of recent high
+        signals.push('Near recent high');
+      }
+
+      // 6. MACD CONFIRMATION (optional but adds confidence)
+      if (indicators.macd && indicators.macd.histogram > 0) {
+        signals.push('MACD bullish');
+      }
+
+      // Require at least 3 signals for high-quality entry
+      return { shouldEnter: signals.length >= 3, signals };
     } else if (entryConditions.type === 'MOMENTUM') {
       // MACD crossover
       if (indicators.macd && indicators.macd.histogram > 0) {
