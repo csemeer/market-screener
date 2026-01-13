@@ -294,40 +294,37 @@ class BacktestEngine {
         // ENHANCED EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
 
         // Calculate current indicators for trailing stop
-        const stockData = stockDataMap.get(key);
-        if (stockData) {
-          const dataUpToNow = stockData.filter(
-            (c) => c.timestamp.getTime() <= timestamp.getTime()
-          );
+        const dataUpToNow = stockData.filter(
+          (c) => c.timestamp.getTime() <= timestamp.getTime()
+        );
 
-          // Calculate indicators for trailing stop
-          const currentIndicators = TechnicalAnalysis.calculateAllIndicators(dataUpToNow);
+        // Calculate indicators for trailing stop
+        const currentIndicators = TechnicalAnalysis.calculateAllIndicators(dataUpToNow);
 
-          // TRAILING STOP using EMA9 (for VOLUME_BREAKOUT strategy)
-          if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT' &&
-              currentIndicators.ema?.ema9) {
-            // Exit if price closes below EMA9 (trend reversal)
-            if (currentCandle.close < currentIndicators.ema.ema9) {
-              // Only exit if we're in profit or small loss
-              const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
-              if (currentPnLPercent > -1.0) { // Exit if loss is less than 1%
-                this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
-                currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
-                trades.push(trade);
-                this.saveBacktestTrade(backtestRunId, scalperId, trade);
-                openPositions.delete(key);
-                continue;
-              }
+        // TRAILING STOP using EMA9 (for VOLUME_BREAKOUT strategy)
+        if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT' &&
+            currentIndicators.ema?.ema9) {
+          // Exit if price closes below EMA9 (trend reversal)
+          if (currentCandle.close < currentIndicators.ema.ema9) {
+            // Only exit if we're in profit or small loss
+            const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
+            if (currentPnLPercent > -1.0) { // Exit if loss is less than 1%
+              this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+              currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+              trades.push(trade);
+              this.saveBacktestTrade(backtestRunId, scalperId, trade);
+              openPositions.delete(key);
+              continue;
             }
+          }
 
-            // Dynamic trailing stop: Raise stop loss to below EMA9 once in profit
-            const profitPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
-            if (profitPercent > 2.0 && currentIndicators.ema.ema9) {
-              // Update stop loss to 0.5% below EMA9
-              const newStopLoss = currentIndicators.ema.ema9 * 0.995;
-              if (newStopLoss > trade.stopLoss) {
-                trade.stopLoss = newStopLoss; // Raise the stop loss (trailing)
-              }
+          // Dynamic trailing stop: Raise stop loss to below EMA9 once in profit
+          const profitPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
+          if (profitPercent > 2.0 && currentIndicators.ema.ema9) {
+            // Update stop loss to 0.5% below EMA9
+            const newStopLoss = currentIndicators.ema.ema9 * 0.995;
+            if (newStopLoss > trade.stopLoss) {
+              trade.stopLoss = newStopLoss; // Raise the stop loss (trailing)
             }
           }
         }
