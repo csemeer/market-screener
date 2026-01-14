@@ -291,7 +291,9 @@ class BacktestEngine {
         );
         if (!currentCandle) continue;
 
-        // PROFESSIONAL EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
+        // ═══════════════════════════════════════════════════════════════
+        // 🚪 VB ELITE PRO - EXIT LOGIC (8 Exit Mechanisms)
+        // ═══════════════════════════════════════════════════════════════
 
         // Calculate current indicators for exit signals
         const dataUpToNow = stockData.filter(
@@ -475,9 +477,13 @@ class BacktestEngine {
 
             if (quantity === 0) continue;
 
-            // OPTIMIZED STOP LOSS for VOLUME_BREAKOUT: Tight 1.0%
+            // ═══════════════════════════════════════════════════════════════
+            // 💰 VB ELITE PRO - RISK MANAGEMENT (2:1 R/R)
+            // ═══════════════════════════════════════════════════════════════
+
+            // OPTIMIZED STOP LOSS: Tight 1.0%
             const stopLossPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
-              ? 1.0 // Tighter stop loss for quick exit on failures
+              ? 1.0 // VB Elite Pro: Tight stop for quick exit on failures
               : (strategyConfig.exitConditions.stopLossPercent || 0.5);
 
             const stopLoss = this.calculateStopLoss(
@@ -485,9 +491,9 @@ class BacktestEngine {
               stopLossPercent
             );
 
-            // OPTIMIZED TARGET for VOLUME_BREAKOUT: Realistic 2.0%
+            // OPTIMIZED TARGET: Realistic 2.0%
             const targetPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
-              ? 2.0 // Realistic target for 2:1 risk/reward ratio
+              ? 2.0 // VB Elite Pro: Achievable target for 2:1 risk/reward
               : (strategyConfig.exitConditions.targetPercent || 1.0);
 
             const target = this.calculateTarget(
@@ -622,8 +628,17 @@ class BacktestEngine {
         signals.push(`High volume: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
       }
     } else if (entryConditions.type === 'VOLUME_BREAKOUT') {
-      // PROFESSIONAL VOLUME BREAKOUT STRATEGY
-      // Designed for high win-rate with strict filters and aggressive exits
+      // ═══════════════════════════════════════════════════════════════
+      // 📊 STRATEGY: VB ELITE PRO (Volume Breakout Elite Professional)
+      // 📈 VERSION: 2.0
+      // 🎯 TARGET WIN RATE: 70-75%
+      // 💰 RISK/REWARD: 2:1 (1% stop / 2% target)
+      // 🔍 PHILOSOPHY: Quality over quantity - Ultra-selective entries
+      // ─────────────────────────────────────────────────────────────
+      // ✓ Entry Filters: 7 (ALL required)
+      // ✓ Exit Signals: 8 (Multi-layered protection)
+      // ✓ Trailing Stops: 3 levels (0.5%, 1.2%, 1.5% profit)
+      // ═══════════════════════════════════════════════════════════════
 
       // 1. STRONG TREND FILTER - Price must be above ALL EMAs
       const strongTrendAligned =
