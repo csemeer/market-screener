@@ -293,38 +293,78 @@ class BacktestEngine {
 
         // ENHANCED EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
 
-        // Calculate current indicators for trailing stop
+        // Calculate current indicators for exit signals
         const dataUpToNow = stockData.filter(
           (c) => c.timestamp.getTime() <= timestamp.getTime()
         );
 
-        // Calculate indicators for trailing stop
         const currentIndicators = TechnicalAnalysis.calculateAllIndicators(dataUpToNow);
+        const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
 
-        // TRAILING STOP using EMA9 (for VOLUME_BREAKOUT strategy)
-        if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT' &&
-            currentIndicators.ema?.ema9) {
-          // Exit if price closes below EMA9 (trend reversal)
-          if (currentCandle.close < currentIndicators.ema.ema9) {
-            // Only exit if we're in profit or small loss
-            const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
-            if (currentPnLPercent > -1.0) { // Exit if loss is less than 1%
-              this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
-              currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
-              trades.push(trade);
-              this.saveBacktestTrade(backtestRunId, scalperId, trade);
-              openPositions.delete(key);
-              continue;
+        // AGGRESSIVE EXIT LOGIC for VOLUME_BREAKOUT
+        if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT') {
+
+          // EXIT SIGNAL 1: Price closes below EMA9 (immediate trend reversal)
+          if (currentIndicators.ema?.ema9 && currentCandle.close < currentIndicators.ema.ema9) {
+            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+            trades.push(trade);
+            this.saveBacktestTrade(backtestRunId, scalperId, trade);
+            openPositions.delete(key);
+            continue;
+          }
+
+          // EXIT SIGNAL 2: Price closes below EMA20 (stronger trend reversal)
+          if (currentIndicators.ema?.ema20 && currentCandle.close < currentIndicators.ema.ema20) {
+            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+            trades.push(trade);
+            this.saveBacktestTrade(backtestRunId, scalperId, trade);
+            openPositions.delete(key);
+            continue;
+          }
+
+          // EXIT SIGNAL 3: MACD turns negative (momentum reversal)
+          if (currentIndicators.macd && currentIndicators.macd.histogram < 0 && currentPnLPercent > 0.5) {
+            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+            trades.push(trade);
+            this.saveBacktestTrade(backtestRunId, scalperId, trade);
+            openPositions.delete(key);
+            continue;
+          }
+
+          // EXIT SIGNAL 4: RSI drops below 50 after being above 60 (momentum loss)
+          if (currentIndicators.rsi && currentIndicators.rsi < 50 && currentPnLPercent > 0.3) {
+            // Check if RSI was above 60 recently
+            if (dataUpToNow.length >= 3) {
+              const recentData = dataUpToNow.slice(-5);
+              const recentIndicators = TechnicalAnalysis.calculateAllIndicators(recentData);
+              if (recentIndicators.rsi && recentIndicators.rsi > 60) {
+                this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+                currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+                trades.push(trade);
+                this.saveBacktestTrade(backtestRunId, scalperId, trade);
+                openPositions.delete(key);
+                continue;
+              }
             }
           }
 
-          // Dynamic trailing stop: Raise stop loss to below EMA9 once in profit
-          const profitPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
-          if (profitPercent > 2.0 && currentIndicators.ema.ema9) {
-            // Update stop loss to 0.5% below EMA9
-            const newStopLoss = currentIndicators.ema.ema9 * 0.995;
+          // DYNAMIC TRAILING STOP: Raise stop loss once in profit
+          if (currentPnLPercent > 1.0 && currentIndicators.ema?.ema9) {
+            // Tighten stop loss to just below EMA9
+            const newStopLoss = currentIndicators.ema.ema9 * 0.998; // 0.2% below EMA9
             if (newStopLoss > trade.stopLoss) {
               trade.stopLoss = newStopLoss; // Raise the stop loss (trailing)
+            }
+          }
+
+          // AGGRESSIVE TRAILING: Move to breakeven after 2% profit
+          if (currentPnLPercent > 2.0) {
+            const breakeven = trade.entryPrice * 1.001; // Just above entry
+            if (breakeven > trade.stopLoss) {
+              trade.stopLoss = breakeven;
             }
           }
         }
