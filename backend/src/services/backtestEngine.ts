@@ -291,7 +291,7 @@ class BacktestEngine {
         );
         if (!currentCandle) continue;
 
-        // ENHANCED EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
+        // PROFESSIONAL EXIT LOGIC FOR VOLUME_BREAKOUT STRATEGY
 
         // Calculate current indicators for exit signals
         const dataUpToNow = stockData.filter(
@@ -301,10 +301,10 @@ class BacktestEngine {
         const currentIndicators = TechnicalAnalysis.calculateAllIndicators(dataUpToNow);
         const currentPnLPercent = ((currentCandle.close - trade.entryPrice) / trade.entryPrice) * 100;
 
-        // AGGRESSIVE EXIT LOGIC for VOLUME_BREAKOUT
+        // ULTRA-AGGRESSIVE EXIT LOGIC for VOLUME_BREAKOUT
         if (strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT') {
 
-          // EXIT SIGNAL 1: Price closes below EMA9 (immediate trend reversal)
+          // EXIT SIGNAL 1: Price closes below EMA9 (IMMEDIATE exit - no questions asked)
           if (currentIndicators.ema?.ema9 && currentCandle.close < currentIndicators.ema.ema9) {
             this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
             currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
@@ -314,8 +314,30 @@ class BacktestEngine {
             continue;
           }
 
-          // EXIT SIGNAL 2: Price closes below EMA20 (stronger trend reversal)
-          if (currentIndicators.ema?.ema20 && currentCandle.close < currentIndicators.ema.ema20) {
+          // EXIT SIGNAL 2: Bearish candle pattern (immediate exit on reversal pattern)
+          if (dataUpToNow.length >= 2) {
+            const prevCandle = dataUpToNow[dataUpToNow.length - 2];
+            const isCurrentBearish = currentCandle.close < currentCandle.open;
+            const isBearishEngulfing =
+              prevCandle.close > prevCandle.open &&
+              isCurrentBearish &&
+              currentCandle.open >= prevCandle.close &&
+              currentCandle.close <= prevCandle.open;
+
+            // Exit on bearish engulfing if in profit
+            if (isBearishEngulfing && currentPnLPercent > 0.2) {
+              this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+              currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+              trades.push(trade);
+              this.saveBacktestTrade(backtestRunId, scalperId, trade);
+              openPositions.delete(key);
+              continue;
+            }
+          }
+
+          // EXIT SIGNAL 3: MACD turns negative (exit on momentum reversal)
+          if (currentIndicators.macd && currentIndicators.macd.histogram < 0) {
+            // Exit regardless of profit if MACD turns negative
             this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
             currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
             trades.push(trade);
@@ -324,47 +346,49 @@ class BacktestEngine {
             continue;
           }
 
-          // EXIT SIGNAL 3: MACD turns negative (momentum reversal)
-          if (currentIndicators.macd && currentIndicators.macd.histogram < 0 && currentPnLPercent > 0.5) {
-            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
-            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
-            trades.push(trade);
-            this.saveBacktestTrade(backtestRunId, scalperId, trade);
-            openPositions.delete(key);
-            continue;
-          }
-
-          // EXIT SIGNAL 4: RSI drops below 50 after being above 60 (momentum loss)
+          // EXIT SIGNAL 4: RSI drops below 50 (momentum weakening)
           if (currentIndicators.rsi && currentIndicators.rsi < 50 && currentPnLPercent > 0.3) {
-            // Check if RSI was above 60 recently
-            if (dataUpToNow.length >= 3) {
-              const recentData = dataUpToNow.slice(-5);
-              const recentIndicators = TechnicalAnalysis.calculateAllIndicators(recentData);
-              if (recentIndicators.rsi && recentIndicators.rsi > 60) {
-                this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
-                currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
-                trades.push(trade);
-                this.saveBacktestTrade(backtestRunId, scalperId, trade);
-                openPositions.delete(key);
-                continue;
-              }
-            }
+            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+            trades.push(trade);
+            this.saveBacktestTrade(backtestRunId, scalperId, trade);
+            openPositions.delete(key);
+            continue;
           }
 
-          // DYNAMIC TRAILING STOP: Raise stop loss once in profit
-          if (currentPnLPercent > 1.0 && currentIndicators.ema?.ema9) {
-            // Tighten stop loss to just below EMA9
-            const newStopLoss = currentIndicators.ema.ema9 * 0.998; // 0.2% below EMA9
+          // EXIT SIGNAL 5: Large red candle (> 0.5% drop in single candle)
+          const candleDrop = ((currentCandle.close - currentCandle.open) / currentCandle.open) * 100;
+          if (candleDrop < -0.5) {
+            this.closeTrade(trade, currentCandle.close, timestamp, 'STOP_LOSS');
+            currentCapital += (trade.quantity * (trade.exitPrice || 0) - this.brokeragePerTrade);
+            trades.push(trade);
+            this.saveBacktestTrade(backtestRunId, scalperId, trade);
+            openPositions.delete(key);
+            continue;
+          }
+
+          // DYNAMIC TRAILING STOP: Raise stop loss aggressively once in profit
+          if (currentPnLPercent > 0.5 && currentIndicators.ema?.ema9) {
+            // Tighten stop loss to just below EMA9 (very tight - 0.15%)
+            const newStopLoss = currentIndicators.ema.ema9 * 0.9985;
             if (newStopLoss > trade.stopLoss) {
-              trade.stopLoss = newStopLoss; // Raise the stop loss (trailing)
+              trade.stopLoss = newStopLoss;
             }
           }
 
-          // AGGRESSIVE TRAILING: Move to breakeven after 2% profit
-          if (currentPnLPercent > 2.0) {
-            const breakeven = trade.entryPrice * 1.001; // Just above entry
+          // AGGRESSIVE TRAILING: Move to breakeven after 1.2% profit
+          if (currentPnLPercent > 1.2) {
+            const breakeven = trade.entryPrice * 1.002; // Slightly above entry
             if (breakeven > trade.stopLoss) {
               trade.stopLoss = breakeven;
+            }
+          }
+
+          // PROFIT PROTECTION: Lock in 50% profit after 1.5% gain
+          if (currentPnLPercent > 1.5) {
+            const lockProfit = trade.entryPrice * 1.0075; // Lock 0.75% profit
+            if (lockProfit > trade.stopLoss) {
+              trade.stopLoss = lockProfit;
             }
           }
         }
@@ -451,9 +475,9 @@ class BacktestEngine {
 
             if (quantity === 0) continue;
 
-            // ENHANCED STOP LOSS for VOLUME_BREAKOUT: Tighter at 1.5%
+            // OPTIMIZED STOP LOSS for VOLUME_BREAKOUT: Tight 1.0%
             const stopLossPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
-              ? 1.5 // Tighter stop for Volume Breakout strategy
+              ? 1.0 // Tighter stop loss for quick exit on failures
               : (strategyConfig.exitConditions.stopLossPercent || 0.5);
 
             const stopLoss = this.calculateStopLoss(
@@ -461,9 +485,9 @@ class BacktestEngine {
               stopLossPercent
             );
 
-            // ENHANCED TARGET for VOLUME_BREAKOUT: Higher at 3-5%
+            // OPTIMIZED TARGET for VOLUME_BREAKOUT: Realistic 2.0%
             const targetPercent = strategyConfig.entryConditions?.type === 'VOLUME_BREAKOUT'
-              ? 4.0 // Higher target for better risk/reward (2.67:1 ratio)
+              ? 2.0 // Realistic target for 2:1 risk/reward ratio
               : (strategyConfig.exitConditions.targetPercent || 1.0);
 
             const target = this.calculateTarget(
@@ -598,64 +622,82 @@ class BacktestEngine {
         signals.push(`High volume: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
       }
     } else if (entryConditions.type === 'VOLUME_BREAKOUT') {
-      // ENHANCED VOLUME BREAKOUT STRATEGY with Trend Filter
+      // PROFESSIONAL VOLUME BREAKOUT STRATEGY
+      // Designed for high win-rate with strict filters and aggressive exits
 
-      // 1. TREND FILTER - Only enter in established uptrend
-      const trendAligned =
+      // 1. STRONG TREND FILTER - Price must be above ALL EMAs
+      const strongTrendAligned =
+        indicators.ema?.ema9 &&
         indicators.ema?.ema20 &&
         indicators.ema?.ema50 &&
-        currentPrice > indicators.ema.ema50 && // Price above long-term EMA
-        indicators.ema.ema20 > indicators.ema.ema50; // EMAs aligned (uptrend)
+        currentPrice > indicators.ema.ema9 &&   // Above short-term EMA
+        currentPrice > indicators.ema.ema20 &&  // Above mid-term EMA
+        currentPrice > indicators.ema.ema50 &&  // Above long-term EMA
+        indicators.ema.ema9 > indicators.ema.ema20 && // EMAs stacked bullishly
+        indicators.ema.ema20 > indicators.ema.ema50;
 
-      if (!trendAligned) {
-        return { shouldEnter: false, signals: [] }; // Skip if trend not aligned
+      if (!strongTrendAligned) {
+        return { shouldEnter: false, signals: ['Trend not strong enough'] };
       }
 
-      signals.push('Uptrend confirmed');
+      signals.push('Strong uptrend confirmed');
 
-      // 2. VOLUME CONFIRMATION - Require stronger volume spike
-      const volumeThreshold = entryConditions.volumeMultiple || 1.5; // Lower from 2x to 1.5x
+      // 2. VOLUME CONFIRMATION - Require significant volume spike
+      const volumeThreshold = entryConditions.volumeMultiple || 2.0; // Increase from 1.5x to 2.0x
       if (indicators.volumeProfile &&
           indicators.volumeProfile.volumeRatio > volumeThreshold) {
-        signals.push(`Volume breakout: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
+        signals.push(`Strong volume: ${indicators.volumeProfile.volumeRatio.toFixed(2)}x`);
       } else {
-        return { shouldEnter: false, signals: [] }; // Volume not sufficient
+        return { shouldEnter: false, signals: ['Insufficient volume'] };
       }
 
-      // 3. RSI FILTER - Avoid overbought conditions
-      if (indicators.rsi && indicators.rsi > 70) {
-        return { shouldEnter: false, signals: ['Overbought - RSI > 70'] };
+      // 3. RSI FILTER - Sweet spot between 50-70 (momentum without overbought)
+      if (indicators.rsi) {
+        if (indicators.rsi > 70) {
+          return { shouldEnter: false, signals: ['RSI overbought > 70'] };
+        }
+        if (indicators.rsi < 50) {
+          return { shouldEnter: false, signals: ['RSI too weak < 50'] };
+        }
+        signals.push(`RSI bullish: ${indicators.rsi.toFixed(1)}`);
+      } else {
+        return { shouldEnter: false, signals: ['RSI not available'] };
       }
 
-      if (indicators.rsi && indicators.rsi > 45) {
-        signals.push(`RSI momentum: ${indicators.rsi.toFixed(1)}`);
-      }
-
-      // 4. ENTRY TIMING - Wait for pullback to EMAs for better entry
-      const nearEMA9 = indicators.ema?.ema9 &&
-                       Math.abs(currentPrice - indicators.ema.ema9) / currentPrice < 0.02; // Within 2%
-      const nearEMA20 = indicators.ema?.ema20 &&
-                        Math.abs(currentPrice - indicators.ema.ema20) / currentPrice < 0.02; // Within 2%
-
-      if (nearEMA9 || nearEMA20) {
-        signals.push('Pullback to EMA support');
-      }
-
-      // 5. PRICE BREAKOUT - Check if breaking recent high
-      const recent20High = Math.max(...data.slice(-20).map((d) => d.high));
-      const recent10High = Math.max(...data.slice(-10).map((d) => d.high));
-
-      if (currentPrice > recent10High * 0.995) { // Within 0.5% of recent high
-        signals.push('Near recent high');
-      }
-
-      // 6. MACD CONFIRMATION (optional but adds confidence)
+      // 4. MACD CONFIRMATION - REQUIRED (not optional)
       if (indicators.macd && indicators.macd.histogram > 0) {
         signals.push('MACD bullish');
+      } else {
+        return { shouldEnter: false, signals: ['MACD not bullish'] };
       }
 
-      // Require at least 3 signals for high-quality entry
-      return { shouldEnter: signals.length >= 3, signals };
+      // 5. PRICE BREAKOUT - Must be breaking recent resistance
+      const recent10High = Math.max(...data.slice(-10).map((d) => d.high));
+      if (currentPrice > recent10High * 0.998) { // Within 0.2% of recent high
+        signals.push('Breaking recent high');
+      } else {
+        return { shouldEnter: false, signals: ['Not breaking high'] };
+      }
+
+      // 6. CANDLE PATTERN FILTER - Avoid bearish patterns
+      if (data.length >= 2) {
+        const prevCandle = data[data.length - 2];
+        const currentCandle = data[data.length - 1];
+
+        // Check for bearish engulfing (red candle engulfing previous green)
+        const isBearishEngulfing =
+          prevCandle.close > prevCandle.open && // Previous was green
+          currentCandle.close < currentCandle.open && // Current is red
+          currentCandle.open >= prevCandle.close && // Opens at/above previous close
+          currentCandle.close <= prevCandle.open; // Closes at/below previous open
+
+        if (isBearishEngulfing) {
+          return { shouldEnter: false, signals: ['Bearish engulfing pattern'] };
+        }
+      }
+
+      // Require ALL signals (5 minimum) for ultra-high-quality entry
+      return { shouldEnter: signals.length >= 5, signals };
     } else if (entryConditions.type === 'MOMENTUM') {
       // MACD crossover
       if (indicators.macd && indicators.macd.histogram > 0) {
