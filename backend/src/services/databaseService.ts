@@ -214,7 +214,8 @@ class DatabaseService {
 
       this.createTables();
       this.runMigrations();
-      this.seedDatabase();
+      this.seedStrategies(); // Seed trading strategies (always run)
+      this.seedDatabase(); // Seed demo scalpers (only if empty)
       this.initialized = true;
       loggerService.info('Database initialized successfully');
     } catch (error) {
@@ -1290,6 +1291,53 @@ class DatabaseService {
     } catch (error) {
       loggerService.error('Failed to run database migrations', { error });
       throw error;
+    }
+  }
+
+  /**
+   * Seed trading strategies library (always run, uses INSERT OR REPLACE)
+   */
+  private seedStrategies(): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      loggerService.info('Seeding trading strategies library...');
+
+      // VB ELITE PRO - Professional Volume Breakout Strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'VB Elite Pro',
+          'Volume Breakout Elite Professional v2.0 - Ultra-selective strategy with 7 entry filters and 8 exit mechanisms. Designed for 70-75% win rate with strict trend confirmation, volume validation, and aggressive risk management. Quality over quantity approach.',
+          'VOLUME_BREAKOUT',
+          '{"type":"VOLUME_BREAKOUT","volumeMultiple":2.0,"description":"Requires: Strong trend (EMA 9>20>50), Volume 2x+, RSI 50-70, MACD positive, Price breaking 10-candle high, No bearish patterns"}',
+          '{"targetPercent":2.0,"stopLossPercent":1.0,"useTrailingStop":true,"maxHoldTimeMinutes":60,"description":"8 exit mechanisms: EMA9 break, Bearish engulfing, MACD reversal, RSI<50, Large red candle, 3 trailing stops (0.5%, 1.2%, 1.5% profit)"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useVolume":true,"volumePeriod":20}',
+          1,
+          1,
+          'system',
+          2,
+          '["3m","5m","15m"]',
+          1.0,
+          2.0,
+          50000
+        )
+      `).run();
+
+      loggerService.success('✓ VB Elite Pro strategy created/updated');
+
+      // Check if strategy was created
+      const vbEliteCount = this.db.prepare(`SELECT COUNT(*) as count FROM trading_strategies WHERE name = 'VB Elite Pro'`).get() as { count: number };
+      loggerService.info(`VB Elite Pro strategies in database: ${vbEliteCount.count}`);
+
+    } catch (error) {
+      loggerService.error('Failed to seed trading strategies', { error });
+      // Don't throw - this shouldn't break initialization
     }
   }
 
