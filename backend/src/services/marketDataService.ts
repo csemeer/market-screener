@@ -47,8 +47,21 @@ class MarketDataService {
       if (exchange === 'BSE') yahooSymbol = `${symbol}.BO`;
 
       // Using Yahoo Finance API (free alternative)
+      // Add headers to avoid 403 errors
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`;
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://finance.yahoo.com/',
+          'Origin': 'https://finance.yahoo.com',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 5000
+      });
 
       const result = response.data.chart.result[0];
       const quote = result.meta;
@@ -96,7 +109,19 @@ class MarketDataService {
       if (exchange === 'BSE') yahooSymbol = `${symbol}.BO`;
 
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${interval}&range=${range}`;
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://finance.yahoo.com/',
+          'Origin': 'https://finance.yahoo.com',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 10000
+      });
 
       const result = response.data.chart.result[0];
       const timestamps = result.timestamp;
