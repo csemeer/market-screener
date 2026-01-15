@@ -558,9 +558,12 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
                 onChange={(e) => setFormData({ ...formData, targetPercent: parseFloat(e.target.value) })}
                 step="0.1"
                 min="0.1"
-                max="5"
+                max="100"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Scalping: 0.5-2% | Intraday: 2-5% | Swing: 5-20% | Position: 20%+
+              </p>
             </div>
 
             <div>
@@ -573,9 +576,12 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
                 onChange={(e) => setFormData({ ...formData, stopLossPercent: parseFloat(e.target.value) })}
                 step="0.1"
                 min="0.1"
-                max="5"
+                max="100"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Tight: 0.5-1% | Normal: 1-3% | Wide: 3-10% | Very Wide: 10%+
+              </p>
             </div>
           </div>
         </div>
