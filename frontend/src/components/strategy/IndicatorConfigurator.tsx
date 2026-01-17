@@ -355,6 +355,185 @@ export default function IndicatorConfigurator({ config, onChange, readOnly = fal
         )}
       </div>
 
+      {/* Stochastic Oscillator */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">Stochastic Oscillator</h3>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={config.useStochastic === true}
+              onChange={(e) => updateConfig('useStochastic', e.target.checked)}
+              disabled={readOnly}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Enable Stochastic</span>
+          </label>
+        </div>
+
+        {config.useStochastic === true && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                %K Period
+              </label>
+              <input
+                type="number"
+                value={config.stochasticK || 14}
+                onChange={(e) => updateConfig('stochasticK', parseInt(e.target.value))}
+                disabled={readOnly}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+                min="5"
+                max="30"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Fast stochastic period
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                %D Period
+              </label>
+              <input
+                type="number"
+                value={config.stochasticD || 3}
+                onChange={(e) => updateConfig('stochasticD', parseInt(e.target.value))}
+                disabled={readOnly}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+                min="2"
+                max="10"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Slow stochastic (SMA of %K)
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Smooth Period
+              </label>
+              <input
+                type="number"
+                value={config.stochasticSmooth || 3}
+                onChange={(e) => updateConfig('stochasticSmooth', parseInt(e.target.value))}
+                disabled={readOnly}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+                min="1"
+                max="10"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Smoothing period
+              </p>
+            </div>
+          </div>
+        )}
+
+        {config.useStochastic === true && (
+          <div className="text-xs text-gray-600 bg-white p-3 rounded">
+            <strong>Usage:</strong> Stochastic measures momentum. Values below 20 indicate oversold (potential buy), above 80 indicate overbought (potential sell).
+          </div>
+        )}
+      </div>
+
+      {/* ATR */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">ATR (Average True Range)</h3>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={config.useATR === true}
+              onChange={(e) => updateConfig('useATR', e.target.checked)}
+              disabled={readOnly}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Enable ATR</span>
+          </label>
+        </div>
+
+        {config.useATR === true && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ATR Period
+            </label>
+            <input
+              type="number"
+              value={config.atrPeriod || 14}
+              onChange={(e) => updateConfig('atrPeriod', parseInt(e.target.value))}
+              disabled={readOnly}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+              min="7"
+              max="30"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              ATR measures volatility. Higher values indicate more volatile conditions. Use for stop loss placement.
+            </p>
+          </div>
+        )}
+
+        {config.useATR === true && (
+          <div className="text-xs text-gray-600 bg-white p-3 rounded">
+            <strong>Usage:</strong> ATR is used for volatility-based stop losses. For example, set stop at price - (2 × ATR) for volatile stocks.
+          </div>
+        )}
+      </div>
+
+      {/* Supertrend */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">Supertrend</h3>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={config.useSupertrend === true}
+              onChange={(e) => updateConfig('useSupertrend', e.target.checked)}
+              disabled={readOnly}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Enable Supertrend</span>
+          </label>
+        </div>
+
+        {config.useSupertrend === true && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ATR Period
+              </label>
+              <input
+                type="number"
+                value={config.supertrendPeriod || 10}
+                onChange={(e) => updateConfig('supertrendPeriod', parseInt(e.target.value))}
+                disabled={readOnly}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+                min="5"
+                max="20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Multiplier
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                value={config.supertrendMultiplier || 3}
+                onChange={(e) => updateConfig('supertrendMultiplier', parseFloat(e.target.value))}
+                disabled={readOnly}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${readOnly ? 'bg-gray-50' : ''}`}
+                min="1"
+                max="5"
+              />
+            </div>
+          </div>
+        )}
+
+        {config.useSupertrend === true && (
+          <div className="text-xs text-gray-600 bg-white p-3 rounded">
+            <strong>Usage:</strong> Supertrend provides clear buy/sell signals. When price > Supertrend (green), it's bullish. When price < Supertrend (red), it's bearish.
+          </div>
+        )}
+      </div>
+
       {/* Indicator Summary */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-medium text-blue-900 mb-2">Active Indicators Summary</h3>
@@ -366,6 +545,9 @@ export default function IndicatorConfigurator({ config, onChange, readOnly = fal
           {config.useVolume !== false && <div>✓ Volume Analysis ({config.volumePeriod})</div>}
           {config.useVWAP === true && <div>✓ VWAP</div>}
           {config.useADX === true && <div>✓ ADX ({config.adxPeriod})</div>}
+          {config.useStochastic === true && <div>✓ Stochastic ({config.stochasticK}, {config.stochasticD}, {config.stochasticSmooth})</div>}
+          {config.useATR === true && <div>✓ ATR ({config.atrPeriod})</div>}
+          {config.useSupertrend === true && <div>✓ Supertrend ({config.supertrendPeriod}, {config.supertrendMultiplier}x)</div>}
         </div>
       </div>
     </div>

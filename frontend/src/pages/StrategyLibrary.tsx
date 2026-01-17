@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle, Plus } from 'lucide-react';
+import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle, Plus, Play } from 'lucide-react';
 import { strategyAPI } from '../api/client';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import StrategyBuilder from '../components/strategy/StrategyBuilder';
 
 interface Strategy {
@@ -59,6 +60,7 @@ const categoryConfig = {
 };
 
 export default function StrategyLibrary() {
+  const navigate = useNavigate();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [filteredStrategies, setFilteredStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,15 +120,6 @@ export default function StrategyLibrary() {
     setShowBuilder(true);
   };
 
-  const handleEditStrategy = (strategy: Strategy) => {
-    if (strategy.is_system) {
-      toast.error('System strategies are read-only. Please clone to create a custom version.');
-      return;
-    }
-    setSelectedStrategy(strategy);
-    setShowBuilder(true);
-  };
-
   const handleCreateNew = () => {
     setSelectedStrategy(null);
     setShowBuilder(true);
@@ -138,6 +131,30 @@ export default function StrategyLibrary() {
     if (saved) {
       loadStrategies();
     }
+  };
+
+  const handleBacktest = (strategy: Strategy) => {
+    // Create a temporary scalper config with this strategy for backtesting
+    const backtestConfig = {
+      strategy: {
+        id: strategy.id,
+        name: strategy.name,
+        category: strategy.category,
+        entry_conditions: strategy.entry_conditions,
+        exit_conditions: strategy.exit_conditions,
+        indicators_config: strategy.indicators_config,
+        recommended_timeframes: strategy.recommended_timeframes,
+        recommended_stop_loss_percent: strategy.recommended_stop_loss_percent,
+        recommended_target_percent: strategy.recommended_target_percent
+      }
+    };
+
+    // Store in session storage for the scalper dashboard to pick up
+    sessionStorage.setItem('backtest_strategy', JSON.stringify(backtestConfig));
+
+    // Navigate to scalper dashboard
+    toast.success(`Opening backtest for ${strategy.name}...`);
+    navigate('/scalper');
   };
 
   const handleCloneStrategy = async (strategy: Strategy) => {
@@ -395,6 +412,13 @@ export default function StrategyLibrary() {
                         >
                           <Eye className="w-4 h-4" />
                           {strategy.is_system ? 'View' : 'Edit'}
+                        </button>
+                        <button
+                          onClick={() => handleBacktest(strategy)}
+                          className="px-3 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50"
+                          title="Backtest Strategy"
+                        >
+                          <Play className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleCloneStrategy(strategy)}

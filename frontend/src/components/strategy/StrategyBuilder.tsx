@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Save, AlertCircle, TrendingUp, BarChart3, Activity, Target, Info } from 'lucide-react';
 import { strategyAPI } from '../../api/client';
 import EntryConditionsBuilder from './EntryConditionsBuilder';
@@ -9,14 +9,14 @@ interface Strategy {
   id?: number;
   name: string;
   description: string;
-  category: string;
+  category: 'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'VOLUME_BREAKOUT' | 'MOMENTUM' | 'CUSTOM';
   entry_conditions: any;
   exit_conditions: any;
   indicators_config: any;
-  recommended_timeframes: string[];
-  recommended_stop_loss_percent: number;
-  recommended_target_percent: number;
-  min_capital_required: number;
+  recommended_timeframes?: string[];
+  recommended_stop_loss_percent?: number;
+  recommended_target_percent?: number;
+  min_capital_required?: number;
   is_system?: boolean;
 }
 
@@ -78,15 +78,18 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
       newErrors.category = 'Category is required';
     }
 
-    if (formData.recommended_stop_loss_percent >= formData.recommended_target_percent) {
+    const stopLoss = formData.recommended_stop_loss_percent || 0;
+    const target = formData.recommended_target_percent || 0;
+
+    if (stopLoss >= target) {
       newErrors.risk = 'Target must be greater than stop loss for positive risk/reward ratio';
     }
 
-    if (formData.recommended_stop_loss_percent <= 0 || formData.recommended_stop_loss_percent > 100) {
+    if (stopLoss <= 0 || stopLoss > 100) {
       newErrors.stopLoss = 'Stop loss must be between 0 and 100%';
     }
 
-    if (formData.recommended_target_percent <= 0 || formData.recommended_target_percent > 100) {
+    if (target <= 0 || target > 100) {
       newErrors.target = 'Target must be between 0 and 100%';
     }
 
@@ -147,9 +150,85 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
     }
   };
 
-  const riskRewardRatio = formData.recommended_stop_loss_percent > 0
-    ? (formData.recommended_target_percent / formData.recommended_stop_loss_percent).toFixed(2)
+  const riskRewardRatio = (formData.recommended_stop_loss_percent || 0) > 0
+    ? ((formData.recommended_target_percent || 0) / (formData.recommended_stop_loss_percent || 1)).toFixed(2)
     : '0';
+
+  // Strategy Templates
+  const templates = {
+    scalper: {
+      name: 'Quick Scalper',
+      description: 'Ultra-fast scalping strategy for quick 0.3-0.5% profits with tight 0.2% stop loss. Best for 1m-3m timeframes.',
+      category: 'MOMENTUM' as Strategy['category'],
+      entry_conditions: { type: 'MOMENTUM', emaFast: 5, emaSlow: 13, rsiThreshold: 65, volumeMultiple: 1.5 },
+      exit_conditions: { targetPercent: 0.5, stopLossPercent: 0.2, useTrailingStop: true, maxHoldTimeMinutes: 15 },
+      indicators_config: { useEMA: true, emaFast: 5, emaMiddle: 13, emaSlow: 21, useRSI: true, rsiPeriod: 7, useMACD: true, useVolume: true },
+      recommended_timeframes: ['1m', '3m'],
+      recommended_stop_loss_percent: 0.2,
+      recommended_target_percent: 0.5,
+      min_capital_required: 25000
+    },
+    dayTrader: {
+      name: 'Day Trader Pro',
+      description: 'Professional day trading strategy that rides intraday trends. Target: 2-3% gains with 1.5% stop. Best for 5m-30m timeframes.',
+      category: 'TREND_FOLLOWING' as Strategy['category'],
+      entry_conditions: { type: 'TREND_FOLLOWING', emaAlignment: true, adxThreshold: 25, volumeMultiple: 1.8 },
+      exit_conditions: { targetPercent: 3.0, stopLossPercent: 1.5, useTrailingStop: true, maxHoldTimeMinutes: 240 },
+      indicators_config: { useEMA: true, emaFast: 9, emaMiddle: 20, emaSlow: 50, useRSI: true, useMACD: true, useADX: true, useVolume: true, useVWAP: true },
+      recommended_timeframes: ['5m', '15m', '30m'],
+      recommended_stop_loss_percent: 1.5,
+      recommended_target_percent: 3.0,
+      min_capital_required: 75000
+    },
+    swingTrader: {
+      name: 'Swing Trader Elite',
+      description: 'Multi-day swing trading strategy for capturing major moves. Target: 8-12% over 2-5 days with 4% stop. Best for 1h-1d timeframes.',
+      category: 'TREND_FOLLOWING' as Strategy['category'],
+      entry_conditions: { type: 'TREND_FOLLOWING', emaAlignment: true, adxThreshold: 30, rsiRange: [55, 75], volumeMultiple: 2.0 },
+      exit_conditions: { targetPercent: 10.0, stopLossPercent: 4.0, useTrailingStop: true, maxHoldTimeMinutes: 4320 },
+      indicators_config: { useEMA: true, emaFast: 9, emaMiddle: 20, emaSlow: 50, useRSI: true, useMACD: true, useADX: true, useBollingerBands: true, useVolume: true, useVWAP: true },
+      recommended_timeframes: ['1h', '4h', '1d'],
+      recommended_stop_loss_percent: 4.0,
+      recommended_target_percent: 10.0,
+      min_capital_required: 150000
+    },
+    meanReversion: {
+      name: 'Mean Reversion Sniper',
+      description: 'Precision strategy for catching oversold bounces. Target: 1.5-2% bounces with 0.8% stop. Best for 5m-30m timeframes.',
+      category: 'MEAN_REVERSION' as Strategy['category'],
+      entry_conditions: { type: 'MEAN_REVERSION', rsiOversold: 30, bollingerBandTouch: 'lower', volumeMultiple: 1.5 },
+      exit_conditions: { targetPercent: 2.0, stopLossPercent: 0.8, maxHoldTimeMinutes: 120 },
+      indicators_config: { useEMA: true, emaFast: 9, emaMiddle: 20, emaSlow: 50, useRSI: true, useMACD: true, useBollingerBands: true, useVolume: true },
+      recommended_timeframes: ['5m', '15m', '30m'],
+      recommended_stop_loss_percent: 0.8,
+      recommended_target_percent: 2.0,
+      min_capital_required: 50000
+    },
+    breakout: {
+      name: 'Breakout Hunter',
+      description: 'Aggressive breakout strategy for explosive moves. Target: 3-5% with 1.5% stop. Best for 3m-15m timeframes.',
+      category: 'VOLUME_BREAKOUT' as Strategy['category'],
+      entry_conditions: { type: 'VOLUME_BREAKOUT', volumeMultiple: 3.0, priceBreakoutHigh: true },
+      exit_conditions: { targetPercent: 4.0, stopLossPercent: 1.5, useTrailingStop: true, maxHoldTimeMinutes: 180 },
+      indicators_config: { useEMA: true, emaFast: 9, emaMiddle: 20, emaSlow: 50, useRSI: true, useMACD: true, useBollingerBands: true, useVolume: true, useVWAP: true },
+      recommended_timeframes: ['3m', '5m', '15m'],
+      recommended_stop_loss_percent: 1.5,
+      recommended_target_percent: 4.0,
+      min_capital_required: 60000
+    }
+  };
+
+  const applyTemplate = (templateKey: string) => {
+    if (templateKey === '') return;
+
+    const template = templates[templateKey as keyof typeof templates];
+    if (!template) return;
+
+    setFormData({
+      ...formData,
+      ...template
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -251,6 +330,33 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-6">
+                {/* Quick Start Templates */}
+                {!isReadOnly && !strategy?.id && (
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-purple-900 mb-2">🚀 Quick Start Templates</h3>
+                        <p className="text-sm text-purple-700 mb-3">
+                          Start with a professionally designed template and customize it to your needs. All fields will be pre-filled with optimal values.
+                        </p>
+                        <select
+                          onChange={(e) => applyTemplate(e.target.value)}
+                          className="w-full px-4 py-2 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                          defaultValue=""
+                        >
+                          <option value="">Select a template to get started...</option>
+                          <option value="scalper">⚡ Quick Scalper - 1m-3m timeframes (0.5% target, 0.2% stop)</option>
+                          <option value="dayTrader">📈 Day Trader Pro - 5m-30m timeframes (3% target, 1.5% stop)</option>
+                          <option value="swingTrader">🎯 Swing Trader Elite - 1h-1d timeframes (10% target, 4% stop)</option>
+                          <option value="meanReversion">🔄 Mean Reversion Sniper - 5m-30m bounce plays (2% target, 0.8% stop)</option>
+                          <option value="breakout">💥 Breakout Hunter - 3m-15m explosive moves (4% target, 1.5% stop)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -275,7 +381,7 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
                     </label>
                     <select
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value as Strategy['category'] })}
                       disabled={isReadOnly}
                       className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                         errors.category ? 'border-red-500' : 'border-gray-300'
@@ -317,17 +423,18 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
                       <label key={tf} className="flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={formData.recommended_timeframes.includes(tf)}
+                          checked={(formData.recommended_timeframes || []).includes(tf)}
                           onChange={(e) => {
+                            const timeframes = formData.recommended_timeframes || [];
                             if (e.target.checked) {
                               setFormData({
                                 ...formData,
-                                recommended_timeframes: [...formData.recommended_timeframes, tf]
+                                recommended_timeframes: [...timeframes, tf]
                               });
                             } else {
                               setFormData({
                                 ...formData,
-                                recommended_timeframes: formData.recommended_timeframes.filter(t => t !== tf)
+                                recommended_timeframes: timeframes.filter(t => t !== tf)
                               });
                             }
                           }}
@@ -346,8 +453,8 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
                   </label>
                   <input
                     type="number"
-                    value={formData.min_capital_required}
-                    onChange={(e) => setFormData({ ...formData, min_capital_required: parseInt(e.target.value) })}
+                    value={formData.min_capital_required || 50000}
+                    onChange={(e) => setFormData({ ...formData, min_capital_required: parseInt(e.target.value) || 50000 })}
                     disabled={isReadOnly}
                     className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
                       isReadOnly ? 'bg-gray-50 text-gray-600' : ''
@@ -404,10 +511,10 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
                     </label>
                     <input
                       type="number"
-                      value={formData.recommended_stop_loss_percent}
+                      value={formData.recommended_stop_loss_percent || 1.0}
                       onChange={(e) => setFormData({
                         ...formData,
-                        recommended_stop_loss_percent: parseFloat(e.target.value)
+                        recommended_stop_loss_percent: parseFloat(e.target.value) || 1.0
                       })}
                       disabled={isReadOnly}
                       className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
@@ -429,10 +536,10 @@ export default function StrategyBuilder({ strategy, onClose }: StrategyBuilderPr
                     </label>
                     <input
                       type="number"
-                      value={formData.recommended_target_percent}
+                      value={formData.recommended_target_percent || 2.0}
                       onChange={(e) => setFormData({
                         ...formData,
-                        recommended_target_percent: parseFloat(e.target.value)
+                        recommended_target_percent: parseFloat(e.target.value) || 2.0
                       })}
                       disabled={isReadOnly}
                       className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${

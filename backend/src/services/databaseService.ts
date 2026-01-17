@@ -1331,9 +1331,171 @@ class DatabaseService {
 
       loggerService.success('✓ VB Elite Pro strategy created/updated');
 
-      // Check if strategy was created
-      const vbEliteCount = this.db.prepare(`SELECT COUNT(*) as count FROM trading_strategies WHERE name = 'VB Elite Pro'`).get() as { count: number };
-      loggerService.info(`VB Elite Pro strategies in database: ${vbEliteCount.count}`);
+      // LIGHTNING SCALPER - Ultra-fast scalping strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Lightning Scalper',
+          'Lightning Scalper v1.0 - Ultra-fast scalping strategy for 1m-3m timeframes. Uses EMA crossover, RSI momentum, and tight risk management. Designed for quick 0.3-0.5% profits with 0.2% stop loss. High-frequency trading approach.',
+          'MOMENTUM',
+          '{"type":"MOMENTUM","emaFast":5,"emaSlow":13,"rsiPeriod":7,"rsiOverboughtEntry":65,"volumeMultiple":1.5,"description":"Entry: EMA 5 crosses above EMA 13, RSI > 65, Volume 1.5x+, MACD positive"}',
+          '{"targetPercent":0.5,"stopLossPercent":0.2,"useTrailingStop":true,"trailingStopActivationPercent":0.3,"trailingStopDistance":0.15,"maxHoldTimeMinutes":15,"description":"Lightning-fast exits: 0.5% target, 0.2% stop, trailing at 0.3% profit"}',
+          '{"useEMA":true,"emaFast":5,"emaMiddle":13,"emaSlow":21,"useRSI":true,"rsiPeriod":7,"useMACD":true,"macdFast":6,"macdSlow":13,"macdSignal":5,"useVolume":true,"volumePeriod":14}',
+          1,
+          1,
+          'system',
+          1,
+          '["1m","3m"]',
+          0.2,
+          0.5,
+          25000
+        )
+      `).run();
+      loggerService.success('✓ Lightning Scalper strategy created/updated');
+
+      // TREND RIDER - Day trading momentum strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Trend Rider Pro',
+          'Trend Rider Pro v1.0 - Professional day trading strategy that rides strong intraday trends. Uses EMA alignment, ADX strength filter, and MACD confirmation. Target: 2-4% gains with 1.5% stop. Perfect for trending markets.',
+          'TREND_FOLLOWING',
+          '{"type":"TREND_FOLLOWING","emaAlignment":true,"adxThreshold":25,"macdPositive":true,"volumeMultiple":1.8,"description":"Entry: EMA 9>20>50, ADX > 25 (strong trend), MACD positive, Volume 1.8x+"}',
+          '{"targetPercent":3.0,"stopLossPercent":1.5,"useTrailingStop":true,"trailingStopActivationPercent":1.5,"trailingStopDistance":0.8,"maxHoldTimeMinutes":240,"partialExits":[{"percent":50,"atProfit":2.0}],"description":"Partial exit at 2%, full target at 3%, trailing stop from 1.5% profit"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useADX":true,"adxPeriod":14,"useVolume":true,"volumePeriod":20,"useVWAP":true}',
+          1,
+          1,
+          'system',
+          1,
+          '["5m","15m","30m"]',
+          1.5,
+          3.0,
+          75000
+        )
+      `).run();
+      loggerService.success('✓ Trend Rider Pro strategy created/updated');
+
+      // SWING MASTER - Multi-day swing trading strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Swing Master Elite',
+          'Swing Master Elite v1.0 - Professional swing trading strategy for multi-day holds. Combines trend following with momentum confirmation. Target: 8-12% gains over 2-5 days with 4% stop. Perfect for capturing major moves.',
+          'TREND_FOLLOWING',
+          '{"type":"TREND_FOLLOWING","emaAlignment":true,"adxThreshold":30,"rsiRange":[55,75],"volumeMultiple":2.0,"priceAboveVWAP":true,"description":"Entry: Strong trend (EMA aligned), ADX > 30, RSI 55-75, Price > VWAP, Volume 2x+"}',
+          '{"targetPercent":10.0,"stopLossPercent":4.0,"useTrailingStop":true,"trailingStopActivationPercent":5.0,"trailingStopDistance":2.5,"maxHoldTimeMinutes":4320,"partialExits":[{"percent":30,"atProfit":6.0},{"percent":40,"atProfit":8.0}],"description":"Scale out: 30% at +6%, 40% at +8%, rest at +10% or trailing"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useADX":true,"adxPeriod":14,"useBollingerBands":true,"bollingerPeriod":20,"bollingerStdDev":2,"useVolume":true,"volumePeriod":20,"useVWAP":true}',
+          1,
+          1,
+          'system',
+          1,
+          '["1h","4h","1d"]',
+          4.0,
+          10.0,
+          150000
+        )
+      `).run();
+      loggerService.success('✓ Swing Master Elite strategy created/updated');
+
+      // MEAN REVERSION SNIPER - Oversold bounce strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Mean Reversion Sniper',
+          'Mean Reversion Sniper v1.0 - Precision strategy for catching oversold bounces. Enters when RSI < 30, price touches lower Bollinger Band, with volume confirmation. Target: Quick 1.5-2% bounces with 0.8% stop.',
+          'MEAN_REVERSION',
+          '{"type":"MEAN_REVERSION","rsiOversold":30,"bollingerBandTouch":"lower","volumeMultiple":1.5,"macdTurning":true,"description":"Entry: RSI < 30 (oversold), Price at lower BB, Volume spike, MACD turning up"}',
+          '{"targetPercent":2.0,"stopLossPercent":0.8,"useTrailingStop":false,"maxHoldTimeMinutes":120,"exitOnRSI":true,"rsiExitLevel":60,"description":"Quick profit: Exit at 2% target, RSI > 60, or 2-hour max hold"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useBollingerBands":true,"bollingerPeriod":20,"bollingerStdDev":2,"useVolume":true,"volumePeriod":20}',
+          1,
+          1,
+          'system',
+          1,
+          '["5m","15m","30m"]',
+          0.8,
+          2.0,
+          50000
+        )
+      `).run();
+      loggerService.success('✓ Mean Reversion Sniper strategy created/updated');
+
+      // BREAKOUT HUNTER - Support/Resistance breakout strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Breakout Hunter',
+          'Breakout Hunter v1.0 - Aggressive breakout strategy for range-bound stocks. Waits for consolidation, then enters on high-volume breakout above resistance. Target: 3-5% gains with 1.5% stop. Catches explosive moves.',
+          'VOLUME_BREAKOUT',
+          '{"type":"VOLUME_BREAKOUT","volumeMultiple":3.0,"priceBreakoutHigh":true,"consolidationPeriod":20,"breakoutConfirmation":true,"description":"Entry: Price consolidating 20+ candles, then breaks above range on 3x volume, strong momentum"}',
+          '{"targetPercent":4.0,"stopLossPercent":1.5,"useTrailingStop":true,"trailingStopActivationPercent":2.0,"trailingStopDistance":1.0,"maxHoldTimeMinutes":180,"partialExits":[{"percent":40,"atProfit":2.5}],"description":"Take 40% at +2.5%, rest at +4% or trailing from +2%"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useBollingerBands":true,"bollingerPeriod":20,"bollingerStdDev":2,"useVolume":true,"volumePeriod":20,"useVWAP":true}',
+          1,
+          1,
+          'system',
+          1,
+          '["3m","5m","15m"]',
+          1.5,
+          4.0,
+          60000
+        )
+      `).run();
+      loggerService.success('✓ Breakout Hunter strategy created/updated');
+
+      // MOMENTUM SURGE - High-momentum chase strategy
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Momentum Surge',
+          'Momentum Surge v1.0 - Aggressive momentum strategy for strong trending stocks. Enters on continuation signals: Higher highs, strong MACD, RSI > 60. Target: 2.5-3.5% with 1.2% stop. Rides the wave.',
+          'MOMENTUM',
+          '{"type":"MOMENTUM","higherHighs":true,"rsiThreshold":60,"macdStrength":"strong","volumeMultiple":2.0,"emaAbove":true,"description":"Entry: Making higher highs, RSI > 60, Strong MACD, Price > all EMAs, Volume 2x+"}',
+          '{"targetPercent":3.0,"stopLossPercent":1.2,"useTrailingStop":true,"trailingStopActivationPercent":1.5,"trailingStopDistance":0.7,"maxHoldTimeMinutes":120,"description":"Ride momentum: Trail from +1.5%, target +3%, or 2-hour max"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useADX":true,"adxPeriod":14,"useVolume":true,"volumePeriod":20,"useVWAP":true}',
+          1,
+          1,
+          'system',
+          1,
+          '["3m","5m","15m"]',
+          1.2,
+          3.0,
+          50000
+        )
+      `).run();
+      loggerService.success('✓ Momentum Surge strategy created/updated');
+
+      // Check total strategies
+      const totalCount = this.db.prepare(`SELECT COUNT(*) as count FROM trading_strategies WHERE is_system = 1`).get() as { count: number };
+      loggerService.info(`✓ Total system strategies in database: ${totalCount.count}`);
 
     } catch (error) {
       loggerService.error('Failed to seed trading strategies', { error });
