@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, RotateCcw, ArrowLeft, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -70,6 +70,7 @@ export default function LiveSimulation() {
   const [timeframe] = useState('5m');
 
   const intervalRef = useRef<number | null>(null);
+  const tradeIdCounter = useRef(0);
 
   // Load strategy from session storage or location state
   useEffect(() => {
@@ -84,14 +85,7 @@ export default function LiveSimulation() {
     }
   }, [location, navigate]);
 
-  // Load historical data
-  useEffect(() => {
-    if (strategy && symbol && date) {
-      loadHistoricalData();
-    }
-  }, [strategy, symbol, date, timeframe]);
-
-  const loadHistoricalData = async () => {
+  const loadHistoricalData = useCallback(async () => {
     try {
       const response = await axios.get(`http://localhost:3001/api/market/historical`, {
         params: {
@@ -112,6 +106,7 @@ export default function LiveSimulation() {
         setWinningTrades(0);
         setLosingTrades(0);
         setTotalTrades(0);
+        tradeIdCounter.current = 0; // Reset trade ID counter
         toast.success(`Loaded ${response.data.candles.length} candles for ${symbol}`);
       } else {
         toast.error('No data available for selected date');
@@ -120,7 +115,14 @@ export default function LiveSimulation() {
       console.error('Error loading historical data:', error);
       toast.error(error.response?.data?.error || 'Failed to load historical data');
     }
-  };
+  }, [symbol, date, timeframe, initialBalance]);
+
+  // Load historical data when strategy is ready
+  useEffect(() => {
+    if (strategy && symbol && date) {
+      loadHistoricalData();
+    }
+  }, [strategy, symbol, date, loadHistoricalData]);
 
   // Simulation loop
   useEffect(() => {
@@ -322,8 +324,10 @@ export default function LiveSimulation() {
     const positionSize = balance * 0.1; // 10% of balance per trade
     const quantity = Math.floor(positionSize / candle.close);
 
+    tradeIdCounter.current += 1; // Increment unique ID counter
+
     const trade: Trade = {
-      id: trades.length + 1,
+      id: tradeIdCounter.current,
       entryTime: new Date(candle.time * 1000),
       entryPrice: candle.close,
       quantity,
@@ -435,6 +439,7 @@ export default function LiveSimulation() {
       setWinningTrades(0);
       setLosingTrades(0);
       setTotalTrades(0);
+      tradeIdCounter.current = 0; // Reset trade ID counter
     }
     setIsPlaying(!isPlaying);
   };
@@ -450,6 +455,7 @@ export default function LiveSimulation() {
     setWinningTrades(0);
     setLosingTrades(0);
     setTotalTrades(0);
+    tradeIdCounter.current = 0; // Reset trade ID counter
   };
 
   const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
