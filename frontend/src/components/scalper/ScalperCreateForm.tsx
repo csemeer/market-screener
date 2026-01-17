@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Save, X, AlertCircle, Target } from 'lucide-react';
+import { Save, X, AlertCircle, Target, Plus } from 'lucide-react';
 import { scalperAPI, strategyAPI } from '../../api/client';
 import axios from 'axios';
+import StrategyBuilder from '../strategy/StrategyBuilder';
 
 interface ScalperCreateFormProps {
   onSuccess: (scalperId: number) => void;
@@ -44,6 +45,7 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
   const [useStrategy, setUseStrategy] = useState(true);
+  const [showStrategyBuilder, setShowStrategyBuilder] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     broker: 'zerodha' as 'zerodha' | 'upstox' | 'ibkr',
@@ -73,21 +75,22 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
     avoidLastMinutes: 15,
   });
 
+  // Load strategies function
+  const loadStrategies = async () => {
+    try {
+      setLoadingStrategies(true);
+      const response = await strategyAPI.getAllStrategies({ is_active: true });
+      setStrategies(response.data.strategies || []);
+    } catch (error) {
+      console.error('Error loading strategies:', error);
+      setStrategies([]);
+    } finally {
+      setLoadingStrategies(false);
+    }
+  };
+
   // Load strategies on mount
   useEffect(() => {
-    const loadStrategies = async () => {
-      try {
-        setLoadingStrategies(true);
-        const response = await strategyAPI.getAllStrategies({ is_active: true });
-        setStrategies(response.data.strategies || []);
-      } catch (error) {
-        console.error('Error loading strategies:', error);
-        setStrategies([]);
-      } finally {
-        setLoadingStrategies(false);
-      }
-    };
-
     loadStrategies();
   }, []);
 
@@ -149,6 +152,13 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
 
     const strategy = strategies.find((s) => s.id.toString() === strategyId);
     setSelectedStrategy(strategy || null);
+  };
+
+  const handleCloseStrategyBuilder = (saved: boolean) => {
+    setShowStrategyBuilder(false);
+    if (saved) {
+      loadStrategies(); // Reload strategies if a new one was created/updated
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -439,6 +449,16 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
                       ))}
                     </optgroup>
                   </select>
+
+                  {/* Create New Strategy Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowStrategyBuilder(true)}
+                    className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-medium">Create New Strategy</span>
+                  </button>
 
                   {/* Show selected strategy details */}
                   {selectedStrategy && (
@@ -732,6 +752,16 @@ export default function ScalperCreateForm({ onSuccess, onCancel }: ScalperCreate
           </button>
         </div>
       </form>
+
+      {/* Strategy Builder Modal */}
+      {showStrategyBuilder && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 overflow-y-auto">
+          <StrategyBuilder
+            strategy={null}
+            onClose={handleCloseStrategyBuilder}
+          />
+        </div>
+      )}
     </div>
   );
 }

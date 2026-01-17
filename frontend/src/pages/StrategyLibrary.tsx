@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle, Plus } from 'lucide-react';
 import { strategyAPI } from '../api/client';
 import toast from 'react-hot-toast';
+import StrategyBuilder from '../components/strategy/StrategyBuilder';
 
 interface Strategy {
   id: number;
@@ -65,7 +66,7 @@ export default function StrategyLibrary() {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showSystemOnly, setShowSystemOnly] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   useEffect(() => {
     loadStrategies();
@@ -114,7 +115,29 @@ export default function StrategyLibrary() {
 
   const handleViewDetails = (strategy: Strategy) => {
     setSelectedStrategy(strategy);
-    setShowDetailsModal(true);
+    setShowBuilder(true);
+  };
+
+  const handleEditStrategy = (strategy: Strategy) => {
+    if (strategy.is_system) {
+      toast.error('System strategies are read-only. Please clone to create a custom version.');
+      return;
+    }
+    setSelectedStrategy(strategy);
+    setShowBuilder(true);
+  };
+
+  const handleCreateNew = () => {
+    setSelectedStrategy(null);
+    setShowBuilder(true);
+  };
+
+  const handleCloseBuilder = (saved: boolean) => {
+    setShowBuilder(false);
+    setSelectedStrategy(null);
+    if (saved) {
+      loadStrategies();
+    }
   };
 
   const handleCloneStrategy = async (strategy: Strategy) => {
@@ -197,6 +220,13 @@ export default function StrategyLibrary() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleCreateNew}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Create New Strategy
+            </button>
             <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
               <div className="text-sm text-gray-600">Total Strategies</div>
               <div className="text-2xl font-bold text-gray-900">{strategies.length}</div>
@@ -364,7 +394,7 @@ export default function StrategyLibrary() {
                           className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm font-medium"
                         >
                           <Eye className="w-4 h-4" />
-                          View Details
+                          {strategy.is_system ? 'View' : 'Edit'}
                         </button>
                         <button
                           onClick={() => handleCloneStrategy(strategy)}
@@ -407,123 +437,13 @@ export default function StrategyLibrary() {
         </div>
       )}
 
-      {/* Details Modal */}
-      {showDetailsModal && selectedStrategy && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedStrategy.name}</h2>
-                <p className="text-sm text-gray-600 mt-1">{selectedStrategy.description}</p>
-              </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <span className="text-2xl">×</span>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Basic Info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-sm text-blue-600 font-medium">Category</div>
-                  <div className="text-lg font-bold text-blue-900">
-                    {categoryConfig[selectedStrategy.category].label}
-                  </div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-sm text-green-600 font-medium">Stop Loss</div>
-                  <div className="text-lg font-bold text-green-900">
-                    {selectedStrategy.recommended_stop_loss_percent}%
-                  </div>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="text-sm text-purple-600 font-medium">Target</div>
-                  <div className="text-lg font-bold text-purple-900">
-                    {selectedStrategy.recommended_target_percent}%
-                  </div>
-                </div>
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <div className="text-sm text-orange-600 font-medium">Min Capital</div>
-                  <div className="text-lg font-bold text-orange-900">
-                    ₹{((selectedStrategy.min_capital_required || 0) / 1000).toFixed(0)}K
-                  </div>
-                </div>
-              </div>
-
-              {/* Configuration */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Entry Conditions</h3>
-                <pre className="bg-gray-50 rounded-lg p-4 text-sm overflow-x-auto">
-                  {JSON.stringify(selectedStrategy.entry_conditions, null, 2)}
-                </pre>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Exit Conditions</h3>
-                <pre className="bg-gray-50 rounded-lg p-4 text-sm overflow-x-auto">
-                  {JSON.stringify(selectedStrategy.exit_conditions, null, 2)}
-                </pre>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Indicators Configuration</h3>
-                <pre className="bg-gray-50 rounded-lg p-4 text-sm overflow-x-auto">
-                  {JSON.stringify(selectedStrategy.indicators_config, null, 2)}
-                </pre>
-              </div>
-
-              {/* Performance */}
-              {(selectedStrategy.avg_win_rate || selectedStrategy.avg_return_percent) && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Performance Metrics</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    {selectedStrategy.avg_win_rate && (
-                      <div className="bg-green-50 rounded-lg p-4">
-                        <div className="text-sm text-green-600 font-medium">Win Rate</div>
-                        <div className="text-2xl font-bold text-green-900">
-                          {selectedStrategy.avg_win_rate.toFixed(1)}%
-                        </div>
-                      </div>
-                    )}
-                    {selectedStrategy.avg_return_percent && (
-                      <div className="bg-blue-50 rounded-lg p-4">
-                        <div className="text-sm text-blue-600 font-medium">Avg Return</div>
-                        <div className="text-2xl font-bold text-blue-900">
-                          {selectedStrategy.avg_return_percent.toFixed(1)}%
-                        </div>
-                      </div>
-                    )}
-                    <div className="bg-purple-50 rounded-lg p-4">
-                      <div className="text-sm text-purple-600 font-medium">Total Uses</div>
-                      <div className="text-2xl font-bold text-purple-900">
-                        {selectedStrategy.total_uses}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => handleCloneStrategy(selectedStrategy)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
-                >
-                  <Copy className="w-5 h-5" />
-                  Clone & Customize
-                </button>
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Strategy Builder Modal */}
+      {showBuilder && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 overflow-y-auto">
+          <StrategyBuilder
+            strategy={selectedStrategy}
+            onClose={handleCloseBuilder}
+          />
         </div>
       )}
     </div>
