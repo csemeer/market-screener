@@ -529,7 +529,7 @@ export default function IndicatorConfigurator({ config, onChange, readOnly = fal
 
         {config.useSupertrend === true && (
           <div className="text-xs text-gray-600 bg-white p-3 rounded">
-            <strong>Usage:</strong> Supertrend provides clear buy/sell signals. When price > Supertrend (green), it's bullish. When price < Supertrend (red), it's bearish.
+            <strong>Usage:</strong> Supertrend provides clear buy/sell signals. When price &gt; Supertrend (green), it&apos;s bullish. When price &lt; Supertrend (red), it&apos;s bearish.
           </div>
         )}
       </div>
