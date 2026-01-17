@@ -14,6 +14,7 @@ import StockDetail from './pages/StockDetail';
 import AutoScanSettings from './pages/AutoScanSettings';
 import ScalperDashboard from './pages/ScalperDashboard';
 import StrategyLibrary from './pages/StrategyLibrary';
+import LiveSimulation from './pages/LiveSimulation';
 import LoggerDrawer from './components/LoggerDrawer';
 
 function App() {
@@ -107,6 +108,7 @@ function App() {
             <Route path="/signals" element={<SignalsHub />} />
             <Route path="/scalper" element={<ScalperDashboard />} />
             <Route path="/strategies" element={<StrategyLibrary />} />
+            <Route path="/live-simulation" element={<LiveSimulation />} />
             <Route path="/autoscan" element={<SignalsHub />} />
             <Route path="/eod" element={<EODDashboard />} />
             <Route path="/watchlist" element={<CustomWatchlist />} />

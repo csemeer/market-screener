@@ -214,7 +214,7 @@ export default function BacktestLightweightChart({
     if (!mainChart.current) return;
 
     // Candlestick series
-    const candlestickSeries = mainChart.current.addCandlestickSeries({
+    const candlestickSeries = (mainChart.current as any).addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderVisible: false,
@@ -236,7 +236,7 @@ export default function BacktestLightweightChart({
     // Add EMAs
     if (activeIndicators.ema) {
       if (chartData.some((d) => d.ema9)) {
-        const ema9Series = mainChart.current.addLineSeries({
+        const ema9Series = (mainChart.current as any).addLineSeries({
           color: '#2962FF',
           lineWidth: 2,
           title: 'EMA 9',
@@ -251,7 +251,7 @@ export default function BacktestLightweightChart({
       }
 
       if (chartData.some((d) => d.ema21)) {
-        const ema21Series = mainChart.current.addLineSeries({
+        const ema21Series = (mainChart.current as any).addLineSeries({
           color: '#9C27B0',
           lineWidth: 2,
           title: 'EMA 21',
@@ -266,7 +266,7 @@ export default function BacktestLightweightChart({
       }
 
       if (chartData.some((d) => d.ema50)) {
-        const ema50Series = mainChart.current.addLineSeries({
+        const ema50Series = (mainChart.current as any).addLineSeries({
           color: '#FF6D00',
           lineWidth: 2,
           title: 'EMA 50',
@@ -284,7 +284,7 @@ export default function BacktestLightweightChart({
     // Add Bollinger Bands
     if (activeIndicators.bollinger) {
       if (chartData.some((d) => d.bb_upper && d.bb_lower)) {
-        const bbUpperSeries = mainChart.current.addLineSeries({
+        const bbUpperSeries = (mainChart.current as any).addLineSeries({
           color: '#9E9E9E',
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
@@ -298,7 +298,7 @@ export default function BacktestLightweightChart({
           }));
         bbUpperSeries.setData(bbUpperData);
 
-        const bbMiddleSeries = mainChart.current.addLineSeries({
+        const bbMiddleSeries = (mainChart.current as any).addLineSeries({
           color: '#757575',
           lineWidth: 1,
           title: 'BB Middle',
@@ -311,7 +311,7 @@ export default function BacktestLightweightChart({
           }));
         bbMiddleSeries.setData(bbMiddleData);
 
-        const bbLowerSeries = mainChart.current.addLineSeries({
+        const bbLowerSeries = (mainChart.current as any).addLineSeries({
           color: '#9E9E9E',
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
@@ -329,7 +329,7 @@ export default function BacktestLightweightChart({
 
     // Add VWAP
     if (activeIndicators.vwap && chartData.some((d) => d.vwap)) {
-      const vwapSeries = mainChart.current.addLineSeries({
+      const vwapSeries = (mainChart.current as any).addLineSeries({
         color: '#00BCD4',
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
@@ -417,7 +417,7 @@ export default function BacktestLightweightChart({
   const createVolumeChart = () => {
     if (!volumeChart.current) return;
 
-    const volumeSeries = volumeChart.current.addHistogramSeries({
+    const volumeSeries = (volumeChart.current as any).addHistogramSeries({
       color: '#26a69a',
       priceFormat: {
         type: 'volume',
@@ -441,7 +441,7 @@ export default function BacktestLightweightChart({
   const createRSIChart = () => {
     if (!rsiChart.current) return;
 
-    const rsiSeries = rsiChart.current.addLineSeries({
+    const rsiSeries = (rsiChart.current as any).addLineSeries({
       color: '#7B68EE',
       lineWidth: 2,
       title: 'RSI(14)',
@@ -491,7 +491,7 @@ export default function BacktestLightweightChart({
     if (!macdChart.current) return;
 
     // MACD Histogram
-    const histogramSeries = macdChart.current.addHistogramSeries({
+    const histogramSeries = (macdChart.current as any).addHistogramSeries({
       color: '#546E7A',
       priceFormat: {
         type: 'price',
@@ -511,7 +511,7 @@ export default function BacktestLightweightChart({
     histogramSeries.setData(histogramData);
 
     // MACD Line
-    const macdSeries = macdChart.current.addLineSeries({
+    const macdSeries = (macdChart.current as any).addLineSeries({
       color: '#2196F3',
       lineWidth: 2,
       title: 'MACD',
@@ -527,7 +527,7 @@ export default function BacktestLightweightChart({
     macdSeries.setData(macdData);
 
     // Signal Line
-    const signalSeries = macdChart.current.addLineSeries({
+    const signalSeries = (macdChart.current as any).addLineSeries({
       color: '#FF6B6B',
       lineWidth: 2,
       title: 'Signal',

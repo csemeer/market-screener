@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle, Plus, Play } from 'lucide-react';
+import { Search, Filter, TrendingUp, BarChart3, Zap, Activity, Eye, Copy, Edit2, Trash2, AlertCircle, Plus, Play, Video } from 'lucide-react';
 import { strategyAPI } from '../api/client';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -155,6 +155,30 @@ export default function StrategyLibrary() {
     // Navigate to scalper dashboard
     toast.success(`Opening backtest for ${strategy.name}...`);
     navigate('/scalper');
+  };
+
+  const handleLiveSimulation = (strategy: Strategy) => {
+    // Create simulation config with this strategy
+    const simulationConfig = {
+      strategy: {
+        id: strategy.id,
+        name: strategy.name,
+        category: strategy.category,
+        entry_conditions: strategy.entry_conditions,
+        exit_conditions: strategy.exit_conditions,
+        indicators_config: strategy.indicators_config,
+        recommended_timeframes: strategy.recommended_timeframes,
+        recommended_stop_loss_percent: strategy.recommended_stop_loss_percent,
+        recommended_target_percent: strategy.recommended_target_percent
+      }
+    };
+
+    // Store in session storage for the live simulation page to pick up
+    sessionStorage.setItem('live_simulation_strategy', JSON.stringify(simulationConfig));
+
+    // Navigate to live simulation
+    toast.success(`Opening live simulation for ${strategy.name}...`);
+    navigate('/live-simulation');
   };
 
   const handleCloneStrategy = async (strategy: Strategy) => {
@@ -419,6 +443,13 @@ export default function StrategyLibrary() {
                           title="Backtest Strategy"
                         >
                           <Play className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleLiveSimulation(strategy)}
+                          className="px-3 py-2 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50"
+                          title="Live Simulation"
+                        >
+                          <Video className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleCloneStrategy(strategy)}
