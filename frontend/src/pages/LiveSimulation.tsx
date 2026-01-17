@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, RotateCcw, ArrowLeft, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import LiveChart from '../components/simulation/LiveChart';
 
 interface Strategy {
   id: number;
@@ -647,36 +648,41 @@ export default function LiveSimulation() {
               </div>
             </div>
 
-            {/* Chart visualization placeholder */}
-            <div className="bg-gray-100 rounded-lg p-8 text-center min-h-[600px] flex items-center justify-center">
-              <div className="text-gray-500">
-                <Activity className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">Chart Visualization Area</p>
-                <p className="text-sm mt-2">
-                  {visibleCandles.length > 0
-                    ? `Showing ${visibleCandles.length} candles with indicators and trade markers`
-                    : 'Click Play to start simulation'}
-                </p>
+            {/* Live Chart */}
+            {visibleCandles.length > 0 ? (
+              <>
+                <LiveChart
+                  candles={visibleCandles}
+                  indicators={indicators}
+                  currentTrade={currentTrade}
+                  trades={trades}
+                />
 
-                {/* Indicators Display */}
+                {/* Indicators Display below chart */}
                 {indicators.ema9 && (
-                  <div className="mt-6 bg-white rounded-lg p-4 text-left inline-block">
-                    <h4 className="font-medium text-gray-700 mb-2">Live Indicators</h4>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="mt-4 bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-700 mb-3">Live Indicators</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       {indicators.ema9 && (
-                        <div>
+                        <div className="bg-white rounded p-2">
                           <span className="text-gray-600">EMA 9:</span>
-                          <span className="ml-2 font-medium">₹{indicators.ema9.toFixed(2)}</span>
+                          <span className="ml-2 font-medium text-blue-600">₹{indicators.ema9.toFixed(2)}</span>
                         </div>
                       )}
                       {indicators.ema20 && (
-                        <div>
+                        <div className="bg-white rounded p-2">
                           <span className="text-gray-600">EMA 20:</span>
-                          <span className="ml-2 font-medium">₹{indicators.ema20.toFixed(2)}</span>
+                          <span className="ml-2 font-medium text-purple-600">₹{indicators.ema20.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {indicators.ema50 && (
+                        <div className="bg-white rounded p-2">
+                          <span className="text-gray-600">EMA 50:</span>
+                          <span className="ml-2 font-medium text-orange-600">₹{indicators.ema50.toFixed(2)}</span>
                         </div>
                       )}
                       {indicators.rsi && (
-                        <div>
+                        <div className="bg-white rounded p-2">
                           <span className="text-gray-600">RSI:</span>
                           <span className={`ml-2 font-medium ${
                             indicators.rsi > 70 ? 'text-red-600' : indicators.rsi < 30 ? 'text-green-600' : 'text-gray-900'
@@ -686,7 +692,7 @@ export default function LiveSimulation() {
                         </div>
                       )}
                       {indicators.macd && (
-                        <div>
+                        <div className="bg-white rounded p-2">
                           <span className="text-gray-600">MACD:</span>
                           <span className={`ml-2 font-medium ${
                             indicators.macd > indicators.macdSignal ? 'text-green-600' : 'text-red-600'
@@ -695,11 +701,26 @@ export default function LiveSimulation() {
                           </span>
                         </div>
                       )}
+                      {indicators.volumeAvg && (
+                        <div className="bg-white rounded p-2">
+                          <span className="text-gray-600">Vol Avg:</span>
+                          <span className="ml-2 font-medium text-gray-900">
+                            {(indicators.volumeAvg / 1000).toFixed(0)}K
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
+              </>
+            ) : (
+              <div className="bg-gray-100 rounded-lg p-8 text-center min-h-[500px] flex items-center justify-center">
+                <div className="text-gray-500">
+                  <p className="text-lg font-medium">Ready to Start Simulation</p>
+                  <p className="text-sm mt-2">Click Play to begin live trading simulation</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
