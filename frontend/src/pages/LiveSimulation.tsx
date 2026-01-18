@@ -97,7 +97,10 @@ export default function LiveSimulation() {
       });
 
       if (response.data.candles && response.data.candles.length > 0) {
-        setCandles(response.data.candles);
+        // CRITICAL: Sort candles by time ascending to prevent chart errors
+        const sortedCandles = [...response.data.candles].sort((a, b) => a.time - b.time);
+
+        setCandles(sortedCandles);
         setCurrentIndex(0);
         setVisibleCandles([]);
         setTrades([]);
@@ -108,7 +111,7 @@ export default function LiveSimulation() {
         setLosingTrades(0);
         setTotalTrades(0);
         tradeIdCounter.current = 0; // Reset trade ID counter
-        toast.success(`Loaded ${response.data.candles.length} candles for ${symbol}`);
+        toast.success(`Loaded ${sortedCandles.length} candles for ${symbol}`);
       } else {
         toast.error('No data available for selected date');
       }
@@ -127,45 +130,59 @@ export default function LiveSimulation() {
 
   // Simulation loop
   useEffect(() => {
-    if (isPlaying && currentIndex < candles.length) {
-      const interval = 1000 / speed; // Speed multiplier
-
-      intervalRef.current = setInterval(() => {
-        setCurrentIndex(prev => {
-          const next = prev + 1;
-          if (next >= candles.length) {
-            setIsPlaying(false);
-            toast.success('Simulation completed!');
-            return prev;
-          }
-
-          // Add new candle to visible candles (check for duplicates)
-          setVisibleCandles(prevVisible => {
-            const newCandle = candles[next];
-            // Only add if this timestamp doesn't already exist
-            if (prevVisible.find(c => c.time === newCandle.time)) {
-              return prevVisible;
-            }
-            return [...prevVisible, newCandle];
-          });
-
-          // Calculate indicators for current candle
-          calculateIndicators(next);
-
-          // Check for entry/exit signals
-          checkTradingSignals(next);
-
-          return next;
-        });
-      }, interval);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
+    // Clear any existing interval first
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-  }, [isPlaying, speed, currentIndex, candles]);
+
+    if (!isPlaying || candles.length === 0) {
+      return;
+    }
+
+    const interval = 1000 / speed; // Speed multiplier
+
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex(prev => {
+        const next = prev + 1;
+        if (next >= candles.length) {
+          setIsPlaying(false);
+          toast.success('Simulation completed!');
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return prev;
+        }
+
+        // Add new candle to visible candles (check for duplicates)
+        setVisibleCandles(prevVisible => {
+          const newCandle = candles[next];
+          // Only add if this timestamp doesn't already exist
+          if (prevVisible.find(c => c.time === newCandle.time)) {
+            return prevVisible;
+          }
+          return [...prevVisible, newCandle];
+        });
+
+        // Calculate indicators for current candle
+        calculateIndicators(next);
+
+        // Check for entry/exit signals
+        checkTradingSignals(next);
+
+        return next;
+      });
+    }, interval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, speed]); // Only re-run when playing state or speed changes, NOT on currentIndex/candles changes
 
   const calculateIndicators = (index: number) => {
     if (!strategy?.indicators_config) return;
