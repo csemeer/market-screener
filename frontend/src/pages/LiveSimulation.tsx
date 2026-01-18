@@ -139,8 +139,15 @@ export default function LiveSimulation() {
             return prev;
           }
 
-          // Add new candle to visible candles
-          setVisibleCandles(prevVisible => [...prevVisible, candles[next]]);
+          // Add new candle to visible candles (check for duplicates)
+          setVisibleCandles(prevVisible => {
+            const newCandle = candles[next];
+            // Only add if this timestamp doesn't already exist
+            if (prevVisible.find(c => c.time === newCandle.time)) {
+              return prevVisible;
+            }
+            return [...prevVisible, newCandle];
+          });
 
           // Calculate indicators for current candle
           calculateIndicators(next);

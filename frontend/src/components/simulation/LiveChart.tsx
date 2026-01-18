@@ -133,7 +133,19 @@ export default function LiveChart({ candles, indicators, currentTrade, trades }:
   useEffect(() => {
     if (!candleSeriesRef.current || candles.length === 0) return;
 
-    const candleData: CandlestickData[] = candles.map((candle) => ({
+    // Remove duplicates and sort by time
+    const uniqueCandles = candles.reduce((acc: Candle[], candle) => {
+      // Only add if timestamp doesn't already exist
+      if (!acc.find(c => c.time === candle.time)) {
+        acc.push(candle);
+      }
+      return acc;
+    }, []);
+
+    // Sort by time ascending
+    uniqueCandles.sort((a, b) => a.time - b.time);
+
+    const candleData: CandlestickData[] = uniqueCandles.map((candle) => ({
       time: candle.time as Time,
       open: candle.open,
       high: candle.high,
@@ -153,29 +165,38 @@ export default function LiveChart({ candles, indicators, currentTrade, trades }:
   useEffect(() => {
     if (candles.length === 0) return;
 
+    // Remove duplicates and sort by time
+    const uniqueCandles = candles.reduce((acc: Candle[], candle) => {
+      if (!acc.find(c => c.time === candle.time)) {
+        acc.push(candle);
+      }
+      return acc;
+    }, []);
+    uniqueCandles.sort((a, b) => a.time - b.time);
+
     // EMA 9
     if (ema9SeriesRef.current && indicators.ema9 !== undefined) {
-      const ema9Data: LineData[] = candles.map((candle, index) => ({
+      const ema9Data: LineData[] = uniqueCandles.map((candle, index) => ({
         time: candle.time as Time,
-        value: index === candles.length - 1 ? indicators.ema9! : candle.close, // Show indicator on last candle
+        value: index === uniqueCandles.length - 1 ? indicators.ema9! : candle.close, // Show indicator on last candle
       }));
       ema9SeriesRef.current.setData(ema9Data);
     }
 
     // EMA 20
     if (ema20SeriesRef.current && indicators.ema20 !== undefined) {
-      const ema20Data: LineData[] = candles.map((candle, index) => ({
+      const ema20Data: LineData[] = uniqueCandles.map((candle, index) => ({
         time: candle.time as Time,
-        value: index === candles.length - 1 ? indicators.ema20! : candle.close,
+        value: index === uniqueCandles.length - 1 ? indicators.ema20! : candle.close,
       }));
       ema20SeriesRef.current.setData(ema20Data);
     }
 
     // EMA 50
     if (ema50SeriesRef.current && indicators.ema50 !== undefined) {
-      const ema50Data: LineData[] = candles.map((candle, index) => ({
+      const ema50Data: LineData[] = uniqueCandles.map((candle, index) => ({
         time: candle.time as Time,
-        value: index === candles.length - 1 ? indicators.ema50! : candle.close,
+        value: index === uniqueCandles.length - 1 ? indicators.ema50! : candle.close,
       }));
       ema50SeriesRef.current.setData(ema50Data);
     }
