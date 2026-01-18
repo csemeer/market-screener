@@ -13,7 +13,7 @@ const router = Router();
  */
 router.get('/historical', async (req, res) => {
   try {
-    const { symbol, date, interval = '5m' } = req.query;
+    const { symbol, date, interval = '5m', preCandles = '0' } = req.query;
 
     if (!symbol || typeof symbol !== 'string') {
       return res.status(400).json({ error: 'Symbol is required' });
@@ -31,20 +31,31 @@ router.get('/historical', async (req, res) => {
       });
     }
 
+    const preCandleCount = parseInt(preCandles as string, 10) || 0;
+
+    // TODO: Replace with real historical data from database
+    // For production, this should:
+    // 1. Query TimescaleDB for actual intraday candlestick data
+    // 2. Fetch preCandles from previous trading days if needed
+    // 3. Use marketDataService.getHistoricalData() with proper date ranges
+    // 4. Handle market holidays and non-trading hours
+
     // Generate mock intraday data for the simulation
-    // In a production system, this would fetch actual historical intraday data
-    const candles = generateMockIntradayData(
+    const result = generateMockIntradayData(
       symbol,
       date as string,
-      interval as string
+      interval as string,
+      preCandleCount
     );
 
     res.json({
       symbol,
       date,
       interval,
-      candles,
-      count: candles.length
+      candles: result.candles,
+      count: result.candles.length,
+      preCandleCount: result.preCandleCount,
+      tradingCandleCount: result.tradingCandleCount
     });
   } catch (error) {
     console.error('Error fetching historical market data:', error);
@@ -55,8 +66,13 @@ router.get('/historical', async (req, res) => {
 /**
  * Generate mock intraday candlestick data for simulation
  * This simulates a realistic trading day with volatility and trends
+ *
+ * @param symbol - Stock symbol
+ * @param date - Trading date (YYYY-MM-DD)
+ * @param interval - Candle interval (1m, 3m, 5m, etc.)
+ * @param preCandles - Number of candles to generate before trading period for chart context
  */
-function generateMockIntradayData(symbol: string, date: string, interval: string) {
+function generateMockIntradayData(symbol: string, date: string, interval: string, preCandles = 0) {
   // Determine number of candles based on interval (9:15 AM to 3:30 PM IST = 375 minutes)
   const intervalsMap: Record<string, number> = {
     '1m': 375,   // 375 candles
@@ -76,16 +92,18 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
     '1h': 60
   };
 
-  const candleCount = intervalsMap[interval] || 75;
+  const tradingCandleCount = intervalsMap[interval] || 75; // Candles for the trading period
+  const totalCandleCount = tradingCandleCount + preCandles; // Total including pre-candles
   const minutesPer = intervalMinutes[interval] || 5;
 
   // Starting price (randomized based on symbol for variety)
   const hashCode = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const basePrice = 1000 + (hashCode % 2000); // Price between 1000-3000
 
-  // Market session start: 9:15 AM
+  // Calculate start time (include pre-candles before market open)
   const [year, month, day] = date.split('-').map(Number);
-  let currentTime = new Date(year, month - 1, day, 9, 15, 0);
+  const marketOpen = new Date(year, month - 1, day, 9, 15, 0);
+  let currentTime = new Date(marketOpen.getTime() - (preCandles * minutesPer * 60 * 1000));
 
   const candles = [];
   let lastClose = basePrice;
@@ -94,9 +112,9 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
   const dailyTrend = (Math.random() - 0.5) * 0.03; // -1.5% to +1.5% daily trend
   const volatility = 0.002 + Math.random() * 0.003; // 0.2% to 0.5% volatility per candle
 
-  for (let i = 0; i < candleCount; i++) {
+  for (let i = 0; i < totalCandleCount; i++) {
     // Add trend and randomness
-    const trendComponent = lastClose * dailyTrend * (i / candleCount);
+    const trendComponent = lastClose * dailyTrend * (i / totalCandleCount);
     const randomComponent = lastClose * (Math.random() - 0.5) * volatility * 2;
 
     const open = lastClose;
@@ -112,7 +130,7 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
     const close = targetClose;
 
     // Volume: Higher at market open/close, lower mid-day
-    const timeProgress = i / candleCount;
+    const timeProgress = i / totalCandleCount;
     let volumeMultiplier = 1.0;
     if (timeProgress < 0.1 || timeProgress > 0.9) {
       // Higher volume at start and end of day
@@ -139,7 +157,12 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
     currentTime = new Date(currentTime.getTime() + minutesPer * 60 * 1000);
   }
 
-  return candles;
+  return {
+    candles,
+    preCandleCount: preCandles,
+    tradingCandleCount: tradingCandleCount,
+    totalCount: totalCandleCount
+  };
 }
 
 export { router as marketRoutes };

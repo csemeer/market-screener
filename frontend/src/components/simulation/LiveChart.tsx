@@ -17,7 +17,8 @@ interface Candle {
   volume: number;
 }
 
-interface Indicators {
+interface IndicatorValue {
+  time: number;
   ema9?: number;
   ema20?: number;
   ema50?: number;
@@ -37,12 +38,12 @@ interface Trade {
 
 interface LiveChartProps {
   candles: Candle[];
-  indicators: Indicators;
+  indicatorHistory: IndicatorValue[]; // Array of indicator values for each candle
   currentTrade?: Trade | null;
   trades: Trade[];
 }
 
-export default function LiveChart({ candles, indicators, currentTrade, trades }: LiveChartProps) {
+export default function LiveChart({ candles, indicatorHistory, currentTrade, trades }: LiveChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -161,46 +162,58 @@ export default function LiveChart({ candles, indicators, currentTrade, trades }:
     }
   }, [candles]);
 
-  // Update EMAs
+  // Update EMAs using indicator history
   useEffect(() => {
-    if (candles.length === 0) return;
-
-    // Remove duplicates and sort by time
-    const uniqueCandles = candles.reduce((acc: Candle[], candle) => {
-      if (!acc.find(c => c.time === candle.time)) {
-        acc.push(candle);
-      }
-      return acc;
-    }, []);
-    uniqueCandles.sort((a, b) => a.time - b.time);
+    if (candles.length === 0 || indicatorHistory.length === 0) return;
 
     // EMA 9
-    if (ema9SeriesRef.current && indicators.ema9 !== undefined) {
-      const ema9Data: LineData[] = uniqueCandles.map((candle, index) => ({
-        time: candle.time as Time,
-        value: index === uniqueCandles.length - 1 ? indicators.ema9! : candle.close, // Show indicator on last candle
-      }));
-      ema9SeriesRef.current.setData(ema9Data);
+    if (ema9SeriesRef.current) {
+      const ema9Data: LineData[] = [];
+      for (let i = 0; i < indicatorHistory.length; i++) {
+        if (indicatorHistory[i]?.ema9 !== undefined) {
+          ema9Data.push({
+            time: indicatorHistory[i].time as Time,
+            value: indicatorHistory[i].ema9!
+          });
+        }
+      }
+      if (ema9Data.length > 0) {
+        ema9SeriesRef.current.setData(ema9Data.sort((a, b) => (a.time as number) - (b.time as number)));
+      }
     }
 
     // EMA 20
-    if (ema20SeriesRef.current && indicators.ema20 !== undefined) {
-      const ema20Data: LineData[] = uniqueCandles.map((candle, index) => ({
-        time: candle.time as Time,
-        value: index === uniqueCandles.length - 1 ? indicators.ema20! : candle.close,
-      }));
-      ema20SeriesRef.current.setData(ema20Data);
+    if (ema20SeriesRef.current) {
+      const ema20Data: LineData[] = [];
+      for (let i = 0; i < indicatorHistory.length; i++) {
+        if (indicatorHistory[i]?.ema20 !== undefined) {
+          ema20Data.push({
+            time: indicatorHistory[i].time as Time,
+            value: indicatorHistory[i].ema20!
+          });
+        }
+      }
+      if (ema20Data.length > 0) {
+        ema20SeriesRef.current.setData(ema20Data.sort((a, b) => (a.time as number) - (b.time as number)));
+      }
     }
 
     // EMA 50
-    if (ema50SeriesRef.current && indicators.ema50 !== undefined) {
-      const ema50Data: LineData[] = uniqueCandles.map((candle, index) => ({
-        time: candle.time as Time,
-        value: index === uniqueCandles.length - 1 ? indicators.ema50! : candle.close,
-      }));
-      ema50SeriesRef.current.setData(ema50Data);
+    if (ema50SeriesRef.current) {
+      const ema50Data: LineData[] = [];
+      for (let i = 0; i < indicatorHistory.length; i++) {
+        if (indicatorHistory[i]?.ema50 !== undefined) {
+          ema50Data.push({
+            time: indicatorHistory[i].time as Time,
+            value: indicatorHistory[i].ema50!
+          });
+        }
+      }
+      if (ema50Data.length > 0) {
+        ema50SeriesRef.current.setData(ema50Data.sort((a, b) => (a.time as number) - (b.time as number)));
+      }
     }
-  }, [candles, indicators]);
+  }, [candles, indicatorHistory]);
 
   // Add trade markers
   useEffect(() => {

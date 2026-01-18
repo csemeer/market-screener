@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Play, Pause, RotateCcw, ArrowLeft, Activity } from 'lucide-react';
+import { Play, Pause, RotateCcw, ArrowLeft, Activity, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import LiveChart from '../components/simulation/LiveChart';
@@ -63,12 +63,20 @@ export default function LiveSimulation() {
   const [totalPnL, setTotalPnL] = useState(0);
 
   // Indicator values
-  const [indicators, setIndicators] = useState<any>({});
+  const [indicators, setIndicators] = useState<any>({}); // Latest indicator values
+  const [indicatorHistory, setIndicatorHistory] = useState<any[]>([]); // Indicator values for each candle
 
   // Simulation parameters
-  const [symbol] = useState('RELIANCE');
-  const [date] = useState(new Date().toISOString().split('T')[0]);
-  const [timeframe] = useState('5m');
+  const [symbol, setSymbol] = useState('RELIANCE');
+  const [date, setDate] = useState(() => {
+    // Default to yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  });
+  const [timeframe, setTimeframe] = useState('5m');
+  const [showSettings, setShowSettings] = useState(false);
+  const [tradingStartIndex, setTradingStartIndex] = useState(0); // Index where actual trading begins
 
   const intervalRef = useRef<number | null>(null);
   const tradeIdCounter = useRef(0);
@@ -88,17 +96,24 @@ export default function LiveSimulation() {
 
   const loadHistoricalData = useCallback(async () => {
     try {
+      setIsPlaying(false); // Stop any running simulation
+
       const response = await axios.get(`http://localhost:3001/api/market/historical`, {
         params: {
           symbol,
           date,
-          interval: timeframe
+          interval: timeframe,
+          preCandles: 75 // Request 75 candles before trading period for context
         }
       });
 
       if (response.data.candles && response.data.candles.length > 0) {
         // CRITICAL: Sort candles by time ascending to prevent chart errors
         const sortedCandles = [...response.data.candles].sort((a, b) => a.time - b.time);
+
+        // Set trading start index (after pre-candles)
+        const preCandleCount = response.data.preCandleCount || 0;
+        setTradingStartIndex(preCandleCount);
 
         setCandles(sortedCandles);
         setCurrentIndex(0);
@@ -110,8 +125,10 @@ export default function LiveSimulation() {
         setWinningTrades(0);
         setLosingTrades(0);
         setTotalTrades(0);
+        setIndicatorHistory([]); // Reset indicator history
         tradeIdCounter.current = 0; // Reset trade ID counter
-        toast.success(`Loaded ${sortedCandles.length} candles for ${symbol}`);
+
+        toast.success(`Loaded ${sortedCandles.length} candles for ${symbol} on ${date} (${preCandleCount} pre-candles for context)`);
       } else {
         toast.error('No data available for selected date');
       }
@@ -218,10 +235,23 @@ export default function LiveSimulation() {
     }
 
     setIndicators(newIndicators);
+
+    // Store indicator values in history with candle timestamp
+    setIndicatorHistory(prev => {
+      const newHistory = [...prev];
+      newHistory[index] = {
+        ...newIndicators,
+        time: candles[index].time
+      };
+      return newHistory;
+    });
   };
 
   const checkTradingSignals = (index: number) => {
-    if (!strategy || index < 50) return; // Need enough data for indicators
+    if (!strategy) return;
+
+    // Only start trading after pre-candles AND enough data for indicators
+    if (index < Math.max(tradingStartIndex, 50)) return;
 
     const currentCandle = candles[index];
     const prevCandle = candles[index - 1];
@@ -508,6 +538,14 @@ export default function LiveSimulation() {
         {/* Controls */}
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            {showSettings ? 'Hide' : 'Settings'}
+          </button>
+
+          <button
             onClick={handleReset}
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
           >
@@ -548,6 +586,83 @@ export default function LiveSimulation() {
           </button>
         </div>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="mb-4 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Simulation Settings</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Symbol */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Symbol
+              </label>
+              <input
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                placeholder="e.g., RELIANCE"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isPlaying}
+              />
+            </div>
+
+            {/* Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Trading Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isPlaying}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            {/* Timeframe */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Timeframe
+              </label>
+              <select
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isPlaying}
+              >
+                <option value="1m">1 Minute</option>
+                <option value="3m">3 Minutes</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1h">1 Hour</option>
+              </select>
+            </div>
+
+            {/* Load Button */}
+            <div className="flex items-end">
+              <button
+                onClick={loadHistoricalData}
+                disabled={isPlaying}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+              >
+                Load Data
+              </button>
+            </div>
+          </div>
+
+          {/* Info */}
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Pre-candles (75 candles before trading period) are loaded for chart context.
+              Trading signals will only trigger after the pre-candle period.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Live Metrics */}
@@ -677,7 +792,7 @@ export default function LiveSimulation() {
               <>
                 <LiveChart
                   candles={visibleCandles}
-                  indicators={indicators}
+                  indicatorHistory={indicatorHistory}
                   currentTrade={currentTrade}
                   trades={trades}
                 />
