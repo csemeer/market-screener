@@ -64,6 +64,71 @@ router.get('/historical', async (req, res) => {
 });
 
 /**
+ * Realistic stock price ranges for Indian stocks (as of Jan 2026)
+ * Format: { symbol: { min, max, typical } }
+ */
+const STOCK_PRICE_RANGES: Record<string, { min: number; max: number; typical: number }> = {
+  // Real estate & Infrastructure
+  'DLF': { min: 640, max: 700, typical: 670 },
+  'GODREJPROP': { min: 2700, max: 3000, typical: 2850 },
+  'PRESTIGE': { min: 1650, max: 1800, typical: 1725 },
+  'OBEROIRLTY': { min: 1900, max: 2100, typical: 2000 },
+
+  // IT & Technology
+  'TCS': { min: 3800, max: 4200, typical: 4000 },
+  'INFY': { min: 1850, max: 2000, typical: 1925 },
+  'WIPRO': { min: 550, max: 600, typical: 575 },
+  'HCLTECH': { min: 1750, max: 1900, typical: 1825 },
+  'TECHM': { min: 1650, max: 1800, typical: 1725 },
+
+  // Banking & Finance
+  'HDFCBANK': { min: 1700, max: 1850, typical: 1775 },
+  'ICICIBANK': { min: 1250, max: 1350, typical: 1300 },
+  'SBIN': { min: 750, max: 850, typical: 800 },
+  'AXISBANK': { min: 1100, max: 1200, typical: 1150 },
+  'KOTAKBANK': { min: 1750, max: 1900, typical: 1825 },
+
+  // Energy & Oil
+  'RELIANCE': { min: 2800, max: 3100, typical: 2950 },
+  'ONGC': { min: 240, max: 270, typical: 255 },
+  'BPCL': { min: 580, max: 630, typical: 605 },
+  'IOC': { min: 130, max: 150, typical: 140 },
+
+  // Automotive
+  'MARUTI': { min: 12500, max: 13500, typical: 13000 },
+  'TATAMOTORS': { min: 950, max: 1050, typical: 1000 },
+  'M&M': { min: 2900, max: 3200, typical: 3050 },
+  'BAJAJ-AUTO': { min: 9500, max: 10500, typical: 10000 },
+
+  // Pharmaceuticals
+  'SUNPHARMA': { min: 1700, max: 1850, typical: 1775 },
+  'DRREDDY': { min: 1200, max: 1350, typical: 1275 },
+  'CIPLA': { min: 1450, max: 1600, typical: 1525 },
+  'DIVISLAB': { min: 5800, max: 6300, typical: 6050 },
+
+  // FMCG
+  'HINDUNILVR': { min: 2400, max: 2650, typical: 2525 },
+  'ITC': { min: 450, max: 490, typical: 470 },
+  'NESTLEIND': { min: 2400, max: 2650, typical: 2525 },
+  'BRITANNIA': { min: 4800, max: 5300, typical: 5050 },
+
+  // Metals & Mining
+  'TATASTEEL': { min: 140, max: 160, typical: 150 },
+  'HINDALCO': { min: 630, max: 690, typical: 660 },
+  'VEDL': { min: 440, max: 490, typical: 465 },
+  'JSWSTEEL': { min: 900, max: 1000, typical: 950 },
+
+  // Telecom
+  'BHARTIARTL': { min: 1550, max: 1700, typical: 1625 },
+  'IDEA': { min: 12, max: 18, typical: 15 },
+
+  // Cement
+  'ULTRACEMCO': { min: 10500, max: 11500, typical: 11000 },
+  'AMBUJACEM': { min: 550, max: 600, typical: 575 },
+  'ACC': { min: 2200, max: 2450, typical: 2325 }
+};
+
+/**
  * Generate mock intraday candlestick data for simulation
  * This simulates a realistic trading day with volatility and trends
  *
@@ -96,9 +161,21 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
   const totalCandleCount = tradingCandleCount + preCandles; // Total including pre-candles
   const minutesPer = intervalMinutes[interval] || 5;
 
-  // Starting price (randomized based on symbol for variety)
-  const hashCode = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const basePrice = 1000 + (hashCode % 2000); // Price between 1000-3000
+  // Get realistic starting price based on stock symbol
+  let basePrice: number;
+  const priceRange = STOCK_PRICE_RANGES[symbol.toUpperCase()];
+
+  if (priceRange) {
+    // Use realistic price range for known stocks
+    // Start at a random point within 2% of typical price
+    const variation = priceRange.typical * 0.02; // ±2% variation
+    basePrice = priceRange.typical + (Math.random() - 0.5) * variation;
+  } else {
+    // Fallback for unknown symbols: use hash-based price
+    console.warn(`Unknown symbol ${symbol}, using generic price range`);
+    const hashCode = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    basePrice = 100 + (hashCode % 900); // Price between 100-1000 for unknown stocks
+  }
 
   // Calculate start time (include pre-candles before market open)
   const [year, month, day] = date.split('-').map(Number);
@@ -108,9 +185,14 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
   const candles = [];
   let lastClose = basePrice;
 
-  // Generate trend direction for the day
-  const dailyTrend = (Math.random() - 0.5) * 0.03; // -1.5% to +1.5% daily trend
-  const volatility = 0.002 + Math.random() * 0.003; // 0.2% to 0.5% volatility per candle
+  // Determine realistic bounds for the day
+  const stockRange = STOCK_PRICE_RANGES[symbol.toUpperCase()];
+  const minPrice = stockRange ? stockRange.min : basePrice * 0.95;
+  const maxPrice = stockRange ? stockRange.max : basePrice * 1.05;
+
+  // Generate trend direction for the day (more conservative for known stocks)
+  const dailyTrend = (Math.random() - 0.5) * 0.025; // -1.25% to +1.25% daily trend
+  const volatility = 0.0015 + Math.random() * 0.002; // 0.15% to 0.35% volatility per candle
 
   for (let i = 0; i < totalCandleCount; i++) {
     // Add trend and randomness
@@ -118,15 +200,23 @@ function generateMockIntradayData(symbol: string, date: string, interval: string
     const randomComponent = lastClose * (Math.random() - 0.5) * volatility * 2;
 
     const open = lastClose;
-    const targetClose = lastClose + trendComponent + randomComponent;
+    let targetClose = lastClose + trendComponent + randomComponent;
+
+    // Ensure price stays within realistic bounds
+    targetClose = Math.max(minPrice, Math.min(maxPrice, targetClose));
 
     // Determine if bullish or bearish candle
     const isBullish = targetClose > open;
 
     // Calculate high and low with realistic wicks
-    const wickFactor = 0.001 + Math.random() * 0.002; // 0.1% to 0.3% wicks
-    const high = Math.max(open, targetClose) + (Math.max(open, targetClose) * wickFactor);
-    const low = Math.min(open, targetClose) - (Math.min(open, targetClose) * wickFactor);
+    const wickFactor = 0.0008 + Math.random() * 0.0015; // 0.08% to 0.23% wicks
+    let high = Math.max(open, targetClose) + (Math.max(open, targetClose) * wickFactor);
+    let low = Math.min(open, targetClose) - (Math.min(open, targetClose) * wickFactor);
+
+    // Ensure high/low stay within bounds
+    high = Math.min(maxPrice, high);
+    low = Math.max(minPrice, low);
+
     const close = targetClose;
 
     // Volume: Higher at market open/close, lower mid-day
