@@ -387,6 +387,80 @@ export class UpstoxAdapter extends BaseBrokerAdapter {
     this.log('info', 'Market data unsubscription not implemented yet', { symbols });
   }
 
+  /**
+   * Get historical candle data from Upstox
+   * @param symbol - Stock symbol
+   * @param exchange - Exchange (NSE, BSE, etc.)
+   * @param interval - Candle interval (1minute, 30minute, day, week, month)
+   * @param fromDate - Start date (ISO format)
+   * @param toDate - End date (ISO format)
+   */
+  async getHistoricalData(
+    symbol: string,
+    exchange: string,
+    interval: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<any> {
+    await this.ensureAuthenticated();
+
+    const instrumentKey = await this.getInstrumentToken(symbol, exchange);
+
+    // Map interval to Upstox format
+    const upstoxInterval = this.mapIntervalToUpstox(interval);
+
+    try {
+      const response = await this.apiClient.get('/historical-candle/intraday', {
+        params: {
+          instrument_key: instrumentKey,
+          interval: upstoxInterval,
+          from_date: fromDate,
+          to_date: toDate
+        }
+      });
+
+      if (!response.data || !response.data.data || !response.data.data.candles) {
+        throw new Error('No candle data returned from Upstox');
+      }
+
+      // Upstox returns candles in format: [timestamp, open, high, low, close, volume, oi]
+      const candles = response.data.data.candles.map((candle: any[]) => ({
+        time: Math.floor(new Date(candle[0]).getTime() / 1000), // Convert to unix timestamp
+        open: parseFloat(candle[1].toFixed(2)),
+        high: parseFloat(candle[2].toFixed(2)),
+        low: parseFloat(candle[3].toFixed(2)),
+        close: parseFloat(candle[4].toFixed(2)),
+        volume: candle[5] || 0
+      }));
+
+      return candles;
+    } catch (error) {
+      this.log('error', 'Failed to fetch historical data from Upstox', {
+        error: this.parseError(error),
+        symbol,
+        exchange,
+        interval
+      });
+      throw error;
+    }
+  }
+
+  private mapIntervalToUpstox(interval: string): string {
+    // Map our interval format to Upstox format
+    const mapping: Record<string, string> = {
+      '1m': '1minute',
+      '3m': '3minute',
+      '5m': '5minute',
+      '15m': '15minute',
+      '30m': '30minute',
+      '1h': '60minute',
+      '1d': 'day',
+      '1w': 'week',
+      '1M': 'month'
+    };
+    return mapping[interval] || '5minute';
+  }
+
   private mapOrderType(orderType: OrderType): string {
     const mapping: Record<OrderType, string> = {
       MARKET: 'MARKET',
