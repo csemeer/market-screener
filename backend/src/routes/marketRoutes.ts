@@ -35,13 +35,35 @@ router.get('/historical', async (req, res) => {
 
     const preCandleCount = parseInt(preCandles as string, 10) || 0;
 
-    // Fetch real historical data from Yahoo Finance
-    const result = await fetchYahooFinanceData(
-      symbol,
-      date as string,
-      interval as string,
-      preCandleCount
-    );
+    // Try to fetch real historical data from Yahoo Finance
+    // If it fails (network issues, blocked proxy, etc.), fall back to realistic mock data
+    let result;
+    let dataSource = 'unknown';
+
+    try {
+      console.log(`[INFO] Attempting to fetch real data from Yahoo Finance for ${symbol}...`);
+      result = await fetchYahooFinanceData(
+        symbol,
+        date as string,
+        interval as string,
+        preCandleCount
+      );
+      dataSource = 'yahoo-finance';
+      console.log(`[SUCCESS] Using real Yahoo Finance data for ${symbol}`);
+    } catch (yahooError) {
+      console.warn(`[WARNING] Yahoo Finance unavailable: ${yahooError instanceof Error ? yahooError.message : 'Unknown error'}`);
+      console.log(`[INFO] Falling back to realistic mock data for ${symbol}...`);
+
+      // Fallback to realistic mock data
+      result = generateMockIntradayData(
+        symbol,
+        date as string,
+        interval as string,
+        preCandleCount
+      );
+      dataSource = 'mock-realistic';
+      console.log(`[SUCCESS] Using realistic mock data for ${symbol}`);
+    }
 
     res.json({
       symbol,
@@ -50,10 +72,12 @@ router.get('/historical', async (req, res) => {
       candles: result.candles,
       count: result.candles.length,
       preCandleCount: result.preCandleCount,
-      tradingCandleCount: result.tradingCandleCount
+      tradingCandleCount: result.tradingCandleCount,
+      dataSource, // Indicate where the data came from
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching historical market data:', error);
+    console.error('[ERROR] Failed to fetch historical market data:', error);
     res.status(500).json({
       error: 'Failed to fetch historical market data',
       details: error instanceof Error ? error.message : 'Unknown error'
