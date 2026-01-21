@@ -11,11 +11,13 @@ const router = Router();
 
 // Initialize Upstox adapter if credentials are available
 let upstoxAdapter: UpstoxAdapter | null = null;
+let upstoxInitPromise: Promise<void> | null = null;
+
 if (process.env.UPSTOX_API_KEY && process.env.UPSTOX_API_SECRET) {
   upstoxAdapter = new UpstoxAdapter();
 
-  // Initialize with credentials
-  upstoxAdapter.initialize({
+  // Initialize with credentials - store promise for later
+  upstoxInitPromise = upstoxAdapter.initialize({
     brokerId: 1, // Placeholder - not used for historical data
     brokerType: 'UPSTOX',
     apiKey: process.env.UPSTOX_API_KEY,
@@ -25,10 +27,13 @@ if (process.env.UPSTOX_API_KEY && process.env.UPSTOX_API_SECRET) {
     console.log('[INFO] Upstox adapter initialized successfully');
   }).catch((error) => {
     console.error('[ERROR] Failed to initialize Upstox adapter:', error.message);
+    console.error('[ERROR] Full error:', error);
     upstoxAdapter = null;
+    throw error;
   });
 } else {
   console.warn('[WARNING] Upstox credentials not found in environment variables');
+  console.warn('[INFO] To use Upstox for historical data, set UPSTOX_API_KEY, UPSTOX_API_SECRET, and UPSTOX_ACCESS_TOKEN in .env');
 }
 
 /**
@@ -150,7 +155,16 @@ async function fetchUpstoxData(
   preCandles: number
 ) {
   if (!upstoxAdapter) {
-    throw new Error('Upstox adapter not initialized');
+    throw new Error('Upstox adapter not initialized - check your UPSTOX_API_KEY and UPSTOX_API_SECRET in .env');
+  }
+
+  // Wait for initialization to complete
+  if (upstoxInitPromise) {
+    try {
+      await upstoxInitPromise;
+    } catch (error) {
+      throw new Error(`Upstox adapter initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   // Parse the target date

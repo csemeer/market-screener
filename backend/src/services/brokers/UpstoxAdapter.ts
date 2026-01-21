@@ -53,39 +53,44 @@ export class UpstoxAdapter extends BaseBrokerAdapter {
     }
 
     try {
-      // Check existing token
-      if (this.credentials.accessToken && !this.isTokenExpired()) {
+      // Check existing token - for historical data API, just use the provided access token
+      if (this.credentials.accessToken) {
+        // If token has expiry and is expired, need OAuth flow
+        if (this.credentials.expiresAt && this.isTokenExpired()) {
+          this.log('warn', 'Access token expired');
+
+          // OAuth2 flow - exchange authorization code for access token
+          if (!this.credentials.refreshToken) {
+            const authUrl = `${this.LOGIN_URL}?client_id=${this.credentials.apiKey}&redirect_uri=${encodeURIComponent('http://localhost:3001/auth/upstox/callback')}&state=upstox`;
+            this.log('info', 'Complete OAuth flow', { authUrl });
+            throw new Error('Authorization code required. Please complete OAuth flow first.');
+          }
+
+          // Exchange code for token
+          const response = await axios.post(`${this.API_BASE_URL}/login/authorization/token`, {
+            code: this.credentials.refreshToken,
+            client_id: this.credentials.apiKey,
+            client_secret: this.credentials.apiSecret,
+            redirect_uri: 'http://localhost:3001/auth/upstox/callback',
+            grant_type: 'authorization_code',
+          });
+
+          if (response.data && response.data.access_token) {
+            this.credentials.accessToken = response.data.access_token;
+            this.credentials.expiresAt = new Date(Date.now() + response.data.expires_in * 1000);
+          } else {
+            return false;
+          }
+        }
+
+        // Set authorization header and mark as connected
         this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${this.credentials.accessToken}`;
         this.connected = true;
-        return true;
-      }
-
-      // OAuth2 flow - exchange authorization code for access token
-      if (!this.credentials.refreshToken) {
-        const authUrl = `${this.LOGIN_URL}?client_id=${this.credentials.apiKey}&redirect_uri=${encodeURIComponent('http://localhost:3001/auth/upstox/callback')}&state=upstox`;
-        this.log('info', 'Complete OAuth flow', { authUrl });
-        throw new Error('Authorization code required. Please complete OAuth flow first.');
-      }
-
-      // Exchange code for token
-      const response = await axios.post(`${this.API_BASE_URL}/login/authorization/token`, {
-        code: this.credentials.refreshToken,
-        client_id: this.credentials.apiKey,
-        client_secret: this.credentials.apiSecret,
-        redirect_uri: 'http://localhost:3001/auth/upstox/callback',
-        grant_type: 'authorization_code',
-      });
-
-      if (response.data && response.data.access_token) {
-        this.credentials.accessToken = response.data.access_token;
-        this.credentials.expiresAt = new Date(Date.now() + response.data.expires_in * 1000);
-
-        this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${this.credentials.accessToken}`;
         this.log('success', 'Authenticated with Upstox successfully');
         return true;
       }
 
-      return false;
+      throw new Error('No access token provided');
     } catch (error) {
       this.log('error', 'Authentication failed', { error: this.parseError(error) });
       return false;
@@ -402,26 +407,43 @@ export class UpstoxAdapter extends BaseBrokerAdapter {
     fromDate: string,
     toDate: string
   ): Promise<any> {
+    this.log('info', 'Fetching historical data from Upstox', {
+      symbol,
+      exchange,
+      interval,
+      fromDate,
+      toDate
+    });
+
     await this.ensureAuthenticated();
 
-    const instrumentKey = await this.getInstrumentToken(symbol, exchange);
-
-    // Map interval to Upstox format
-    const upstoxInterval = this.mapIntervalToUpstox(interval);
-
     try {
-      const response = await this.apiClient.get('/historical-candle/intraday', {
-        params: {
-          instrument_key: instrumentKey,
-          interval: upstoxInterval,
-          from_date: fromDate,
-          to_date: toDate
-        }
-      });
+      const instrumentKey = await this.getInstrumentToken(symbol, exchange);
+      this.log('info', 'Got instrument key', { instrumentKey });
+
+      // Map interval to Upstox format
+      const upstoxInterval = this.mapIntervalToUpstox(interval);
+      this.log('info', 'Mapped interval', { from: interval, to: upstoxInterval });
+
+      // Format dates to YYYY-MM-DD (Upstox expects this format)
+      const formatDate = (dateStr: string) => dateStr.split('T')[0];
+      const formattedFromDate = formatDate(fromDate);
+      const formattedToDate = formatDate(toDate);
+
+      // Upstox historical candle API format:
+      // GET /v2/historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}
+      // Note: Upstox uses a path-based API, not query parameters for historical data
+      const url = `/historical-candle/${instrumentKey}/${upstoxInterval}/${formattedToDate}/${formattedFromDate}`;
+      this.log('info', 'Calling Upstox API', { url });
+
+      const response = await this.apiClient.get(url);
 
       if (!response.data || !response.data.data || !response.data.data.candles) {
+        this.log('error', 'Invalid response from Upstox', { response: response.data });
         throw new Error('No candle data returned from Upstox');
       }
+
+      this.log('info', 'Received candles from Upstox', { count: response.data.data.candles.length });
 
       // Upstox returns candles in format: [timestamp, open, high, low, close, volume, oi]
       const candles = response.data.data.candles.map((candle: any[]) => ({
@@ -434,14 +456,19 @@ export class UpstoxAdapter extends BaseBrokerAdapter {
       }));
 
       return candles;
-    } catch (error) {
+    } catch (error: any) {
       this.log('error', 'Failed to fetch historical data from Upstox', {
         error: this.parseError(error),
         symbol,
         exchange,
-        interval
+        interval,
+        responseData: error?.response?.data,
+        statusCode: error?.response?.status
       });
-      throw error;
+      throw new Error(
+        `Upstox API error: ${this.parseError(error)}` +
+        (error?.response?.data ? ` - ${JSON.stringify(error.response.data)}` : '')
+      );
     }
   }
 
