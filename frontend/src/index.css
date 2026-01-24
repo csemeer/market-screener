@@ -44,4 +44,21 @@
   .badge-info {
     @apply badge bg-blue-100 text-blue-800;
   }
+
+  /* Fullscreen chart styling */
+  .fullscreen-chart-container:fullscreen {
+    @apply w-screen h-screen bg-white p-4;
+  }
+
+  .fullscreen-chart-container:-webkit-full-screen {
+    @apply w-screen h-screen bg-white p-4;
+  }
+
+  .fullscreen-chart-container:-moz-full-screen {
+    @apply w-screen h-screen bg-white p-4;
+  }
+
+  .fullscreen-chart-container:-ms-fullscreen {
+    @apply w-screen h-screen bg-white p-4;
+  }
 }

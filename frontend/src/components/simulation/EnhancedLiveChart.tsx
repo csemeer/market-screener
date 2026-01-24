@@ -363,15 +363,49 @@ export default function EnhancedLiveChart({
     }
   };
 
-  const handleToggleFullscreen = () => {
+  const handleToggleFullscreen = async () => {
+    const container = chartContainerRef.current?.parentElement;
+    if (!container) return;
+
     if (!document.fullscreenElement) {
-      chartContainerRef.current?.parentElement?.requestFullscreen();
-      setIsFullscreen(true);
+      try {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+      } catch (err) {
+        console.error('Fullscreen request failed:', err);
+      }
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      try {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      } catch (err) {
+        console.error('Exit fullscreen failed:', err);
+      }
     }
   };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+
+      // Resize chart when entering/exiting fullscreen
+      if (chartRef.current) {
+        setTimeout(() => {
+          chartRef.current?.resize(
+            chartContainerRef.current?.clientWidth || 0,
+            isFullscreen ? window.innerHeight - 100 : chartHeight
+          );
+          chartRef.current?.timeScale().fitContent();
+        }, 100);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullscreen, chartHeight]);
 
   // Handle chart resize (drag to resize)
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -396,7 +430,7 @@ export default function EnhancedLiveChart({
   };
 
   return (
-    <div className="relative">
+    <div className={`relative ${isFullscreen ? 'fullscreen-chart-container' : ''}`}>
       {/* Data Quality Indicators Bar */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
         <div className="flex items-center gap-2">
