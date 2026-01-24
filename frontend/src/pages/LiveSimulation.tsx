@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, RotateCcw, ArrowLeft, Activity, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import LiveChart from '../components/simulation/LiveChart';
+import EnhancedLiveChart from '../components/simulation/EnhancedLiveChart';
 
 interface Strategy {
   id: number;
@@ -78,6 +78,10 @@ export default function LiveSimulation() {
   const [showSettings, setShowSettings] = useState(false);
   const [tradingStartIndex, setTradingStartIndex] = useState(0); // Index where actual trading begins
 
+  // Data source tracking
+  const [dataSource, setDataSource] = useState<'yahoo-finance' | 'upstox' | 'unknown'>('unknown');
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+
   const intervalRef = useRef<number | null>(null);
   const tradeIdCounter = useRef(0);
 
@@ -115,6 +119,10 @@ export default function LiveSimulation() {
         const preCandleCount = response.data.preCandleCount || 0;
         setTradingStartIndex(preCandleCount);
 
+        // Capture data source and timestamp
+        setDataSource(response.data.dataSource || 'unknown');
+        setLastUpdated(response.data.timestamp || new Date().toISOString());
+
         setCandles(sortedCandles);
         setCurrentIndex(0);
         setVisibleCandles([]);
@@ -128,7 +136,9 @@ export default function LiveSimulation() {
         setIndicatorHistory([]); // Reset indicator history
         tradeIdCounter.current = 0; // Reset trade ID counter
 
-        toast.success(`Loaded ${sortedCandles.length} candles for ${symbol} on ${date} (${preCandleCount} pre-candles for context)`);
+        const sourceName = response.data.dataSource === 'yahoo-finance' ? 'Yahoo Finance' :
+                          response.data.dataSource === 'upstox' ? 'Upstox' : 'Unknown Source';
+        toast.success(`Loaded ${sortedCandles.length} real candles from ${sourceName} for ${symbol} on ${date}`);
       } else {
         toast.error('No data available for selected date');
       }
@@ -790,11 +800,15 @@ export default function LiveSimulation() {
             {/* Live Chart */}
             {visibleCandles.length > 0 ? (
               <>
-                <LiveChart
+                <EnhancedLiveChart
                   candles={visibleCandles}
                   indicatorHistory={indicatorHistory}
                   currentTrade={currentTrade}
                   trades={trades}
+                  dataSource={dataSource}
+                  lastUpdated={lastUpdated}
+                  symbol={symbol}
+                  interval={timeframe}
                 />
 
                 {/* Indicators Display below chart */}
