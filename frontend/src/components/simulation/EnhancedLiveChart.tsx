@@ -238,7 +238,7 @@ export default function EnhancedLiveChart({
 
   // Update candles and volume
   useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current || candles.length === 0) return;
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || !candles || candles.length === 0) return;
 
     // Remove duplicates and sort
     const uniqueCandles = candles.reduce((acc: Candle[], candle) => {
@@ -281,6 +281,7 @@ export default function EnhancedLiveChart({
       !ema9SeriesRef.current ||
       !ema20SeriesRef.current ||
       !ema50SeriesRef.current ||
+      !indicatorHistory ||
       indicatorHistory.length === 0
     ) return;
 
@@ -312,7 +313,7 @@ export default function EnhancedLiveChart({
 
   // Mark trades on chart
   useEffect(() => {
-    if (!candleSeriesRef.current || trades.length === 0) return;
+    if (!candleSeriesRef.current || !trades || trades.length === 0) return;
 
     const markers = trades.flatMap((trade) => {
       const entryMarker = {
