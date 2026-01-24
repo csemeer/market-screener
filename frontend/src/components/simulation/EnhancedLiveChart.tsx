@@ -286,21 +286,21 @@ export default function EnhancedLiveChart({
     ) return;
 
     const ema9Data: LineData[] = indicatorHistory
-      .filter((h) => h.ema9 !== undefined)
+      .filter((h) => h && h.ema9 !== undefined)
       .map((h) => ({
         time: h.time as Time,
         value: h.ema9!,
       }));
 
     const ema20Data: LineData[] = indicatorHistory
-      .filter((h) => h.ema20 !== undefined)
+      .filter((h) => h && h.ema20 !== undefined)
       .map((h) => ({
         time: h.time as Time,
         value: h.ema20!,
       }));
 
     const ema50Data: LineData[] = indicatorHistory
-      .filter((h) => h.ema50 !== undefined)
+      .filter((h) => h && h.ema50 !== undefined)
       .map((h) => ({
         time: h.time as Time,
         value: h.ema50!,
