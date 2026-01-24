@@ -85,8 +85,8 @@ class MarketDataService {
     } catch (error) {
       console.error(`Error fetching quote for ${symbol}:`, error);
 
-      // Return mock data for demo purposes
-      return this.getMockQuote(symbol, exchange);
+      // NO MOCK DATA - throw error to force real data usage
+      throw new Error(`Failed to fetch real quote for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -141,8 +141,8 @@ class MarketDataService {
     } catch (error) {
       console.error(`Error fetching historical data for ${symbol}:`, error);
 
-      // Return mock data for demo
-      return this.getMockHistoricalData(symbol, interval);
+      // NO MOCK DATA - throw error to force real data usage
+      throw new Error(`Failed to fetch real historical data for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -156,59 +156,6 @@ class MarketDataService {
     return results
       .filter((r): r is PromiseFulfilledResult<StockData | null> => r.status === 'fulfilled' && r.value !== null)
       .map(r => r.value!);
-  }
-
-  /**
-   * Generate mock quote data for demo
-   */
-  private getMockQuote(symbol: string, exchange: 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ'): StockData {
-    const basePrice = exchange === 'NSE' || exchange === 'BSE' ?
-      Math.random() * 2000 + 100 :
-      Math.random() * 300 + 50;
-
-    const change = (Math.random() - 0.5) * basePrice * 0.05;
-
-    return {
-      symbol,
-      name: symbol,
-      exchange,
-      price: Math.round(basePrice * 100) / 100,
-      change: Math.round(change * 100) / 100,
-      changePercent: Math.round((change / basePrice) * 10000) / 100,
-      volume: Math.floor(Math.random() * 10000000),
-      marketCap: Math.random() * 1000000000000,
-      timestamp: new Date()
-    };
-  }
-
-  /**
-   * Generate mock historical data for demo
-   */
-  private getMockHistoricalData(symbol: string, interval: string): OHLCV[] {
-    const data: OHLCV[] = [];
-    const periods = interval === '5m' ? 78 : interval === '15m' ? 26 : interval === '1h' ? 100 : 90;
-    let basePrice = Math.random() * 200 + 50;
-
-    for (let i = 0; i < periods; i++) {
-      const change = (Math.random() - 0.5) * basePrice * 0.03;
-      const open = basePrice;
-      const close = basePrice + change;
-      const high = Math.max(open, close) * (1 + Math.random() * 0.02);
-      const low = Math.min(open, close) * (1 - Math.random() * 0.02);
-
-      data.push({
-        timestamp: new Date(Date.now() - (periods - i) * (interval === '1d' ? 86400000 : interval === '1h' ? 3600000 : interval === '15m' ? 900000 : 300000)),
-        open: Math.round(open * 100) / 100,
-        high: Math.round(high * 100) / 100,
-        low: Math.round(low * 100) / 100,
-        close: Math.round(close * 100) / 100,
-        volume: Math.floor(Math.random() * 1000000)
-      });
-
-      basePrice = close;
-    }
-
-    return data;
   }
 
   private getFromCache(key: string): any {
