@@ -27,7 +27,7 @@
     "twilio": "^4.20.0",
     "uuid": "^13.0.0",
     "ws": "^8.16.0",
-    "yahoo-finance2": "^3.11.2"
+    "yahoo-finance2": "^3.12.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
