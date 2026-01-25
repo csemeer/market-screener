@@ -431,6 +431,22 @@ export default function LiveSimulation() {
       };
     }
 
+    // Simple MACD Test Strategy - EASY TO TRIGGER!
+    if (conditions.type === 'MACD_SIMPLE') {
+      const macdBullishCrossover = config.useMACD &&
+        indicators.macd > indicators.macdSignal;
+
+      return {
+        result: macdBullishCrossover,
+        details: {
+          macdBullishCrossover: {
+            value: macdBullishCrossover,
+            desc: `MACD: ${indicators.macd?.toFixed(4)} > Signal: ${indicators.macdSignal?.toFixed(4)}`
+          }
+        }
+      };
+    }
+
     return { result: false, details: { error: `Unknown strategy type: ${conditions.type}` } };
   };
 
@@ -459,6 +475,26 @@ export default function LiveSimulation() {
     if (exitConditions.stopLossPercent && pnlPercent <= -exitConditions.stopLossPercent) {
       console.log('🛑 Stop loss hit!', pnlPercent, '<=', -exitConditions.stopLossPercent);
       return true;
+    }
+
+    // MACD Simple exit: MACD < Signal AND (RSI > 70 OR RSI < 50)
+    if (exitConditions.macdCrossover === 'bearish' && exitConditions.rsiExit) {
+      const macdBearish = indicators.macd < indicators.macdSignal;
+      const rsiExtreme = indicators.rsi > (exitConditions.rsiExitUpper || 70) ||
+                        indicators.rsi < (exitConditions.rsiExitLower || 50);
+
+      console.log('🔍 MACD_SIMPLE exit check:', {
+        macdBearish,
+        macdValue: indicators.macd?.toFixed(4),
+        signalValue: indicators.macdSignal?.toFixed(4),
+        rsiExtreme,
+        rsiValue: indicators.rsi?.toFixed(2)
+      });
+
+      if (macdBearish && rsiExtreme) {
+        console.log('✅ MACD bearish crossover + RSI extreme - EXIT!');
+        return true;
+      }
     }
 
     // Trailing stop

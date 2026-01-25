@@ -1493,6 +1493,33 @@ class DatabaseService {
       `).run();
       loggerService.success('✓ Momentum Surge strategy created/updated');
 
+      // SIMPLE MACD TEST - Ultra-simple strategy for testing trade execution
+      this.db.prepare(`
+        INSERT OR REPLACE INTO trading_strategies (
+          name, description, category,
+          entry_conditions, exit_conditions, indicators_config,
+          is_system, is_active, created_by, version,
+          recommended_timeframes, recommended_stop_loss_percent, recommended_target_percent,
+          min_capital_required
+        ) VALUES (
+          'Simple MACD Test',
+          'Simple MACD Test Strategy - Minimal conditions for testing trade execution. Entry: MACD > Signal. Exit: MACD < Signal AND (RSI > 70 OR RSI < 50). Designed to generate frequent trades for debugging purposes.',
+          'MOMENTUM',
+          '{"type":"MACD_SIMPLE","macdCrossover":"bullish","description":"Entry: MACD crosses above Signal line (bullish crossover). No other filters applied."}',
+          '{"macdCrossover":"bearish","rsiExit":true,"rsiExitUpper":70,"rsiExitLower":50,"targetPercent":5.0,"stopLossPercent":3.0,"description":"Exit: MACD crosses below Signal AND (RSI > 70 OR RSI < 50), OR hit 5% target OR 3% stop"}',
+          '{"useEMA":true,"emaFast":9,"emaMiddle":20,"emaSlow":50,"useRSI":true,"rsiPeriod":14,"useMACD":true,"macdFast":12,"macdSlow":26,"macdSignal":9,"useVolume":false}',
+          1,
+          1,
+          'system',
+          1,
+          '["5m","15m","30m"]',
+          3.0,
+          5.0,
+          20000
+        )
+      `).run();
+      loggerService.success('✓ Simple MACD Test strategy created/updated');
+
       // Check total strategies
       const totalCount = this.db.prepare(`SELECT COUNT(*) as count FROM trading_strategies WHERE is_system = 1`).get() as { count: number };
       loggerService.info(`✓ Total system strategies in database: ${totalCount.count}`);
