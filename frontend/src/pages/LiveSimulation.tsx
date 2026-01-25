@@ -258,19 +258,48 @@ export default function LiveSimulation() {
   };
 
   const checkTradingSignals = (index: number) => {
-    if (!strategy) return;
+    if (!strategy) {
+      console.log('❌ No strategy loaded');
+      return;
+    }
 
     // Only start trading after pre-candles AND enough data for indicators
-    if (index < Math.max(tradingStartIndex, 50)) return;
+    const minIndex = Math.max(tradingStartIndex, 50);
+    if (index < minIndex) {
+      if (index === 0 || index % 10 === 0) {
+        console.log(`⏳ Waiting for enough data: ${index}/${minIndex} candles`);
+      }
+      return;
+    }
 
     const currentCandle = candles[index];
     const prevCandle = candles[index - 1];
+
+    if (!currentCandle || !prevCandle) {
+      console.log('❌ Missing candle data at index', index);
+      return;
+    }
 
     // Check for entry signal (if no open trade)
     if (!currentTrade) {
       const shouldEnter = evaluateEntryConditions(currentCandle, prevCandle, index);
 
+      console.log(`📊 Index ${index}: Entry Check`, {
+        shouldEnter,
+        price: currentCandle.close,
+        volume: currentCandle.volume,
+        indicators: {
+          ema9: indicators.ema9?.toFixed(2),
+          ema20: indicators.ema20?.toFixed(2),
+          ema50: indicators.ema50?.toFixed(2),
+          rsi: indicators.rsi?.toFixed(2),
+          volumeAvg: indicators.volumeAvg?.toFixed(0)
+        },
+        strategyType: strategy.entry_conditions?.type
+      });
+
       if (shouldEnter) {
+        console.log('✅ ENTRY SIGNAL TRIGGERED!');
         enterTrade(currentCandle, index);
       }
     }
@@ -278,7 +307,15 @@ export default function LiveSimulation() {
     else {
       const shouldExit = evaluateExitConditions(currentCandle, prevCandle, index);
 
+      console.log(`📊 Index ${index}: Exit Check`, {
+        shouldExit,
+        price: currentCandle.close,
+        entryPrice: currentTrade.entryPrice,
+        pnl: ((currentCandle.close - currentTrade.entryPrice) / currentTrade.entryPrice * 100).toFixed(2) + '%'
+      });
+
       if (shouldExit) {
+        console.log('✅ EXIT SIGNAL TRIGGERED!');
         exitTrade(currentCandle, index);
       }
     }
@@ -294,12 +331,16 @@ export default function LiveSimulation() {
     if (conditions.type === 'VOLUME_BREAKOUT') {
       const volumeMultiple = conditions.volumeMultiple || 2.0;
       const volumeSpike = candle.volume > (indicators.volumeAvg || 0) * volumeMultiple;
-
       const priceBreakout = candle.close > prevCandle.high;
-
       const emaAligned = config.useEMA &&
         indicators.ema9 > indicators.ema20 &&
         indicators.ema20 > indicators.ema50;
+
+      console.log('🔍 VOLUME_BREAKOUT conditions:', {
+        volumeSpike: `${volumeSpike} (${candle.volume} > ${indicators.volumeAvg} * ${volumeMultiple})`,
+        priceBreakout: `${priceBreakout} (${candle.close} > ${prevCandle.high})`,
+        emaAligned: `${emaAligned} (${indicators.ema9} > ${indicators.ema20} > ${indicators.ema50})`
+      });
 
       return volumeSpike && priceBreakout && emaAligned;
     }
@@ -314,6 +355,12 @@ export default function LiveSimulation() {
       const rsiOk = !config.useRSI || (indicators.rsi > 50 && indicators.rsi < 70);
       const macdPositive = !config.useMACD || indicators.macd > indicators.macdSignal;
 
+      console.log('🔍 TREND_FOLLOWING conditions:', {
+        emaAligned,
+        rsiOk: `${rsiOk} (RSI: ${indicators.rsi})`,
+        macdPositive: `${macdPositive} (MACD: ${indicators.macd} vs Signal: ${indicators.macdSignal})`
+      });
+
       return emaAligned && rsiOk && macdPositive;
     }
 
@@ -324,6 +371,11 @@ export default function LiveSimulation() {
         indicators.macd > indicators.macdSignal &&
         prevCandle && candles[index - 1];
 
+      console.log('🔍 MEAN_REVERSION conditions:', {
+        rsiOversold: `${rsiOversold} (RSI: ${indicators.rsi})`,
+        macdTurning
+      });
+
       return rsiOversold || macdTurning;
     }
 
@@ -333,9 +385,16 @@ export default function LiveSimulation() {
       const priceAboveEMA = config.useEMA && candle.close > indicators.ema20;
       const macdStrong = config.useMACD && indicators.macdHistogram > 0;
 
+      console.log('🔍 MOMENTUM conditions:', {
+        rsiStrong: `${rsiStrong} (RSI: ${indicators.rsi})`,
+        priceAboveEMA: `${priceAboveEMA} (${candle.close} > ${indicators.ema20})`,
+        macdStrong: `${macdStrong} (Histogram: ${indicators.macdHistogram})`
+      });
+
       return rsiStrong && priceAboveEMA && macdStrong;
     }
 
+    console.log('❌ Unknown strategy type:', conditions.type);
     return false;
   };
 
@@ -347,13 +406,22 @@ export default function LiveSimulation() {
     const currentPrice = candle.close;
     const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
 
+    console.log('🔍 EXIT conditions check:', {
+      pnlPercent: pnlPercent.toFixed(2) + '%',
+      targetPercent: exitConditions.targetPercent,
+      stopLossPercent: exitConditions.stopLossPercent,
+      useTrailingStop: exitConditions.useTrailingStop
+    });
+
     // Profit target hit
     if (exitConditions.targetPercent && pnlPercent >= exitConditions.targetPercent) {
+      console.log('✅ Target hit!', pnlPercent, '>=', exitConditions.targetPercent);
       return true;
     }
 
     // Stop loss hit
     if (exitConditions.stopLossPercent && pnlPercent <= -exitConditions.stopLossPercent) {
+      console.log('🛑 Stop loss hit!', pnlPercent, '<=', -exitConditions.stopLossPercent);
       return true;
     }
 
@@ -365,7 +433,15 @@ export default function LiveSimulation() {
         const highestPrice = Math.max(currentPrice, currentTrade.exitPrice);
         const stopPrice = highestPrice * (1 - trailingDistance / 100);
 
+        console.log('🔍 Trailing stop check:', {
+          highestPrice,
+          stopPrice,
+          currentPrice,
+          shouldExit: currentPrice <= stopPrice
+        });
+
         if (currentPrice <= stopPrice) {
+          console.log('🛑 Trailing stop triggered!');
           return true;
         }
       }
