@@ -206,10 +206,10 @@ export default function LiveSimulation() {
         });
 
         // Calculate indicators for current candle
-        calculateIndicators(next);
+        const currentIndicators = calculateIndicators(next);
 
-        // Check for entry/exit signals
-        checkTradingSignals(next);
+        // Check for entry/exit signals (pass calculated indicators)
+        checkTradingSignals(next, currentIndicators);
 
         return next;
       });
@@ -224,8 +224,8 @@ export default function LiveSimulation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, speed]); // Only re-run when playing state or speed changes, NOT on currentIndex/candles changes
 
-  const calculateIndicators = (index: number) => {
-    if (!strategy?.indicators_config) return;
+  const calculateIndicators = (index: number): any => {
+    if (!strategy?.indicators_config) return {};
 
     const config = strategy.indicators_config;
     const currentCandles = candles.slice(0, index + 1);
@@ -268,9 +268,12 @@ export default function LiveSimulation() {
       };
       return newHistory;
     });
+
+    // Return the calculated indicators immediately
+    return newIndicators;
   };
 
-  const checkTradingSignals = (index: number) => {
+  const checkTradingSignals = (index: number, currentIndicators: any) => {
     if (!strategy) {
       setDebugInfo({
         status: 'Error',
@@ -309,7 +312,7 @@ export default function LiveSimulation() {
 
     // Check for entry signal (if no open trade)
     if (!currentTrade) {
-      const conditions = evaluateEntryConditionsWithDetails(currentCandle, prevCandle, index);
+      const conditions = evaluateEntryConditionsWithDetails(currentCandle, prevCandle, index, currentIndicators);
 
       setDebugInfo({
         status: 'Checking Entry',
@@ -319,11 +322,13 @@ export default function LiveSimulation() {
         price: currentCandle.close.toFixed(2),
         volume: currentCandle.volume,
         indicators: {
-          ema9: indicators.ema9?.toFixed(2) || 'N/A',
-          ema20: indicators.ema20?.toFixed(2) || 'N/A',
-          ema50: indicators.ema50?.toFixed(2) || 'N/A',
-          rsi: indicators.rsi?.toFixed(2) || 'N/A',
-          volumeAvg: indicators.volumeAvg?.toFixed(0) || 'N/A'
+          ema9: currentIndicators.ema9?.toFixed(2) || 'N/A',
+          ema20: currentIndicators.ema20?.toFixed(2) || 'N/A',
+          ema50: currentIndicators.ema50?.toFixed(2) || 'N/A',
+          rsi: currentIndicators.rsi?.toFixed(2) || 'N/A',
+          volumeAvg: currentIndicators.volumeAvg?.toFixed(0) || 'N/A',
+          macd: currentIndicators.macd?.toFixed(4) || 'N/A',
+          macdSignal: currentIndicators.macdSignal?.toFixed(4) || 'N/A'
         },
         strategyType: strategy.entry_conditions?.type,
         conditions: conditions.details,
@@ -337,7 +342,7 @@ export default function LiveSimulation() {
     }
     // Check for exit signal (if open trade exists)
     else {
-      const shouldExit = evaluateExitConditions(currentCandle, prevCandle, index);
+      const shouldExit = evaluateExitConditions(currentCandle, prevCandle, index, currentIndicators);
       const pnlPercent = ((currentCandle.close - currentTrade.entryPrice) / currentTrade.entryPrice * 100);
 
       setDebugInfo({
@@ -357,27 +362,28 @@ export default function LiveSimulation() {
     }
   };
 
-  const evaluateEntryConditionsWithDetails = (candle: Candle, prevCandle: Candle, _index: number): { result: boolean; details: any } => {
+  const evaluateEntryConditionsWithDetails = (candle: Candle, prevCandle: Candle, _index: number, currentIndicators: any): { result: boolean; details: any } => {
     if (!strategy) return { result: false, details: { error: 'No strategy' } };
 
     const conditions = strategy.entry_conditions;
     const config = strategy.indicators_config;
+    const ind = currentIndicators; // Use passed indicators instead of state
 
     // Volume Breakout Strategy
     if (conditions.type === 'VOLUME_BREAKOUT') {
       const volumeMultiple = conditions.volumeMultiple || 2.0;
-      const volumeSpike = candle.volume > (indicators.volumeAvg || 0) * volumeMultiple;
+      const volumeSpike = candle.volume > (ind.volumeAvg || 0) * volumeMultiple;
       const priceBreakout = candle.close > prevCandle.high;
       const emaAligned = config.useEMA &&
-        indicators.ema9 > indicators.ema20 &&
-        indicators.ema20 > indicators.ema50;
+        ind.ema9 > ind.ema20 &&
+        ind.ema20 > ind.ema50;
 
       return {
         result: volumeSpike && priceBreakout && emaAligned,
         details: {
-          volumeSpike: { value: volumeSpike, desc: `${candle.volume.toFixed(0)} > ${(indicators.volumeAvg * volumeMultiple).toFixed(0)}` },
+          volumeSpike: { value: volumeSpike, desc: `${candle.volume.toFixed(0)} > ${((ind.volumeAvg || 0) * volumeMultiple).toFixed(0)}` },
           priceBreakout: { value: priceBreakout, desc: `${candle.close.toFixed(2)} > ${prevCandle.high.toFixed(2)}` },
-          emaAligned: { value: emaAligned, desc: `${indicators.ema9?.toFixed(2)} > ${indicators.ema20?.toFixed(2)} > ${indicators.ema50?.toFixed(2)}` }
+          emaAligned: { value: emaAligned, desc: `${ind.ema9?.toFixed(2)} > ${ind.ema20?.toFixed(2)} > ${ind.ema50?.toFixed(2)}` }
         }
       };
     }
@@ -385,17 +391,17 @@ export default function LiveSimulation() {
     // Trend Following Strategy
     if (conditions.type === 'TREND_FOLLOWING') {
       const emaAligned = config.useEMA &&
-        candle.close > indicators.ema9 &&
-        indicators.ema9 > indicators.ema20 &&
-        indicators.ema20 > indicators.ema50;
-      const rsiOk = !config.useRSI || (indicators.rsi > 50 && indicators.rsi < 70);
-      const macdPositive = !config.useMACD || indicators.macd > indicators.macdSignal;
+        candle.close > ind.ema9 &&
+        ind.ema9 > ind.ema20 &&
+        ind.ema20 > ind.ema50;
+      const rsiOk = !config.useRSI || (ind.rsi > 50 && ind.rsi < 70);
+      const macdPositive = !config.useMACD || ind.macd > ind.macdSignal;
 
       return {
         result: emaAligned && rsiOk && macdPositive,
         details: {
           emaAligned: { value: emaAligned, desc: 'Price > EMA9 > EMA20 > EMA50' },
-          rsiOk: { value: rsiOk, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need 50-70)` },
+          rsiOk: { value: rsiOk, desc: `RSI: ${ind.rsi?.toFixed(2)} (need 50-70)` },
           macdPositive: { value: macdPositive, desc: `MACD > Signal` }
         }
       };
@@ -403,13 +409,13 @@ export default function LiveSimulation() {
 
     // Mean Reversion Strategy
     if (conditions.type === 'MEAN_REVERSION') {
-      const rsiOversold = config.useRSI && indicators.rsi < 30;
-      const macdTurning = config.useMACD && indicators.macd > indicators.macdSignal;
+      const rsiOversold = config.useRSI && ind.rsi < 30;
+      const macdTurning = config.useMACD && ind.macd > ind.macdSignal;
 
       return {
         result: rsiOversold || macdTurning,
         details: {
-          rsiOversold: { value: rsiOversold, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need < 30)` },
+          rsiOversold: { value: rsiOversold, desc: `RSI: ${ind.rsi?.toFixed(2)} (need < 30)` },
           macdTurning: { value: macdTurning, desc: 'MACD > Signal' }
         }
       };
@@ -417,16 +423,16 @@ export default function LiveSimulation() {
 
     // Momentum Strategy
     if (conditions.type === 'MOMENTUM') {
-      const rsiStrong = config.useRSI && indicators.rsi > 60;
-      const priceAboveEMA = config.useEMA && candle.close > indicators.ema20;
-      const macdStrong = config.useMACD && indicators.macdHistogram > 0;
+      const rsiStrong = config.useRSI && ind.rsi > 60;
+      const priceAboveEMA = config.useEMA && candle.close > ind.ema20;
+      const macdStrong = config.useMACD && ind.macdHistogram > 0;
 
       return {
         result: rsiStrong && priceAboveEMA && macdStrong,
         details: {
-          rsiStrong: { value: rsiStrong, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need > 60)` },
-          priceAboveEMA: { value: priceAboveEMA, desc: `${candle.close.toFixed(2)} > ${indicators.ema20?.toFixed(2)}` },
-          macdStrong: { value: macdStrong, desc: `Histogram: ${indicators.macdHistogram?.toFixed(2)}` }
+          rsiStrong: { value: rsiStrong, desc: `RSI: ${ind.rsi?.toFixed(2)} (need > 60)` },
+          priceAboveEMA: { value: priceAboveEMA, desc: `${candle.close.toFixed(2)} > ${ind.ema20?.toFixed(2)}` },
+          macdStrong: { value: macdStrong, desc: `Histogram: ${ind.macdHistogram?.toFixed(2)}` }
         }
       };
     }
@@ -434,14 +440,14 @@ export default function LiveSimulation() {
     // Simple MACD Test Strategy - EASY TO TRIGGER!
     if (conditions.type === 'MACD_SIMPLE') {
       const macdBullishCrossover = config.useMACD &&
-        indicators.macd > indicators.macdSignal;
+        ind.macd > ind.macdSignal;
 
       return {
         result: macdBullishCrossover,
         details: {
           macdBullishCrossover: {
             value: macdBullishCrossover,
-            desc: `MACD: ${indicators.macd?.toFixed(4)} > Signal: ${indicators.macdSignal?.toFixed(4)}`
+            desc: `MACD: ${ind.macd?.toFixed(4)} > Signal: ${ind.macdSignal?.toFixed(4)}`
           }
         }
       };
@@ -450,10 +456,11 @@ export default function LiveSimulation() {
     return { result: false, details: { error: `Unknown strategy type: ${conditions.type}` } };
   };
 
-  const evaluateExitConditions = (candle: Candle, _prevCandle: Candle, index: number): boolean => {
+  const evaluateExitConditions = (candle: Candle, _prevCandle: Candle, index: number, currentIndicators: any): boolean => {
     if (!currentTrade || !strategy) return false;
 
     const exitConditions = strategy.exit_conditions;
+    const ind = currentIndicators; // Use passed indicators
     const entryPrice = currentTrade.entryPrice;
     const currentPrice = candle.close;
     const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
@@ -479,16 +486,16 @@ export default function LiveSimulation() {
 
     // MACD Simple exit: MACD < Signal AND (RSI > 70 OR RSI < 50)
     if (exitConditions.macdCrossover === 'bearish' && exitConditions.rsiExit) {
-      const macdBearish = indicators.macd < indicators.macdSignal;
-      const rsiExtreme = indicators.rsi > (exitConditions.rsiExitUpper || 70) ||
-                        indicators.rsi < (exitConditions.rsiExitLower || 50);
+      const macdBearish = ind.macd < ind.macdSignal;
+      const rsiExtreme = ind.rsi > (exitConditions.rsiExitUpper || 70) ||
+                        ind.rsi < (exitConditions.rsiExitLower || 50);
 
       console.log('🔍 MACD_SIMPLE exit check:', {
         macdBearish,
-        macdValue: indicators.macd?.toFixed(4),
-        signalValue: indicators.macdSignal?.toFixed(4),
+        macdValue: ind.macd?.toFixed(4),
+        signalValue: ind.macdSignal?.toFixed(4),
         rsiExtreme,
-        rsiValue: indicators.rsi?.toFixed(2)
+        rsiValue: ind.rsi?.toFixed(2)
       });
 
       if (macdBearish && rsiExtreme) {
