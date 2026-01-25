@@ -83,6 +83,38 @@ export default function EnhancedLiveChart({
   // Data quality score (0-100)
   const dataQuality = dataSource === 'yahoo-finance' || dataSource === 'upstox' ? 100 : 0;
 
+  // Detect market timezone based on symbol
+  const detectMarket = (stockSymbol?: string): 'INDIAN' | 'US' => {
+    if (!stockSymbol) return 'INDIAN';
+
+    const indianStocks = [
+      'RELIANCE', 'TCS', 'INFY', 'HDFC', 'HDFCBANK', 'ICICIBANK', 'SBIN', 'BHARTIARTL',
+      'ITC', 'KOTAKBANK', 'LT', 'AXISBANK', 'WIPRO', 'ASIANPAINT', 'MARUTI', 'SUNPHARMA',
+      'TITAN', 'BAJFINANCE', 'NESTLEIND', 'ULTRACEMCO', 'POWERGRID', 'NTPC', 'ONGC',
+      'TATAMOTORS', 'TATASTEEL', 'TECHM', 'HCLTECH', 'INDUSINDBK', 'ADANIENT', 'ADANIPORTS',
+      'DLF', 'KITEX', 'DIXON', 'IRCTC', 'ZOMATO', 'NYKAA', 'PAYTM', 'POLICYBZR'
+    ];
+
+    const symbolUpper = stockSymbol.toUpperCase().replace(/\.NS$|\.BO$/, '');
+    if (indianStocks.includes(symbolUpper)) {
+      return 'INDIAN';
+    }
+
+    const commonUSStocks = [
+      'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'META', 'NVDA',
+      'V', 'JNJ', 'WMT', 'JPM', 'MA', 'PG', 'XOM', 'HD', 'CVX', 'LLY', 'ABBV',
+      'MRK', 'KO', 'PEP', 'COST', 'AVGO', 'TMO', 'MCD', 'CSCO', 'ACN', 'ABT'
+    ];
+    if (commonUSStocks.includes(symbolUpper)) {
+      return 'US';
+    }
+
+    return 'INDIAN'; // Default to Indian market
+  };
+
+  const market = detectMarket(symbol);
+  const timezone = market === 'INDIAN' ? 'IST' : 'EST';
+
   // Get data source display name and color
   const getDataSourceInfo = () => {
     switch (dataSource) {
@@ -451,9 +483,18 @@ export default function EnhancedLiveChart({
 
           {/* Symbol and Interval */}
           {symbol && interval && (
-            <span className="text-gray-600 font-medium">
-              {symbol} · {interval}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 font-medium">
+                {symbol} · {interval}
+              </span>
+              {/* Timezone indicator */}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                market === 'INDIAN' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'
+              }`}>
+                <Clock className="w-3 h-3 mr-1" />
+                {timezone}
+              </span>
+            </div>
           )}
         </div>
 

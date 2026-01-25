@@ -99,6 +99,77 @@ export default function LiveSimulation() {
   const tradeIdCounter = useRef(0);
   const currentTradeRef = useRef<Trade | null>(null); // Track current trade synchronously
 
+  // Utility functions for timezone conversion
+  const detectMarket = (symbol: string): 'INDIAN' | 'US' => {
+    // Common Indian stock symbols (NSE/BSE)
+    const indianStocks = [
+      'RELIANCE', 'TCS', 'INFY', 'HDFC', 'HDFCBANK', 'ICICIBANK', 'SBIN', 'BHARTIARTL',
+      'ITC', 'KOTAKBANK', 'LT', 'AXISBANK', 'WIPRO', 'ASIANPAINT', 'MARUTI', 'SUNPHARMA',
+      'TITAN', 'BAJFINANCE', 'NESTLEIND', 'ULTRACEMCO', 'POWERGRID', 'NTPC', 'ONGC',
+      'TATAMOTORS', 'TATASTEEL', 'TECHM', 'HCLTECH', 'INDUSINDBK', 'ADANIENT', 'ADANIPORTS',
+      'JSWSTEEL', 'HINDALCO', 'COALINDIA', 'DRREDDY', 'GRASIM', 'CIPLA', 'EICHERMOT',
+      'BAJAJFINSV', 'DIVISLAB', 'SHREECEM', 'BRITANNIA', 'HEROMOTOCO', 'UPL', 'APOLLOHOSP',
+      'DABUR', 'PIDILITIND', 'GODREJCP', 'HINDUNILVR', 'BANDHANBNK', 'LICHSGFIN',
+      'DLF', 'KITEX', 'DIXON', 'IRCTC', 'ZOMATO', 'NYKAA', 'PAYTM', 'POLICYBZR'
+    ];
+
+    // Check if symbol (uppercase) is in Indian stocks list
+    const symbolUpper = symbol.toUpperCase().replace(/\.NS$|\.BO$/, ''); // Remove .NS or .BO suffix if present
+    if (indianStocks.includes(symbolUpper)) {
+      return 'INDIAN';
+    }
+
+    // Check for common US stock patterns (usually all caps, 1-5 characters)
+    // Examples: AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA, etc.
+    if (symbolUpper.match(/^[A-Z]{1,5}$/) && !indianStocks.includes(symbolUpper)) {
+      // If it's short and not in Indian list, likely US
+      // But be careful - some Indian stocks are also short
+      // Default to INDIAN if symbol is all caps and not obviously US
+      const commonUSStocks = [
+        'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK',
+        'V', 'JNJ', 'WMT', 'JPM', 'MA', 'PG', 'XOM', 'HD', 'CVX', 'LLY', 'ABBV',
+        'MRK', 'KO', 'PEP', 'COST', 'AVGO', 'TMO', 'MCD', 'CSCO', 'ACN', 'ABT',
+        'DHR', 'NKE', 'VZ', 'ADBE', 'CRM', 'NFLX', 'TXN', 'CMCSA', 'AMD', 'INTC',
+        'PM', 'UNP', 'HON', 'NEE', 'RTX', 'QCOM', 'UPS', 'ORCL', 'SBUX', 'INTU'
+      ];
+      if (commonUSStocks.includes(symbolUpper)) {
+        return 'US';
+      }
+    }
+
+    // Default to INDIAN for this market screener app
+    return 'INDIAN';
+  };
+
+  const convertToLocalTime = (utcTimestamp: number, market: 'INDIAN' | 'US'): Date => {
+    // Create date from UTC timestamp (in seconds)
+    const utcDate = new Date(utcTimestamp * 1000);
+
+    if (market === 'INDIAN') {
+      // Indian Standard Time: UTC+5:30
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+      return new Date(utcDate.getTime() + istOffset);
+    } else {
+      // US Eastern Time: UTC-5 (EST) or UTC-4 (EDT)
+      // For simplicity, we'll use UTC-5 (can be enhanced with DST detection)
+      const estOffset = -5 * 60 * 60 * 1000; // -5 hours in milliseconds
+      return new Date(utcDate.getTime() + estOffset);
+    }
+  };
+
+  const formatLocalTime = (utcTimestamp: number, symbol: string): string => {
+    const market = detectMarket(symbol);
+    const localDate = convertToLocalTime(utcTimestamp, market);
+    const timezoneSuffix = market === 'INDIAN' ? ' IST' : ' EST';
+
+    return localDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }) + timezoneSuffix;
+  };
+
   // Load strategy from session storage or location state
   useEffect(() => {
     const strategyData = location.state?.strategy ||
@@ -352,7 +423,7 @@ export default function LiveSimulation() {
         currentIndex: index,
         totalCandles: candles.length,
         price: currentCandle.close.toFixed(2),
-        entryPrice: currentTrade.entryPrice.toFixed(2),
+        entryPrice: activeTrade.entryPrice.toFixed(2),
         pnl: pnlPercent.toFixed(2) + '%',
         shouldExit,
         reason: shouldExit ? 'Exit signal triggered!' : 'Holding position'
@@ -548,9 +619,12 @@ export default function LiveSimulation() {
 
     tradeIdCounter.current += 1; // Increment unique ID counter
 
+    const market = detectMarket(symbol);
+    const entryTime = convertToLocalTime(candle.time, market);
+
     const trade: Trade = {
       id: tradeIdCounter.current,
-      entryTime: new Date(candle.time * 1000),
+      entryTime,
       entryPrice: candle.close,
       quantity,
       status: 'open',
@@ -572,9 +646,12 @@ export default function LiveSimulation() {
     const pnl = (exitPrice - currentTradeRef.current.entryPrice) * currentTradeRef.current.quantity;
     const pnlPercent = ((exitPrice - currentTradeRef.current.entryPrice) / currentTradeRef.current.entryPrice) * 100;
 
+    const market = detectMarket(symbol);
+    const exitTime = convertToLocalTime(candle.time, market);
+
     const closedTrade: Trade = {
       ...currentTradeRef.current,
-      exitTime: new Date(candle.time * 1000),
+      exitTime,
       exitPrice,
       pnl,
       pnlPercent,
@@ -1066,7 +1143,14 @@ export default function LiveSimulation() {
                   <div className="flex justify-between items-center">
                     <div className="text-xs">
                       <div className="font-medium">₹{trade.entryPrice.toFixed(2)} → ₹{trade.exitPrice?.toFixed(2)}</div>
-                      <div className="text-gray-600">{trade.exitTime?.toLocaleTimeString()}</div>
+                      <div className="text-gray-600">
+                        {trade.exitTime?.toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} {detectMarket(symbol) === 'INDIAN' ? 'IST' : 'EST'}
+                      </div>
                     </div>
                     <div className={`text-right text-xs font-bold ${
                       (trade.pnl || 0) > 0 ? 'text-green-600' : 'text-red-600'
