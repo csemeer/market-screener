@@ -97,6 +97,7 @@ export default function LiveSimulation() {
 
   const intervalRef = useRef<number | null>(null);
   const tradeIdCounter = useRef(0);
+  const currentTradeRef = useRef<Trade | null>(null); // Track current trade synchronously
 
   // Load strategy from session storage or location state
   useEffect(() => {
@@ -311,7 +312,7 @@ export default function LiveSimulation() {
     }
 
     // Check for entry signal (if no open trade)
-    if (!currentTrade) {
+    if (!currentTradeRef.current) {
       const conditions = evaluateEntryConditionsWithDetails(currentCandle, prevCandle, index, currentIndicators);
 
       setDebugInfo({
@@ -343,7 +344,8 @@ export default function LiveSimulation() {
     // Check for exit signal (if open trade exists)
     else {
       const shouldExit = evaluateExitConditions(currentCandle, prevCandle, index, currentIndicators);
-      const pnlPercent = ((currentCandle.close - currentTrade.entryPrice) / currentTrade.entryPrice * 100);
+      const activeTrade = currentTradeRef.current!;
+      const pnlPercent = ((currentCandle.close - activeTrade.entryPrice) / activeTrade.entryPrice * 100);
 
       setDebugInfo({
         status: 'In Trade - Checking Exit',
@@ -559,18 +561,19 @@ export default function LiveSimulation() {
     (trade as any).entryIndex = index;
 
     setCurrentTrade(trade);
+    currentTradeRef.current = trade; // Set ref synchronously
     toast.success(`📈 Entry: ${symbol} @ ₹${candle.close.toFixed(2)}`);
   };
 
   const exitTrade = (candle: Candle, _index: number) => {
-    if (!currentTrade) return;
+    if (!currentTradeRef.current) return;
 
     const exitPrice = candle.close;
-    const pnl = (exitPrice - currentTrade.entryPrice) * currentTrade.quantity;
-    const pnlPercent = ((exitPrice - currentTrade.entryPrice) / currentTrade.entryPrice) * 100;
+    const pnl = (exitPrice - currentTradeRef.current.entryPrice) * currentTradeRef.current.quantity;
+    const pnlPercent = ((exitPrice - currentTradeRef.current.entryPrice) / currentTradeRef.current.entryPrice) * 100;
 
     const closedTrade: Trade = {
-      ...currentTrade,
+      ...currentTradeRef.current,
       exitTime: new Date(candle.time * 1000),
       exitPrice,
       pnl,
@@ -592,6 +595,7 @@ export default function LiveSimulation() {
     }
 
     setCurrentTrade(null);
+    currentTradeRef.current = null; // Clear ref synchronously
   };
 
   // Helper functions for indicators
