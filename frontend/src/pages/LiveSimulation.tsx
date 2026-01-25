@@ -82,6 +82,19 @@ export default function LiveSimulation() {
   const [dataSource, setDataSource] = useState<'yahoo-finance' | 'upstox' | 'unknown'>('unknown');
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
+  // Debug panel state
+  const [showDebug, setShowDebug] = useState(true); // Show by default to help diagnose
+  const [debugInfo, setDebugInfo] = useState<any>({
+    status: 'Not started',
+    currentIndex: 0,
+    totalCandles: 0,
+    tradingStartIndex: 0,
+    indicators: {},
+    lastCheck: null,
+    conditions: {},
+    reason: 'Simulation not started'
+  });
+
   const intervalRef = useRef<number | null>(null);
   const tradeIdCounter = useRef(0);
 
@@ -259,16 +272,26 @@ export default function LiveSimulation() {
 
   const checkTradingSignals = (index: number) => {
     if (!strategy) {
-      console.log('❌ No strategy loaded');
+      setDebugInfo({
+        status: 'Error',
+        reason: 'No strategy loaded',
+        currentIndex: index,
+        totalCandles: candles.length
+      });
       return;
     }
 
     // Only start trading after pre-candles AND enough data for indicators
     const minIndex = Math.max(tradingStartIndex, 50);
     if (index < minIndex) {
-      if (index === 0 || index % 10 === 0) {
-        console.log(`⏳ Waiting for enough data: ${index}/${minIndex} candles`);
-      }
+      setDebugInfo({
+        status: 'Waiting for data',
+        reason: `Need ${minIndex} candles for indicators, currently at ${index}`,
+        currentIndex: index,
+        totalCandles: candles.length,
+        tradingStartIndex: minIndex,
+        progress: ((index / minIndex) * 100).toFixed(1) + '%'
+      });
       return;
     }
 
@@ -276,53 +299,66 @@ export default function LiveSimulation() {
     const prevCandle = candles[index - 1];
 
     if (!currentCandle || !prevCandle) {
-      console.log('❌ Missing candle data at index', index);
+      setDebugInfo({
+        status: 'Error',
+        reason: 'Missing candle data',
+        currentIndex: index
+      });
       return;
     }
 
     // Check for entry signal (if no open trade)
     if (!currentTrade) {
-      const shouldEnter = evaluateEntryConditions(currentCandle, prevCandle, index);
+      const conditions = evaluateEntryConditionsWithDetails(currentCandle, prevCandle, index);
 
-      console.log(`📊 Index ${index}: Entry Check`, {
-        shouldEnter,
-        price: currentCandle.close,
+      setDebugInfo({
+        status: 'Checking Entry',
+        currentIndex: index,
+        totalCandles: candles.length,
+        tradingStartIndex: minIndex,
+        price: currentCandle.close.toFixed(2),
         volume: currentCandle.volume,
         indicators: {
-          ema9: indicators.ema9?.toFixed(2),
-          ema20: indicators.ema20?.toFixed(2),
-          ema50: indicators.ema50?.toFixed(2),
-          rsi: indicators.rsi?.toFixed(2),
-          volumeAvg: indicators.volumeAvg?.toFixed(0)
+          ema9: indicators.ema9?.toFixed(2) || 'N/A',
+          ema20: indicators.ema20?.toFixed(2) || 'N/A',
+          ema50: indicators.ema50?.toFixed(2) || 'N/A',
+          rsi: indicators.rsi?.toFixed(2) || 'N/A',
+          volumeAvg: indicators.volumeAvg?.toFixed(0) || 'N/A'
         },
-        strategyType: strategy.entry_conditions?.type
+        strategyType: strategy.entry_conditions?.type,
+        conditions: conditions.details,
+        shouldEnter: conditions.result,
+        reason: conditions.result ? 'All conditions met!' : 'Some conditions not met'
       });
 
-      if (shouldEnter) {
-        console.log('✅ ENTRY SIGNAL TRIGGERED!');
+      if (conditions.result) {
         enterTrade(currentCandle, index);
       }
     }
     // Check for exit signal (if open trade exists)
     else {
       const shouldExit = evaluateExitConditions(currentCandle, prevCandle, index);
+      const pnlPercent = ((currentCandle.close - currentTrade.entryPrice) / currentTrade.entryPrice * 100);
 
-      console.log(`📊 Index ${index}: Exit Check`, {
+      setDebugInfo({
+        status: 'In Trade - Checking Exit',
+        currentIndex: index,
+        totalCandles: candles.length,
+        price: currentCandle.close.toFixed(2),
+        entryPrice: currentTrade.entryPrice.toFixed(2),
+        pnl: pnlPercent.toFixed(2) + '%',
         shouldExit,
-        price: currentCandle.close,
-        entryPrice: currentTrade.entryPrice,
-        pnl: ((currentCandle.close - currentTrade.entryPrice) / currentTrade.entryPrice * 100).toFixed(2) + '%'
+        reason: shouldExit ? 'Exit signal triggered!' : 'Holding position'
       });
 
       if (shouldExit) {
-        console.log('✅ EXIT SIGNAL TRIGGERED!');
         exitTrade(currentCandle, index);
       }
     }
   };
 
-  const evaluateEntryConditions = (candle: Candle, prevCandle: Candle, index: number): boolean => {
-    if (!strategy) return false;
+  const evaluateEntryConditionsWithDetails = (candle: Candle, prevCandle: Candle, _index: number): { result: boolean; details: any } => {
+    if (!strategy) return { result: false, details: { error: 'No strategy' } };
 
     const conditions = strategy.entry_conditions;
     const config = strategy.indicators_config;
@@ -336,13 +372,14 @@ export default function LiveSimulation() {
         indicators.ema9 > indicators.ema20 &&
         indicators.ema20 > indicators.ema50;
 
-      console.log('🔍 VOLUME_BREAKOUT conditions:', {
-        volumeSpike: `${volumeSpike} (${candle.volume} > ${indicators.volumeAvg} * ${volumeMultiple})`,
-        priceBreakout: `${priceBreakout} (${candle.close} > ${prevCandle.high})`,
-        emaAligned: `${emaAligned} (${indicators.ema9} > ${indicators.ema20} > ${indicators.ema50})`
-      });
-
-      return volumeSpike && priceBreakout && emaAligned;
+      return {
+        result: volumeSpike && priceBreakout && emaAligned,
+        details: {
+          volumeSpike: { value: volumeSpike, desc: `${candle.volume.toFixed(0)} > ${(indicators.volumeAvg * volumeMultiple).toFixed(0)}` },
+          priceBreakout: { value: priceBreakout, desc: `${candle.close.toFixed(2)} > ${prevCandle.high.toFixed(2)}` },
+          emaAligned: { value: emaAligned, desc: `${indicators.ema9?.toFixed(2)} > ${indicators.ema20?.toFixed(2)} > ${indicators.ema50?.toFixed(2)}` }
+        }
+      };
     }
 
     // Trend Following Strategy
@@ -351,32 +388,31 @@ export default function LiveSimulation() {
         candle.close > indicators.ema9 &&
         indicators.ema9 > indicators.ema20 &&
         indicators.ema20 > indicators.ema50;
-
       const rsiOk = !config.useRSI || (indicators.rsi > 50 && indicators.rsi < 70);
       const macdPositive = !config.useMACD || indicators.macd > indicators.macdSignal;
 
-      console.log('🔍 TREND_FOLLOWING conditions:', {
-        emaAligned,
-        rsiOk: `${rsiOk} (RSI: ${indicators.rsi})`,
-        macdPositive: `${macdPositive} (MACD: ${indicators.macd} vs Signal: ${indicators.macdSignal})`
-      });
-
-      return emaAligned && rsiOk && macdPositive;
+      return {
+        result: emaAligned && rsiOk && macdPositive,
+        details: {
+          emaAligned: { value: emaAligned, desc: 'Price > EMA9 > EMA20 > EMA50' },
+          rsiOk: { value: rsiOk, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need 50-70)` },
+          macdPositive: { value: macdPositive, desc: `MACD > Signal` }
+        }
+      };
     }
 
     // Mean Reversion Strategy
     if (conditions.type === 'MEAN_REVERSION') {
       const rsiOversold = config.useRSI && indicators.rsi < 30;
-      const macdTurning = config.useMACD &&
-        indicators.macd > indicators.macdSignal &&
-        prevCandle && candles[index - 1];
+      const macdTurning = config.useMACD && indicators.macd > indicators.macdSignal;
 
-      console.log('🔍 MEAN_REVERSION conditions:', {
-        rsiOversold: `${rsiOversold} (RSI: ${indicators.rsi})`,
-        macdTurning
-      });
-
-      return rsiOversold || macdTurning;
+      return {
+        result: rsiOversold || macdTurning,
+        details: {
+          rsiOversold: { value: rsiOversold, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need < 30)` },
+          macdTurning: { value: macdTurning, desc: 'MACD > Signal' }
+        }
+      };
     }
 
     // Momentum Strategy
@@ -385,17 +421,17 @@ export default function LiveSimulation() {
       const priceAboveEMA = config.useEMA && candle.close > indicators.ema20;
       const macdStrong = config.useMACD && indicators.macdHistogram > 0;
 
-      console.log('🔍 MOMENTUM conditions:', {
-        rsiStrong: `${rsiStrong} (RSI: ${indicators.rsi})`,
-        priceAboveEMA: `${priceAboveEMA} (${candle.close} > ${indicators.ema20})`,
-        macdStrong: `${macdStrong} (Histogram: ${indicators.macdHistogram})`
-      });
-
-      return rsiStrong && priceAboveEMA && macdStrong;
+      return {
+        result: rsiStrong && priceAboveEMA && macdStrong,
+        details: {
+          rsiStrong: { value: rsiStrong, desc: `RSI: ${indicators.rsi?.toFixed(2)} (need > 60)` },
+          priceAboveEMA: { value: priceAboveEMA, desc: `${candle.close.toFixed(2)} > ${indicators.ema20?.toFixed(2)}` },
+          macdStrong: { value: macdStrong, desc: `Histogram: ${indicators.macdHistogram?.toFixed(2)}` }
+        }
+      };
     }
 
-    console.log('❌ Unknown strategy type:', conditions.type);
-    return false;
+    return { result: false, details: { error: `Unknown strategy type: ${conditions.type}` } };
   };
 
   const evaluateExitConditions = (candle: Candle, _prevCandle: Candle, index: number): boolean => {
@@ -749,6 +785,146 @@ export default function LiveSimulation() {
           </div>
         </div>
       )}
+
+      {/* Debug Panel */}
+      <div className="mb-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-sm border-2 border-purple-300 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-purple-900 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Trading Debug Monitor
+          </h3>
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+          >
+            {showDebug ? 'Hide Details' : 'Show Details'}
+          </button>
+        </div>
+
+        {/* Status Bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="text-xs text-gray-500">Status</div>
+            <div className={`text-sm font-bold ${
+              debugInfo.status === 'In Trade - Checking Exit' ? 'text-green-600' :
+              debugInfo.status === 'Checking Entry' ? 'text-blue-600' :
+              debugInfo.status === 'Waiting for data' ? 'text-yellow-600' :
+              debugInfo.status === 'Error' ? 'text-red-600' :
+              'text-gray-600'
+            }`}>
+              {debugInfo.status || 'Not Started'}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="text-xs text-gray-500">Progress</div>
+            <div className="text-sm font-bold text-purple-600">
+              {debugInfo.currentIndex || 0} / {debugInfo.totalCandles || 0}
+              {debugInfo.progress && ` (${debugInfo.progress})`}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="text-xs text-gray-500">Strategy Type</div>
+            <div className="text-sm font-bold text-indigo-600">
+              {debugInfo.strategyType || 'N/A'}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-purple-200">
+            <div className="text-xs text-gray-500">Current Price</div>
+            <div className="text-sm font-bold text-gray-900">
+              ₹{debugInfo.price || 'N/A'}
+            </div>
+          </div>
+        </div>
+
+        {/* Reason/Message */}
+        <div className="bg-white rounded-lg p-3 border-2 border-purple-200 mb-3">
+          <div className="text-xs text-gray-500 mb-1">Current Status</div>
+          <div className="text-sm font-medium text-gray-800">
+            {debugInfo.reason || 'Waiting to start simulation...'}
+          </div>
+        </div>
+
+        {/* Detailed Info */}
+        {showDebug && (
+          <div className="space-y-3">
+            {/* Indicators */}
+            {debugInfo.indicators && (
+              <div className="bg-white rounded-lg p-3 border border-purple-200">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Indicators</div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-500">EMA 9:</span>
+                    <span className="ml-1 font-mono text-blue-600">{debugInfo.indicators.ema9}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">EMA 20:</span>
+                    <span className="ml-1 font-mono text-purple-600">{debugInfo.indicators.ema20}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">EMA 50:</span>
+                    <span className="ml-1 font-mono text-orange-600">{debugInfo.indicators.ema50}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">RSI:</span>
+                    <span className="ml-1 font-mono text-green-600">{debugInfo.indicators.rsi}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Vol Avg:</span>
+                    <span className="ml-1 font-mono text-gray-600">{debugInfo.indicators.volumeAvg}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Entry Conditions */}
+            {debugInfo.conditions && Object.keys(debugInfo.conditions).length > 0 && (
+              <div className="bg-white rounded-lg p-3 border border-purple-200">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Entry Conditions Check</div>
+                <div className="space-y-2">
+                  {Object.entries(debugInfo.conditions).map(([key, condition]: [string, any]) => (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                          condition.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {condition.value ? '✓' : '✗'}
+                        </span>
+                        <span className="font-medium text-gray-700">{key}</span>
+                      </div>
+                      <span className="text-gray-600 font-mono">{condition.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Trade Info (when in trade) */}
+            {debugInfo.entryPrice && (
+              <div className="bg-white rounded-lg p-3 border border-purple-200">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Active Trade</div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-gray-500">Entry:</span>
+                    <span className="ml-1 font-mono text-blue-600">₹{debugInfo.entryPrice}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Current:</span>
+                    <span className="ml-1 font-mono text-purple-600">₹{debugInfo.price}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">P&L:</span>
+                    <span className={`ml-1 font-mono font-bold ${
+                      parseFloat(debugInfo.pnl) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {debugInfo.pnl}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Live Metrics */}
