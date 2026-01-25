@@ -43,8 +43,11 @@ interface Trade {
   id: number;
   entryTime: Date;
   entryPrice: number;
+  entryCandelTime?: number;
   exitTime?: Date;
   exitPrice?: number;
+  exitCandleTime?: number;
+  pnlPercent?: number;
   status: 'open' | 'closed';
 }
 
@@ -343,32 +346,39 @@ export default function EnhancedLiveChart({
     ema50SeriesRef.current.setData(ema50Data);
   }, [indicatorHistory]);
 
-  // Mark trades on chart
+  // Mark trades on chart using original candle timestamps
   useEffect(() => {
     if (!candleSeriesRef.current || !trades || trades.length === 0) return;
 
     const markers = trades.flatMap((trade) => {
-      const entryMarker = {
-        time: Math.floor(trade.entryTime.getTime() / 1000) as Time,
-        position: 'belowBar' as const,
-        color: '#2196F3',
-        shape: 'arrowUp' as const,
-        text: `Entry: ₹${trade.entryPrice.toFixed(2)}`,
-      };
+      const markers = [];
 
-      const exitMarker = trade.exitTime && trade.exitPrice
-        ? {
-            time: Math.floor(trade.exitTime.getTime() / 1000) as Time,
-            position: 'aboveBar' as const,
-            color: (trade.exitPrice >= trade.entryPrice) ? '#4CAF50' : '#F44336',
-            shape: 'arrowDown' as const,
-            text: `Exit: ₹${trade.exitPrice.toFixed(2)}`,
-          }
-        : null;
+      // Entry marker - use original candle timestamp if available, otherwise convert Date
+      if (trade.entryCandelTime) {
+        markers.push({
+          time: trade.entryCandelTime as Time,
+          position: 'belowBar' as const,
+          color: '#2196F3',
+          shape: 'arrowUp' as const,
+          text: `Entry ₹${trade.entryPrice.toFixed(2)}`,
+        });
+      }
 
-      return exitMarker ? [entryMarker, exitMarker] : [entryMarker];
+      // Exit marker - only if trade is closed
+      if (trade.exitTime && trade.exitPrice && trade.exitCandleTime) {
+        markers.push({
+          time: trade.exitCandleTime as Time,
+          position: 'aboveBar' as const,
+          color: (trade.exitPrice >= trade.entryPrice) ? '#4CAF50' : '#F44336',
+          shape: 'arrowDown' as const,
+          text: `Exit ₹${trade.exitPrice.toFixed(2)} (${trade.pnlPercent?.toFixed(1)}%)`,
+        });
+      }
+
+      return markers;
     });
 
+    console.log('📍 Setting chart markers:', markers.length, 'markers for', trades.length, 'trades');
     (candleSeriesRef.current as any).setMarkers(markers);
   }, [trades]);
 

@@ -20,8 +20,10 @@ interface Trade {
   id: number;
   entryTime: Date;
   entryPrice: number;
+  entryCandelTime?: number; // Original candle Unix timestamp for chart markers
   exitTime?: Date;
   exitPrice?: number;
+  exitCandleTime?: number; // Original candle Unix timestamp for chart markers
   quantity: number;
   pnl?: number;
   pnlPercent?: number;
@@ -213,6 +215,7 @@ export default function LiveSimulation() {
         setVisibleCandles([]);
         setTrades([]);
         setCurrentTrade(null);
+        currentTradeRef.current = null; // Clear ref synchronously
         setBalance(initialBalance);
         setTotalPnL(0);
         setWinningTrades(0);
@@ -258,6 +261,13 @@ export default function LiveSimulation() {
       setCurrentIndex(prev => {
         const next = prev + 1;
         if (next >= candles.length) {
+          // Auto-close any open trade at the last candle
+          if (currentTradeRef.current) {
+            const lastCandle = candles[candles.length - 1];
+            console.log('🔚 End of simulation - auto-closing open trade at last candle');
+            exitTrade(lastCandle, candles.length - 1);
+          }
+
           setIsPlaying(false);
           toast.success('Simulation completed!');
           if (intervalRef.current) {
@@ -626,6 +636,7 @@ export default function LiveSimulation() {
       id: tradeIdCounter.current,
       entryTime,
       entryPrice: candle.close,
+      entryCandelTime: candle.time, // Store original candle timestamp for chart markers
       quantity,
       status: 'open',
       type: 'long',
@@ -636,6 +647,12 @@ export default function LiveSimulation() {
 
     setCurrentTrade(trade);
     currentTradeRef.current = trade; // Set ref synchronously
+    console.log('🟢 TRADE ENTERED:', {
+      id: trade.id,
+      time: entryTime.toLocaleString(),
+      price: candle.close,
+      candleTime: candle.time
+    });
     toast.success(`📈 Entry: ${symbol} @ ₹${candle.close.toFixed(2)}`);
   };
 
@@ -653,10 +670,21 @@ export default function LiveSimulation() {
       ...currentTradeRef.current,
       exitTime,
       exitPrice,
+      exitCandleTime: candle.time, // Store original candle timestamp for chart markers
       pnl,
       pnlPercent,
       status: 'closed'
     };
+
+    console.log('🔴 TRADE EXITED:', {
+      id: closedTrade.id,
+      entryTime: closedTrade.entryTime.toLocaleString(),
+      exitTime: exitTime.toLocaleString(),
+      entryPrice: closedTrade.entryPrice,
+      exitPrice,
+      pnl,
+      pnlPercent: pnlPercent.toFixed(2) + '%'
+    });
 
     setTrades(prev => [...prev, closedTrade]);
     setBalance(prev => prev + pnl);
@@ -735,6 +763,7 @@ export default function LiveSimulation() {
       setVisibleCandles([]);
       setTrades([]);
       setCurrentTrade(null);
+      currentTradeRef.current = null; // Clear ref synchronously
       setBalance(initialBalance);
       setTotalPnL(0);
       setWinningTrades(0);
@@ -751,6 +780,7 @@ export default function LiveSimulation() {
     setVisibleCandles([]);
     setTrades([]);
     setCurrentTrade(null);
+    currentTradeRef.current = null; // Clear ref synchronously
     setBalance(initialBalance);
     setTotalPnL(0);
     setWinningTrades(0);
