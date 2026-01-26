@@ -121,8 +121,8 @@ export default function StrategyLibrary() {
   };
 
   const handleCreateNew = () => {
-    setSelectedStrategy(null);
-    setShowBuilder(true);
+    // Navigate to the new professional strategy builder
+    navigate('/strategy-builder');
   };
 
   const handleCloseBuilder = (saved: boolean) => {

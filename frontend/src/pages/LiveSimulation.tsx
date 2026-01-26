@@ -4,6 +4,7 @@ import { Play, Pause, RotateCcw, ArrowLeft, Activity, Settings } from 'lucide-re
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import EnhancedLiveChart from '../components/simulation/EnhancedLiveChart';
+import { StrategyEvaluator } from '../services/strategyEvaluator';
 
 interface Strategy {
   id: number;
@@ -445,9 +446,24 @@ export default function LiveSimulation() {
     }
   };
 
-  const evaluateEntryConditionsWithDetails = (candle: Candle, prevCandle: Candle, _index: number, currentIndicators: any): { result: boolean; details: any } => {
+  const evaluateEntryConditionsWithDetails = (candle: Candle, prevCandle: Candle, index: number, currentIndicators: any): { result: boolean; details: any } => {
     if (!strategy) return { result: false, details: { error: 'No strategy' } };
 
+    // Check if this is a new expression-based strategy
+    if (StrategyEvaluator.isExpressionBasedStrategy(strategy as any)) {
+      // Get previous indicators for crossover detection
+      const prevIndicators = index > 0 ? indicatorHistory[index - 1] || {} : {};
+
+      return StrategyEvaluator.evaluateEntry(
+        strategy as any,
+        candle,
+        prevCandle,
+        currentIndicators,
+        prevIndicators
+      );
+    }
+
+    // Legacy strategy format - use old logic
     const conditions = strategy.entry_conditions;
     const config = strategy.indicators_config;
     const ind = currentIndicators; // Use passed indicators instead of state
@@ -539,12 +555,31 @@ export default function LiveSimulation() {
     return { result: false, details: { error: `Unknown strategy type: ${conditions.type}` } };
   };
 
-  const evaluateExitConditions = (candle: Candle, _prevCandle: Candle, index: number, currentIndicators: any): boolean => {
-    if (!currentTrade || !strategy) return false;
+  const evaluateExitConditions = (candle: Candle, prevCandle: Candle, index: number, currentIndicators: any): boolean => {
+    if (!currentTradeRef.current || !strategy) return false;
 
+    // Check if this is a new expression-based strategy
+    if (StrategyEvaluator.isExpressionBasedStrategy(strategy as any)) {
+      // Get previous indicators for crossover detection
+      const prevIndicators = index > 0 ? indicatorHistory[index - 1] || {} : {};
+
+      const result = StrategyEvaluator.evaluateExit(
+        strategy as any,
+        candle,
+        prevCandle,
+        currentIndicators,
+        prevIndicators,
+        currentTradeRef.current as any
+      );
+
+      console.log('🔍 Expression-based EXIT evaluation:', result);
+      return result.result;
+    }
+
+    // Legacy strategy format - use old logic
     const exitConditions = strategy.exit_conditions;
     const ind = currentIndicators; // Use passed indicators
-    const entryPrice = currentTrade.entryPrice;
+    const entryPrice = currentTradeRef.current.entryPrice;
     const currentPrice = candle.close;
     const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
 
