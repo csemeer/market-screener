@@ -116,8 +116,10 @@ export default function StrategyLibrary() {
   };
 
   const handleViewDetails = (strategy: Strategy) => {
-    setSelectedStrategy(strategy);
-    setShowBuilder(true);
+    // Navigate to strategy builder with strategy data for editing
+    navigate('/strategy-builder', {
+      state: { strategy, mode: 'edit' }
+    });
   };
 
   const handleCreateNew = () => {
@@ -181,21 +183,20 @@ export default function StrategyLibrary() {
     navigate('/live-simulation');
   };
 
-  const handleCloneStrategy = async (strategy: Strategy) => {
-    const newName = prompt(`Clone "${strategy.name}" as:`, `${strategy.name} (Copy)`);
-    if (!newName) return;
+  const handleCloneStrategy = (strategy: Strategy) => {
+    // Clone strategy by opening it in builder without ID (will create new)
+    const clonedStrategy = {
+      ...strategy,
+      id: undefined, // Remove ID to create new
+      name: `${strategy.name} (Copy)`,
+      is_system: false, // Clones are always user strategies
+      created_by: 'user'
+    };
 
-    try {
-      await strategyAPI.cloneStrategy(strategy.id, {
-        new_name: newName,
-        created_by: 'user'
-      });
-      toast.success(`Strategy "${newName}" created successfully!`);
-      loadStrategies();
-    } catch (error: any) {
-      console.error('Error cloning strategy:', error);
-      toast.error(error.response?.data?.error || 'Failed to clone strategy');
-    }
+    // Navigate to strategy builder in clone mode
+    navigate('/strategy-builder', {
+      state: { strategy: clonedStrategy, mode: 'clone' }
+    });
   };
 
   const handleDeleteStrategy = async (strategy: Strategy) => {

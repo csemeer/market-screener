@@ -59,70 +59,86 @@ interface IndicatorConfig {
 
 export default function StrategyBuilder() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Edit mode: Check if we have a strategy to edit
+  const editingStrategy = location.state?.strategy || null;
+  const isEditMode = !!editingStrategy;
+  const strategyId = editingStrategy?.id || null;
 
   // Basic Strategy Info
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<'CUSTOM' | 'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'VOLUME_BREAKOUT' | 'MOMENTUM'>('CUSTOM');
+  const [name, setName] = useState(editingStrategy?.name || '');
+  const [description, setDescription] = useState(editingStrategy?.description || '');
+  const [category, setCategory] = useState<'CUSTOM' | 'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'VOLUME_BREAKOUT' | 'MOMENTUM'>(
+    editingStrategy?.category || 'CUSTOM'
+  );
 
   // Entry/Exit Conditions
-  const [entryConditions, setEntryConditions] = useState<ConditionGroup>({
-    operator: 'AND',
-    conditions: []
-  });
+  const [entryConditions, setEntryConditions] = useState<ConditionGroup>(
+    editingStrategy?.entry_conditions || {
+      operator: 'AND',
+      conditions: []
+    }
+  );
 
-  const [exitConditions, setExitConditions] = useState<ConditionGroup>({
-    operator: 'OR',
-    conditions: []
-  });
+  const [exitConditions, setExitConditions] = useState<ConditionGroup>(
+    editingStrategy?.exit_conditions || {
+      operator: 'OR',
+      conditions: []
+    }
+  );
 
   // Indicator Configuration
-  const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>({
-    useEMA: true,
-    emaFast: 9,
-    emaMiddle: 20,
-    emaSlow: 50,
-    ema200: false,
+  const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>(
+    editingStrategy?.indicators_config || {
+      useEMA: true,
+      emaFast: 9,
+      emaMiddle: 20,
+      emaSlow: 50,
+      ema200: false,
 
-    useSMA: false,
-    smaFast: 9,
-    smaMiddle: 20,
-    smaSlow: 50,
-    sma200: false,
+      useSMA: false,
+      smaFast: 9,
+      smaMiddle: 20,
+      smaSlow: 50,
+      sma200: false,
 
-    useRSI: true,
-    rsiPeriod: 14,
+      useRSI: true,
+      rsiPeriod: 14,
 
-    useMACD: true,
-    macdFast: 12,
-    macdSlow: 26,
-    macdSignal: 9,
+      useMACD: true,
+      macdFast: 12,
+      macdSlow: 26,
+      macdSignal: 9,
 
-    useBB: false,
-    bbPeriod: 20,
-    bbStdDev: 2,
+      useBB: false,
+      bbPeriod: 20,
+      bbStdDev: 2,
 
-    useADX: false,
-    adxPeriod: 14,
+      useADX: false,
+      adxPeriod: 14,
 
-    useATR: false,
-    atrPeriod: 14,
+      useATR: false,
+      atrPeriod: 14,
 
-    useStochastic: false,
-    stochKPeriod: 14,
-    stochDPeriod: 3,
+      useStochastic: false,
+      stochKPeriod: 14,
+      stochDPeriod: 3,
 
-    useVolume: true,
-    volumePeriod: 20,
+      useVolume: true,
+      volumePeriod: 20,
 
-    useVWAP: false
-  });
+      useVWAP: false
+    }
+  );
 
   // Risk Management
-  const [recommendedStopLoss, setRecommendedStopLoss] = useState(3.0);
-  const [recommendedTarget, setRecommendedTarget] = useState(5.0);
-  const [minCapital, setMinCapital] = useState(50000);
-  const [recommendedTimeframes, setRecommendedTimeframes] = useState<string[]>(['5m', '15m']);
+  const [recommendedStopLoss, setRecommendedStopLoss] = useState(editingStrategy?.recommended_stop_loss_percent || 3.0);
+  const [recommendedTarget, setRecommendedTarget] = useState(editingStrategy?.recommended_target_percent || 5.0);
+  const [minCapital, setMinCapital] = useState(editingStrategy?.min_capital_required || 50000);
+  const [recommendedTimeframes, setRecommendedTimeframes] = useState<string[]>(
+    editingStrategy?.recommended_timeframes || ['5m', '15m']
+  );
 
   const [showIndicatorConfig, setShowIndicatorConfig] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -171,7 +187,7 @@ export default function StrategyBuilder() {
     return { valid: errors.length === 0, errors };
   };
 
-  // Save strategy
+  // Save or Update strategy
   const handleSave = async () => {
     const validation = validateStrategy();
     if (!validation.valid) {
@@ -195,15 +211,23 @@ export default function StrategyBuilder() {
         recommended_timeframes: recommendedTimeframes,
         is_system: false,
         is_active: true,
-        created_by: 'user'
+        created_by: isEditMode ? editingStrategy.created_by : 'user'
       };
 
-      await axios.post('http://localhost:3001/api/strategies', strategy);
-      toast.success('Strategy saved successfully!');
+      if (isEditMode && strategyId) {
+        // Update existing strategy
+        await axios.put(`http://localhost:3001/api/strategies/${strategyId}`, strategy);
+        toast.success('Strategy updated successfully!');
+      } else {
+        // Create new strategy
+        await axios.post('http://localhost:3001/api/strategies', strategy);
+        toast.success('Strategy saved successfully!');
+      }
+
       navigate('/strategies');
     } catch (error: any) {
       console.error('Error saving strategy:', error);
-      toast.error(error.response?.data?.error || 'Failed to save strategy');
+      toast.error(error.response?.data?.error || `Failed to ${isEditMode ? 'update' : 'save'} strategy`);
     } finally {
       setIsSaving(false);
     }
@@ -253,9 +277,11 @@ export default function StrategyBuilder() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-6 h-6 text-purple-600" />
-                Professional Strategy Builder
+                {isEditMode ? 'Edit Strategy' : 'Professional Strategy Builder'}
               </h1>
-              <p className="text-sm text-gray-600">Create custom trading strategies with powerful expressions</p>
+              <p className="text-sm text-gray-600">
+                {isEditMode ? `Editing: ${editingStrategy.name}` : 'Create custom trading strategies with powerful expressions'}
+              </p>
             </div>
           </div>
 
@@ -273,7 +299,7 @@ export default function StrategyBuilder() {
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save Strategy'}
+              {isSaving ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Strategy' : 'Save Strategy')}
             </button>
           </div>
         </div>
